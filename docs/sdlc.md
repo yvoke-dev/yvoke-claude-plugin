@@ -76,7 +76,8 @@ draft pull request before any code is written (decided 2026-10-05).
 - Red, then green, then refactor. A test counts only once it has been seen failing.
 - **A bug fix starts with a failing regression test**, committed on its own. Then `start-task` turns on the
   test freeze: it records the test's commit on the task plan's **Regression test** line, and while that plan
-  is in progress a hook refuses edits to existing test files, so the fix cannot pass by weakening a test.
+  is in progress a hook refuses edits to existing test files and to anything already under a `tests/`
+  folder (helpers, stubs, fixtures), so the fix cannot pass by weakening a test.
   The plan is committed, so the freeze holds in every session (decided 2026-10-05). If the test itself is
   wrong, Claude stops and asks.
 - Claude runs the verification commands from `AGENTS.md` after each step and before saying anything is

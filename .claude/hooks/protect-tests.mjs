@@ -2,10 +2,11 @@
 // until the fix is done, so the fix cannot pass by weakening a test. The freeze is on while a task plan
 // (docs/tasks/<release>/<ID>/plan.md) has **Status:** in progress and a **Regression test:** commit.
 // start-task writes that line, finish-task sets the status to done. The plan is committed, so the
-// freeze holds in every session and checkout of the branch. New test files may still be created.
+// freeze holds in every session and checkout of the branch. Frozen are existing *.test.* files and every
+// existing file under a tests/ folder (helpers, stubs, fixtures). New files may still be created.
 // See docs/sdlc.md.
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve, sep } from 'node:path'
 
 const root = process.env.CLAUDE_PROJECT_DIR || process.cwd()
 
@@ -33,7 +34,7 @@ try {
   const file = input?.tool_input?.file_path || input?.tool_input?.notebook_path
   if (!file) process.exit(0)
   const path = resolve(root, file)
-  const isTest = /\.test\.[cm]?[jt]sx?$/.test(path)
+  const isTest = /\.test\.[cm]?[jt]sx?$/.test(path) || relative(root, path).split(sep).includes('tests')
   if (!isTest || !existsSync(path)) process.exit(0)
   const frozen = frozenTasks()
   if (frozen.length) {

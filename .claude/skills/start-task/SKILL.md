@@ -39,4 +39,5 @@ short description for a bug outside the plan.
    Then add the line `**Regression test:** <that commit's hash>` under the plan's **Release** line.
 7. Set the plan's **Status** to `in progress`, commit the plan, and start the first step of *Order of work*.
    For a bug fix, the test freeze is now on: while a plan is in progress with a **Regression test** line,
-   the hook refuses edits to existing test files, in every session and checkout of the branch.
+   the hook refuses edits to existing test files and to existing files under `tests/`, in every session
+   and checkout of the branch.
