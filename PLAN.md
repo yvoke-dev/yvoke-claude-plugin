@@ -164,10 +164,12 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
   - **Decided 2026-10-05 (Eduard): Team/Enterprise.** An admin adds the Yvoke connector for the organization
     (D-03, Chat/Cowork) and can push the plugin by claude.ai organization sync (route C). With no IT lockdown
     (D-09), route C is a simpler rollout than MDM (route D); P7-04 picks between them.
-- [ ] **D-02** `PO` · `IT` — **How do users get access to the marketplace repository?** Options: users' own
+- [x] **D-02** `PO` · `IT` — **How do users get access to the marketplace repository?** Options: users' own
   GitHub access to a private repo; a public repo containing no playbook text; or yvoke-web serving
   `marketplace.json` and a plugin `archive` behind an auth header.
   - Recommendation: if D-04 chooses live playbooks, the repo holds no playbook text and can be public.
+  - **Decided 2026-10-05 (Eduard): public repo.** It holds no playbook text (D-04); the knowledge stays on
+    the server behind sign-in. Never commit playbook text, secrets or customer data here.
   - Blocks: P7-04.
 - [x] **D-03** `server` · `plugin` — **How does Claude Code reach the Yvoke MCP server, and how does it sign
   in?** A claude.ai custom connector (already works in Claude sessions today), or a `.mcp.json` entry in the
