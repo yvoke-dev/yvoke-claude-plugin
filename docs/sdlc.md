@@ -16,16 +16,15 @@ AGENTS.md                      rules and verification commands for every agent (
 docs/
 ├── sdlc.md                    this page
 ├── specs/                     what is built today, one file per area; updated by the PR that changes it
-├── tasks/
-│   └── v1/                    one folder per release
-│       ├── intent.md          why, for whom, use cases, constraints, open questions
-│       ├── requirements.md    what the release must do
-│       ├── design.md          architecture, decisions (D-xx), notes for implementers
-│       ├── plan.md            the release's tasks (P0-01 …) with checkboxes
-│       └── P1-08/             one folder per task, created when work starts
-│           ├── plan.md        files, order of work, risks, proof
-│           └── findings.md    spikes only: what was tried and what was learned
-└── reviews/                   external reviews of a release's documents
+└── tasks/
+    └── v1/                    one folder per release
+        ├── intent.md          why, for whom, use cases, constraints, open questions
+        ├── requirements.md    what the release must do
+        ├── design.md          architecture, decisions (D-xx), notes for implementers
+        ├── plan.md            the release's tasks (P0-01 …) with checkboxes
+        └── P1-08/             one folder per task, created when work starts
+            ├── plan.md        files, order of work, risks, proof
+            └── findings.md    spikes only: what was tried and what was learned
 ```
 
 Two kinds of document, kept apart on purpose:
