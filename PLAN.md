@@ -482,8 +482,10 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   - `WebFetch`: URL checked against the allow-list (host or subdomain, path on segment boundaries); hosts in
     `WAF_CHALLENGED_HOSTS` refused first, with an instruction to use `WebSearch`; an empty or unparseable list
     refuses everything.
-  - The domain list comes from deployment configuration (`userConfig` set through managed `pluginConfigs`),
-    never from the user. 🔍 Confirm managed `pluginConfigs` override user values.
+  - The domain list comes from the plugin's `userConfig`, like every other deployment setting (Yvoke folder,
+    role models, budgets). **Decided 2026-10-05:** all settings stay in `userConfig` and are editable by the
+    user, as in yvoke-desktop; where IT deploys managed `pluginConfigs`, those values apply. 🔍 Confirm in
+    P0-06 that managed `pluginConfigs` override a user's own values; if they do not, record it in section 7.
   - Done when: yvoke-desktop's web cases from `policy.test.ts` pass here.
 - [ ] **P2-05** `plugin` · M — **Safe compute tools.** Register `calculate`, `statistics` and `date_diff` with
   `$.tool.register`, ported from yvoke-desktop's `computeTools.ts` with its `computeTools.test.ts`. Withheld when
