@@ -82,7 +82,7 @@ yvoke-claude-plugin/
 ├── .claude-plugin/marketplace.json ← the repo is its own marketplace
 ├── plugins/yvoke/
 │   ├── .claude-plugin/plugin.json  ← name, version, userConfig, "types"
-│   ├── .mcp.json                   ← Yvoke MCP server, if not provided as a claude.ai connector (D-03)
+│   ├── .mcp.json                   ← Yvoke MCP server for Claude Code (D-03); Chat/Cowork use an org connector
 │   ├── skills/<playbook>/SKILL.md  ← generated from the server's playbooks, Chat/Cowork only (P1-04)
 │   ├── agents/*.md                 ← only if profiles are generated statically (D-06)
 │   ├── hooks/hooks.json            ← { "modules": ["./register.tsx"] }
@@ -166,7 +166,7 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
   `marketplace.json` and a plugin `archive` behind an auth header.
   - Recommendation: if D-04 chooses live playbooks, the repo holds no playbook text and can be public.
   - Blocks: P7-04.
-- [ ] **D-03** `server` · `plugin` — **How does Claude Code reach the Yvoke MCP server, and how does it sign
+- [x] **D-03** `server` · `plugin` — **How does Claude Code reach the Yvoke MCP server, and how does it sign
   in?** A claude.ai custom connector (already works in Claude sessions today), or a `.mcp.json` entry in the
   plugin using MCP OAuth against Entra ID.
   - The mod itself calls the server for live playbooks (P1-07), the citation pane (P3-03), feedback (P4) and
@@ -176,6 +176,10 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
     known at build time) and Chat/Cowork reach instead (review H3).
   - If the server is also offered as a claude.ai or organization connector, use the same URL in `.mcp.json`
     so users who have both see one set of tools.
+  - **Decided 2026-10-05 (Eduard): plugin `.mcp.json` plus an organization connector.** Claude Code uses the
+    plugin's own `.mcp.json` entry (fixed server name, so the mod knows its tool prefix), signing in through
+    the "Yvoke for Claude" Entra client (P0-09, section 11.2). Chat and Cowork use an organization claude.ai
+    connector with the same URL, which the D-10 stubs need. One URL, so users with both see one set of tools.
   - Depends on: P0-04 findings.
   - Blocks: P1-01, P1-02.
 - [x] **D-04** `PO` — **Playbooks: live or copied?** Live: skill stubs (name and description only) are
