@@ -1,4 +1,4 @@
-# Yvoke for Claude v1 — plan
+# Yvoke for Claude v1: plan
 
 > **Status:** draft v4 · 2026-10-05 (split into intent, requirements, design and this plan; all decisions
 > D-01 to D-11 taken). How work moves through these documents is in [docs/sdlc.md](../../sdlc.md).
@@ -70,8 +70,8 @@ a cloud session.
   against the latest release so mod API changes are caught early.
   - `claude plugin test` needs no session, sign-in or network (per the mods test docs). Each test has a
     5-second default timeout; tests that stub slow model calls set `timeoutMs`.
-  - A check that `CLAUDE.md` is still exactly `@AGENTS.md`, in place of yvoke-desktop's
-    `AgentRuleFilesParity` test.
+  - `node scripts/check-docs.mjs` (links, anchors, and `CLAUDE.md` being exactly `@AGENTS.md`, in place of
+    yvoke-desktop's `AgentRuleFilesParity` test).
   - Done when: a deliberately broken test turns the workflow red, and restoring it turns it green.
 - [ ] **P0-03** `plugin` · S — **Contributor guide** (`docs/contributing.md`):
   - terminal: `claude --plugin-dir plugins/yvoke`;

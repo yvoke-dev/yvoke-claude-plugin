@@ -1,4 +1,4 @@
-# Yvoke for Claude: requirements
+# Yvoke for Claude v1: requirements
 
 What the plugin must do. Why it exists and who uses it is in [intent.md](intent.md); how it is built is
 in [design.md](design.md); the tasks that deliver each requirement, with their **Done when** tests, are in

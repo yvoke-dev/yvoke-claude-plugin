@@ -12,9 +12,10 @@ Follow [docs/sdlc.md](../../../docs/sdlc.md), step 5. The argument is the task I
 2. **Check the task plan.** `docs/tasks/<release>/<ID>/plan.md` must match what was done; update it if not.
    Set its **Status** to `done`.
 3. **Bug fix only:** take the regression-test commit from the second line of `.claude/state/fix-mode` and
-   run `git diff --stat --diff-filter=M <commit> HEAD -- '*.test.*'`. It must print nothing: no existing
-   test changed after that commit, including through shell commands the hook cannot see. Then delete
-   `.claude/state/fix-mode`.
+   run `git diff --stat --diff-filter=a <commit> -- '*.test.*'` (lower-case `a`: everything except added
+   files, compared with the working tree). It must print nothing: no existing test was changed, deleted
+   or renamed after that commit, committed or not, including through shell commands the hook cannot see.
+   Then delete `.claude/state/fix-mode`.
 4. **Update the specs.** Add or change the `docs/specs/` files for the behaviour this task delivered
    (Behaviour, Interfaces, Tests, History). A spike changes no spec; its `findings.md` is enough.
 5. **Update the release documents.** Tick the task in the release `plan.md` with the pull request link.

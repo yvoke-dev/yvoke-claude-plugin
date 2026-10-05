@@ -1,4 +1,4 @@
-# Yvoke for Claude: design
+# Yvoke for Claude v1: design
 
 How the plugin is built. Why it exists is in [intent.md](intent.md), what it must do is in
 [requirements.md](requirements.md), and the tasks are in [plan.md](plan.md).
@@ -104,7 +104,7 @@ yvoke-claude-plugin/
 │   ├── src/                        ← server client, policy, setup, citations, orchestration, …
 │   ├── types/index.d.ts            ← contract for $.state values
 │   └── tests/*.test.ts             ← `claude plugin test plugins/yvoke`
-├── scripts/                        ← skill stub generator, release helpers
+├── scripts/                        ← docs check, skill stub generator, release helpers
 ├── deploy/                         ← managed-settings template for IT (P7-03)
 ├── docs/                           ← sdlc.md, specs/ (what is built), tasks/<release>/ (intent, requirements,
 │                                     design, plan, one folder per task), user guide, security review
@@ -345,7 +345,7 @@ the same PR.
 
   ```ts
   on('tool.call', enforcePolicy).catch(() => ({ deny: 'Yvoke: the policy check failed, so this tool was not run.' }))
-  on('skill.prompt', livePlaybook).catch(() => ({ text: 'Tell the user: "Yvoke Backend: the playbook could not be loaded." Do not answer the question.' }))
+  on('prompt.submit', lockSetup).catch(() => ({ drop: 'Yvoke Backend: the session could not be set up, so the question was not sent.' }))
   ```
 
   Tests cover the throw and the timeout path for each one.
