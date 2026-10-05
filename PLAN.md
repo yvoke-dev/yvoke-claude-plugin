@@ -178,13 +178,18 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
     so users who have both see one set of tools.
   - Depends on: P0-04 findings.
   - Blocks: P1-01, P1-02.
-- [ ] **D-04** `PO` — **Playbooks: live or copied?** Live: skill stubs (name and description only) are
+- [x] **D-04** `PO` — **Playbooks: live or copied?** Live: skill stubs (name and description only) are
   generated, and the mod fetches each playbook's text when it is invoked (needs server task P1-06). Copied:
   full `SKILL.md` text generated into the repo by a scheduled job.
   - Recommendation: **live**, to keep yvoke-desktop's "no stale instructions" rule. Copied text also
     works in Chat and Cowork, where no mod runs, so Chat/Cowork may need copied text either way (see P8-01).
   - **Claude Code is settled by D-11** (live, through the mod, no skills). This decision now covers only
     Chat and Cowork.
+  - **Decided 2026-10-05: live stubs everywhere.** Each generated Chat/Cowork skill holds only the
+    playbook's name and description and tells Claude to call `get_playbook` with that name first and follow
+    what it returns. No playbook text is ever committed, so the public repo stays public (D-02). Risk: in
+    Chat and Cowork nothing enforces the call; if P0-08 shows the model skipping it, fall back to copied text
+    in a separate private marketplace.
   - Blocks: P1-04, P1-05.
 - [ ] **D-05** `plugin` — **Naming.** The plugin name is user-facing (`/yvoke:<skill>`) and prefixes the
   mod's own tools (`mcp__<plugin>__<tool>`). The server's tool names differ by how it is reached: a server
@@ -652,8 +657,10 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
 ### Phase 8 — Chat and Cowork (lower fidelity; only if D-10 says yes)
 
 - [ ] **P8-01** `plugin` · S — **Playbook skills usable in Chat and Cowork.** Without a mod, a stub cannot
-  fetch its text, so Chat/Cowork need either copied playbook text or a stub that tells Claude to call
-  `get_playbook` first. ⛔ D-04, D-10
+  fetch its text itself, so each stub tells Claude to call `get_playbook` first (D-04 decided: live stubs).
+  ⛔ D-10, P1-06
+  - Done when: in Chat and Cowork, invoking a stub makes Claude call `get_playbook` before answering, in the
+    P0-08 spike's test conversations.
   - Skills for these surfaces use only the portable frontmatter fields (`name`, `description`, `license`,
     `compatibility`, `metadata`, `allowed-tools`); Claude Code extras such as `disallowed-tools`,
     `context: fork` and `!` command injection do not apply there.
