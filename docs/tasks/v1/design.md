@@ -289,8 +289,9 @@ the same PR.
 
 - **The Yvoke MCP server** today exposes `search_corpus`, `get_section`, `get_toc`, `list_documents`,
   `get_graph_neighbors`, `search_graph_entities`, `query_json_objects`, `get_json_schema`,
-  `verify_citations` and `ask_clarifying_question`. `get_playbook`, `submit_feedback`, `list_profiles` and
-  the sync tools do not exist yet (P1-06, P4-01, P6-01, P5-01). Server code lives in `yvoke-dev/yvoke-web`.
+  `verify_citations` and `ask_clarifying_question`. `get_system_prompt`, `list_areas`, `list_playbooks`,
+  `get_playbook`, `list_profiles`, `submit_feedback` and the sync tools do not exist yet (P1-01, P1-12, P1-06,
+  P6-01, P4-01, P5-01). Server code lives in `yvoke-dev/yvoke-web`.
 - **What yvoke-desktop reads over REST, and the plugin's route for it.** The desktop calls yvoke-web's REST
   API (`/api/chat/v1`, `SyncClient.ts`) with its own Entra bearer token, and reads playbooks as MCP
   *prompts*. The mod has neither: Claude Code keeps the connector's token to itself, the only other key
@@ -486,12 +487,14 @@ need an area attribute, and an area a default playbook. 🔍 `DesktopSyncControl
 
 yvoke-web's spec says AI clients and the in-app assistant share one tool set, so a new tool is offered to
 the web's own assistant and to every connected client, including the model in Claude Code and Chat.
-`get_playbook`, `submit_feedback` and the sync tools are meant for the mod, not for any model.
+`submit_feedback` and the sync tools are meant for the mod, not for any model. `get_system_prompt`,
+`list_playbooks` and `get_playbook` are called by the mod in Claude Code and by the model in Chat and Cowork,
+when a playbook stub tells it to (D-04, D-12, P8-01).
 
 - Recommended: keep them on the same `/mcp` server (one sign-in) and leave them out of the in-app
   assistant's tool set. In Claude Code the mod's deny-by-default already stops the model from calling them,
   and the mod reaches them through `$.mcp.call`, which is not a model tool call. In Chat and Cowork the model
-  sees them; tool descriptions should say they are for the client, not for answering.
+  sees them; their descriptions should say to call them only when a Yvoke playbook skill says so.
 - Alternative: a second MCP endpoint (for example `/mcp/client`) with only these tools, listed as a second
   server in the plugin's `.mcp.json`. Cleaner separation, but a second connection to sign in.
 

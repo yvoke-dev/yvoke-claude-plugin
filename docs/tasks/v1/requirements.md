@@ -88,8 +88,8 @@ Every Yvoke Desktop capability, where it lands, and which tasks deliver it. Chap
 
 | Yvoke Desktop capability | Spec | Claude Code (mod) | Cowork | Chat | Tasks |
 | --- | --- | --- | --- | --- | --- |
-| Knowledge-base tools (search, sections, graph, records) | 2 | ✅ connector | ✅ | ✅ | P1-01, P1-02 |
-| Base instructions from the server | 2 | ✅ | ✅ | 🔍 | P1-01 |
+| Knowledge-base tools (search, sections, graph, records) | 2 | ✅ connector | ✅ | ✅ | P0-09, P1-02 |
+| Base instructions from the server | 2 | ✅ | ✅ stub fetches them | ✅ stub fetches them | P1-01, P1-07, P8-01 |
 | Playbooks (pick, `/` autocomplete, sticky per conversation) | 1, 2 | ✅ setup band, fixed per session (D-11) | ✅ live stubs | ✅ live stubs | P1-04 – P1-08, P1-12, P8-01 |
 | Playbook required for a single-agent question | 1 | ✅ (the default `oim-full` applies) | — | — | P1-08 |
 | Playbook preflight check | 1, 2 | ✅ | — | — | P2-06 |

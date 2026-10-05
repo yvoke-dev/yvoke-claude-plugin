@@ -1,6 +1,6 @@
 # Yvoke for Claude v1: intent
 
-**Author:** Eduard · **Status:** accepted (decisions D-01 to D-11 taken 2026-10-05) · **Updated:** 2026-10-05
+**Author:** Eduard · **Status:** accepted (decisions D-01 to D-13 taken 2026-10-05) · **Updated:** 2026-10-05
 
 Why we are building the plugin, who it is for, and what they will do with it. What the plugin must do is in
 [requirements.md](requirements.md), how it is built is in [design.md](design.md), and the work and its
@@ -62,7 +62,7 @@ Each use case names the tasks in [plan.md](plan.md) that deliver it.
 | U7 | Consultant | **Answer a clarifying question** | When the question is ambiguous, Claude asks with its native question prompt, then continues. | P1-09, P6-08 |
 | U8 | Consultant | **Start over with another setup** | Area, mode and playbook are fixed once the first question is sent. `/clear` ends the Yvoke session, and `/yvoke` starts a new one with a fresh setup band; `/resume` brings back an old session with its setup. | P1-08 |
 | U9 | Developer on the same laptop | **Code as usual** | In any session where they did not type `/yvoke`, Claude Code behaves exactly as before. | P1-10 |
-| U10 | Chat or Cowork user | **Use a playbook outside Claude Code** | Invokes a Yvoke playbook skill. Claude fetches the playbook from the server and answers from the knowledge base, without the setup band, the tool rules or the source pane. | P1-04, P8-01 |
+| U10 | Chat or Cowork user | **Use a playbook outside Claude Code** | Invokes a Yvoke playbook skill. Claude fetches the playbook from the server and answers from the knowledge base, without the setup band, the tool rules or the source pane. | P1-01, P1-04, P1-06, P8-01 |
 | U11 | Anyone | **Server unreachable** | The question fails with a `Yvoke Backend:` message. There is no stale cached answer. | P1-03, P1-07 |
 | U12 | Consultant | **Very long question** | A loop that hits the turn ceiling still delivers what it has, marked *stopped at the turn limit*. | P2-08 |
 
