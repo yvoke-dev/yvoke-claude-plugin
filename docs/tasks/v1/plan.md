@@ -64,7 +64,8 @@ a cloud session.
     first, no secrets in logs, smallest change at the root cause).
   - Done when: `claude plugin validate .` and `claude plugin validate plugins/yvoke` pass, and the plugin
     loads with `claude --plugin-dir plugins/yvoke`.
-- [ ] **P0-02** `plugin` · M — **CI.** GitHub Actions on every push and PR:
+- [ ] **P0-02** `plugin` · M — **CI.** Extend `.github/workflows/ci.yml` (added 2026-10-05 with only the docs
+  check) so it runs on every push and PR:
   `claude plugin validate` (marketplace and plugin), `tsc --noEmit`, `claude plugin test plugins/yvoke`.
   Run on the pinned minimum Claude Code version and on the latest release, plus a weekly scheduled run
   against the latest release so mod API changes are caught early.
