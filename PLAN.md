@@ -734,6 +734,28 @@ the same PR.
   `get_graph_neighbors`, `search_graph_entities`, `query_json_objects`, `get_json_schema`,
   `verify_citations` and `ask_clarifying_question`. `get_playbook`, `submit_feedback`, `list_profiles` and
   the sync tools do not exist yet (P1-06, P4-01, P6-01, P5-01). Server code lives in `yvoke-dev/yvoke-web`.
+- **What yvoke-desktop reads over REST, and the plugin's route for it.** The desktop calls yvoke-web's REST
+  API (`/api/chat/v1`, `SyncClient.ts`) with its own Entra bearer token, and reads playbooks as MCP
+  *prompts*. The mod has neither: Claude Code keeps the connector's token to itself, the only other key
+  yvoke-web accepts is the shared ingest machine key (`ApiKeyAuthenticationFilter`, `ROLE_INGEST`), which
+  must never ship to users, and the mod API cannot read MCP prompts. So every one of these becomes an MCP
+  tool on yvoke-web, authenticated by the connector's sign-in. Each is a thin wrapper: yvoke-web's MCP tools
+  are Spring AI `@Tool` classes in `src/main/java/de/palsoftware/yvoke/mcp/tools/`, and
+  `chat/api/DesktopSyncController.java` already holds the logic.
+
+  | yvoke-desktop call | Plugin route | Task |
+  | --- | --- | --- |
+  | `GET /prompts/system/default-chat` (base instructions) | MCP `instructions`, or a `get_system_prompt` tool | P1-01 |
+  | MCP `prompts/list` + `prompts/get` (playbooks) | `list_playbooks` / `get_playbook` tools (with areas) | P1-06, P1-12 |
+  | `GET /orchestrator/profiles` | `list_profiles` / `get_profile` tools | P6-01 |
+  | `PUT /messages/{id}/feedback` | `submit_feedback` tool, self-contained (D-08) | P4-01 |
+  | `/conversations…`, `/messages`, `POST /orchestrator/runs` | sync and trace tools, only if D-07 says yes | P5-01 |
+
+  Worst case, if a server tool cannot be added in time: the read-only configuration (base instructions,
+  playbooks, profiles) can be generated into the repository by a scheduled job (P1-05's mechanism). The repo
+  is public, it goes stale between runs, and it breaks yvoke-desktop decision #14. Feedback and sync have no
+  such fallback. A sign-in of the mod's own (Entra device-code flow over `$.http.fetch`) is possible but
+  rejected: it would keep a refresh token in plain JSON in `$.store`.
 
 ### 10.2 The mod API: where the truth is
 
