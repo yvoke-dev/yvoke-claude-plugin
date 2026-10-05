@@ -44,4 +44,5 @@ Run these before saying anything is done, and show the output. Each must pass.
 | Tests | `claude plugin test plugins/yvoke` | every test passes, none skipped (from P0-01) |
 
 Rows marked "from P0-01" apply once the plugin scaffold exists. P0-01 fills in any missing detail, and
-P0-02 runs the same commands in CI.
+CI (`.github/workflows/ci.yml`) runs the docs
+check today; P0-02 adds the other rows.
