@@ -401,7 +401,8 @@ The spikes de-risk everything later in the plan. Record each spike's findings in
 - [ ] **P1-07** `plugin` · M — **System prompt from the server.** When the session's setup locks (P1-08),
   the mod fetches the base instructions and, in single-agent mode, the playbook's text (P1-06), and serves
   them from a `prompt.compose` hook as one `scope: 'session'` section: base instructions plus the playbook
-  text, in the order Q4 of the 2026-10-05 review sets. A fetch failure drops the question with a clear
+  text, **base instructions first and the playbook after them** (decided 2026-10-05, as in yvoke-desktop:
+  the playbook's rules win any conflict). A fetch failure drops the question with a clear
   `Yvoke Backend:` message and keeps the setup unlocked. There is deliberately no cached fallback.
   ⛔ D-11, P1-06
   - Done when: tests cover success, server down, unknown playbook, and a hook failure (fails closed).
