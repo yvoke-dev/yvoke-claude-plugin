@@ -224,7 +224,10 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
     options are mod-only enforcement, or an organization-managed policy mod (`prependPlugins`) that applies
     the deny only inside the Yvoke folder. 🔍 Confirm whether users can disable a managed policy mod.
   - Blocks: P2-07.
-- [ ] **D-10** `PO` — **Is Chat/Cowork support in scope for v1**, or Claude Code only?
+- [x] **D-10** `PO` — **Is Chat/Cowork support in scope for v1**, or Claude Code only?
+  - **Decided 2026-10-05 (Eduard): Claude Code plus playbook stubs.** v1 is built for Claude Code. Chat and
+    Cowork get only the live playbook stubs (P8-01) over the Yvoke connector: knowledge-base answers with a
+    playbook, but no setup band, scoping, rating or multi-agent mode there. P8-02 to P8-04 move after v1.
   - Blocks: Phase 8.
 - [x] **D-11** `PO` · `plugin` — **In Claude Code, are playbooks skills or mod state?**
   - **Decided 2026-10-05 (Eduard): mod state, chosen once per session.** A small Yvoke UI in the session
@@ -676,23 +679,23 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   active playbook or profile. Uses P1-03; never prints tokens or other secrets.
   - Done when: tests cover a healthy session, outside the folder, server not connected and signed out.
 
-### Phase 8 — Chat and Cowork (lower fidelity; only if D-10 says yes)
+### Phase 8 — Chat and Cowork (lower fidelity; D-10: only P8-01 in v1)
 
 - [ ] **P8-01** `plugin` · S — **Playbook skills usable in Chat and Cowork.** Without a mod, a stub cannot
   fetch its text itself, so each stub tells Claude to call `get_playbook` first (D-04 decided: live stubs).
-  ⛔ D-10, P1-06
+  In v1 (D-10). ⛔ P1-06
   - Done when: in Chat and Cowork, invoking a stub makes Claude call `get_playbook` before answering, in the
     P0-08 spike's test conversations.
   - Skills for these surfaces use only the portable frontmatter fields (`name`, `description`, `license`,
     `compatibility`, `metadata`, `allowed-tools`); Claude Code extras such as `disallowed-tools`,
     `context: fork` and `!` command injection do not apply there.
-- [ ] **P8-02** `plugin` · M — **Cowork hooks** (`hooks.json` command hooks): `PreToolUse` scoping of
+- [ ] **P8-02** `plugin` · M — *After v1 (D-10).* **Cowork hooks** (`hooks.json` command hooks): `PreToolUse` scoping of
   `mcp__…` tools by active playbook; `Stop` blocking a lead from finishing without review. Command hooks keep
   no state, so each call works out the active playbook and whether review ran from the transcript at
   `transcript_path`. ⛔ P0-08
-- [ ] **P8-03** `server` · M — **MCP App widgets** rendered in Chat/Cowork: a sources viewer and a feedback
+- [ ] **P8-03** `server` · M — *After v1 (D-10).* **MCP App widgets** rendered in Chat/Cowork: a sources viewer and a feedback
   form that posts to `submit_feedback`.
-- [ ] **P8-04** `server` · S — **Citation URLs in tool results**, so answers in Chat/Cowork can link each
+- [ ] **P8-04** `server` · S — *After v1 (D-10).* **Citation URLs in tool results**, so answers in Chat/Cowork can link each
   citation to the passage page from P3-04.
 
 ---
