@@ -619,6 +619,11 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   the reviewer's Approved/Rejected badge with notes, and the unapproved-answer banner (*delivered without
   review*, *no clear verdict*, *rejected*). A specialist's answer can exceed the 10,000-character element
   limit: show the start on the card and the rest in a pane.
+  - **Rejected drafts (decided 2026-10-05):** a `ui.render` hook on `AssistantMessage` and on the
+    mod-originated revision prompt (`UserMessage` with a plugin origin) draws each rejected draft and its
+    revision prompt as one collapsed *Draft rejected by reviewer* row that opens on click, so the final
+    answer reads clean. Drawing only: the stored transcript, `/resume` and copy keep the draft, which is
+    recorded in section 7.
 - [ ] **P6-08** `plugin` · S — **A specialist's clarifying question** is shown to the user, not left as a
   locked composer with nothing to answer (yvoke-desktop limit).
 
@@ -698,6 +703,8 @@ Write things down here when they are decided against, so nobody "fixes" them by 
   The other direction is handled: outside the Yvoke folder the mod changes nothing (P1-10), but the
   playbook skills and the Yvoke connector are still offered in every session.
 - **Company cost reporting.** Model usage stays on each user's Claude subscription, as with Yvoke Desktop.
+- **Removing a rejected draft from the record.** Claude Code keeps every turn; the mod only collapses
+  rejected drafts on screen (P6-07). The transcript, `/resume` and copy still contain them.
 - **Behaviour in VS Code, WSL and cloud sessions.** Hooks may run there, but no UI is drawn (or no plugin
   loads at all); not supported.
 
