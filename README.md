@@ -6,7 +6,10 @@ Yvoke knowledge base, and multi-agent investigations with enforced review.
 - **Claude Code** (the Claude Desktop app's **Code** tab and the terminal): full feature set, through a mod.
 - **Cowork** and **Chat**: live playbook stubs over the Yvoke connector, with fewer guarantees.
 
-**Status:** planning. Nothing is implemented yet.
+**Status:** scaffold. The plugin installs and loads, but does nothing yet.
+
+Try it from a clone: `claude --plugin-dir plugins/yvoke`, or add the clone as a local marketplace with
+`claude plugin marketplace add .` and install `yvoke@yvoke`.
 
 | Document | What it covers |
 | --- | --- |

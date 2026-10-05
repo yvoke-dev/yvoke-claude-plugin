@@ -1,6 +1,6 @@
 # P0-01 Repository scaffold
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** done
 
 The empty plugin that every later task builds on: a marketplace at the repository root, one plugin
 `yvoke` with a mod that does nothing yet, type-checking, one test, and the plugin rows of the verification
@@ -19,13 +19,13 @@ the type declarations; loading the plugin with `claude --plugin-dir <dir> -p …
 | `plugins/yvoke/.claude-plugin/plugin.json` | New. `name: "yvoke"` (D-05), `version: "0.1.0"`, description, author, homepage, repository, `"types": "./types/index.d.ts"`. No `userConfig` yet: the first setting, `serverUrl`, comes with `.mcp.json` in P0-11 (D-14). |
 | `plugins/yvoke/hooks/hooks.json` | New. `{ "modules": ["./register.tsx"] }`. |
 | `plugins/yvoke/hooks/register.tsx` | New. `export const register: Register = (on) => {}`, with one comment saying each feature adds one line here from its own `src/` module (plan.md, "Order of work"). Registers no hook, so every event reaches the engine unchanged. |
-| `plugins/yvoke/types/index.d.ts` | New. The `$.state` contract: `PluginState.yvoke`, empty for now. P1-10 adds the session flag. |
+| `plugins/yvoke/types/index.d.ts` | New. The `$.state` contract: `PluginState.yvoke`, typed by an exported `YvokeState`, empty for now. A contract may export only types (`export {}` is refused). P1-10 adds the session flag. |
 | `plugins/yvoke/tests/scaffold.test.ts` | New. The one test (see *Proof*). |
 | `plugins/yvoke/tsconfig.json` | New. Extends the engine's `./.claude-plugin/types/tsconfig.json` and adds `src`, so editors type-check the mod. |
-| `tsconfig.json` (root) | New. Extends the same file, so `npx tsc --noEmit` from the root checks `hooks`, `src`, `types` and `tests`. |
+| `tsconfig.json` (root) | New. Extends `plugins/yvoke/tsconfig.json`, so `npx tsc --noEmit` from the root checks `hooks`, `src`, `types` and `tests`. |
 | `package.json` (root) | New. `private`, `"type": "module"`, `typescript` (pinned) as the only dev dependency, and scripts `types`, `typecheck`, `test`, `validate`, `check`. No runtime dependencies: the mod cannot import npm packages. |
 | `package-lock.json` | New, from `npm install`. |
-| `scripts/lay-types.mjs` | New. Starts `claude --plugin-dir plugins/yvoke -p` with the model pointed at an unreachable address, waits until `plugins/yvoke/.claude-plugin/types/claude-code/index.d.ts` exists, then stops it. Exits 1 if the file does not appear within 60 s. Needs no sign-in, so CI (P0-02) can run it too. |
+| `scripts/lay-types.mjs` | New. Starts `claude --plugin-dir plugins/yvoke -p` with the model pointed at an unreachable address, waits until `plugins/yvoke/.claude-plugin/types/claude-code/index.d.ts` exists, then stops it. Exits 1 if the file does not appear within 60 s. Uses a throwaway `CLAUDE_CONFIG_DIR`, so it leaves nothing in the developer's history. Needs no sign-in, so CI (P0-02) can run it too. |
 | `.gitignore` | Add `plugins/yvoke/.claude-plugin/types/` (design 4.2: never commit it). |
 | `AGENTS.md` | Fill in the "from P0-01" rows: the exact commands, `npm run types` before `npx tsc --noEmit`, and what a healthy run prints, taken from real runs. |
 | `README.md` | Status line: scaffold in place, nothing a user can see yet. Add a "Try it" line: `claude --plugin-dir plugins/yvoke`. |
@@ -44,7 +44,7 @@ jobs for the plugin checks (P0-02), the contributor guide (P0-03), `src/` module
    the saved copy, and check with `diff -q` that it is back.
 3. **Marketplace.** Add `.claude-plugin/marketplace.json`. Run `claude plugin validate .` and
    `claude plugin validate plugins/yvoke`; both exit 0, and the plugin's `calls:` line names no `$.fs`,
-   `$.process` or `$.http`. Fix any warning; try `--strict` and keep it passing if the engine allows.
+   `$.process` or `$.http`. Fix any warning. Both pass `--strict`, so the verification table uses it.
 4. **Types.** Add `types/index.d.ts`, `scripts/lay-types.mjs`, both `tsconfig.json` files, `package.json`
    and the `.gitignore` line. Run `npm install`, `npm run types`, `npx tsc --noEmit`: no output, exit 0.
    Then put a deliberate type error in `register.tsx`, see `tsc` fail, and restore.
@@ -79,8 +79,10 @@ jobs for the plugin checks (P0-02), the contributor guide (P0-03), `src/` module
   the plugin loads with `claude --plugin-dir plugins/yvoke`. Shown by steps 3 and 5, with their output in
   the pull request.
 - `tests/scaffold.test.ts`: "the plugin loads and leaves a tool call unchanged": a test hook beneath the
-  plugin answers `tool.call`, the test makes a call through `$.tool.call`, and asserts the answer arrives
-  as given. Seen failing in steps 1 and 2.
+  plugin answers `tool.call`, the test makes a call through `$.tool.call`, and asserts that the answer arrives
+  as given and the hook saw the tool name and arguments as sent (they sit flat on `e`, beside `tool`).
+  Seen failing in step 1 (no module) and in step 2 against two mutants: one denying every call, one
+  rewriting the arguments.
 - Every row of `AGENTS.md`'s verification table, run and shown in the pull request:
   `node scripts/check-docs.mjs`, `claude plugin validate .`, `claude plugin validate plugins/yvoke`,
-  `npm run types && npx tsc --noEmit`, `claude plugin test plugins/yvoke`.
+  `npm run typecheck`, `claude plugin test plugins/yvoke`. `npm run check` runs all of them.
