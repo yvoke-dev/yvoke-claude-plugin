@@ -136,8 +136,8 @@ Claude Code engine (Desktop Code tab / terminal)
   release (P0-02), and the minimum supported version is pinned (P7-07). Mods need **Claude Code ≥ v2.1.287**.
 - **Mods are not sandboxed** and run with the user's permissions. `claude plugin validate` lists every API a
   mod calls; keep that list minimal (no `$.fs`, no `$.process`) so security review is easy (P7-06).
-- A user can **disable the plugin**. Hard guarantees (no shell, no file writes) need managed settings from IT
-  (P2-07). The mod's own enforcement is the default, not the last line of defence.
+- A user can **disable the plugin**. That is accepted (D-09): using Yvoke is opt-in, so the mod's rules keep
+  answers grounded for users who choose it, and are not a security boundary. No IT lockdown.
 - If IT sets **`allowManagedModsOnly`**, mods installed from Git or claude.ai sync stop loading. Only a mod
   copied by MDM into an admin-only directory marketplace counts as the organization's (P7-04).
 - In the Code tab, **no mod loads until the user trusts the session's folder**. Users will keep a dedicated
@@ -157,7 +157,7 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
   - Decides the distribution route: Pro/Max → Git marketplace, ideally pushed by MDM managed settings
     (route B); Team/Enterprise → claude.ai organization sync (route C) is also available.
   - Blocks: P7-03, P7-04.
-  - **Install route decided 2026-10-05** (together with D-09 and P7-04): the pilot installs from the Git
+  - **Install route decided 2026-10-05** (together with P7-04): the pilot installs from the Git
     marketplace (route A or B); rollout moves to an MDM-copied directory marketplace (route D) once IT
     enforces policy. Plugins from Git, a URL or claude.ai sync always run as *user* mods: they cannot be
     listed in `prependPlugins` and do not load under `allowManagedModsOnly`. Still open: which plans users have.
@@ -230,12 +230,15 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
     Phase 5, and a rating attaches to the synced message id as in yvoke-desktop, so `submit_feedback` wraps
     the existing feedback store and needs no new storage. The self-contained payload is not built.
   - Blocks: P4-01.
-- [ ] **D-09** `IT` — **Lockdown level.** Mod-only enforcement (user can disable the plugin), or managed
+- [x] **D-09** `IT` — **Lockdown level.** Mod-only enforcement (user can disable the plugin), or managed
   settings that deny `Bash`, `Write`, `Edit`, etc. on consultant machines.
   - Managed `permissions.deny` applies to every Claude Code session on the machine, not only the Yvoke
     folder. It suits consultant-only machines. On machines where users also code with Claude Code, the
     options are mod-only enforcement, or an organization-managed policy mod (`prependPlugins`) that applies
     the deny only inside the Yvoke folder. 🔍 Confirm whether users can disable a managed policy mod.
+  - **Decided 2026-10-05 (Eduard): mod only, no IT lockdown.** Users opt in by installing the plugin and
+    working in the Yvoke folder; Claude Code's own permission prompts still guard shell and file tools. The
+    mod's in-folder rules (P2-01 to P2-03) stay, as answer quality rather than security. P2-07 is dropped.
   - Blocks: P2-07.
 - [x] **D-10** `PO` — **Is Chat/Cowork support in scope for v1**, or Claude Code only?
   - **Decided 2026-10-05 (Eduard): Claude Code plus playbook stubs.** v1 is built for Claude Code. Chat and
@@ -267,7 +270,7 @@ Every Yvoke Desktop capability, where it lands, and which tasks deliver it. Chap
 | Playbooks (pick, `/` autocomplete, sticky per conversation) | 1, 2 | ✅ setup band, fixed per session (D-11) | ✅ (skills) | ✅ (skills) | P1-04 – P1-08, P1-12 |
 | Playbook required for a single-agent question | 1 | ✅ (the default `oim-full` applies) | — | — | P1-08 |
 | Playbook preflight check | 1, 2 | ✅ | — | — | P2-06 |
-| Deny by default; no shell | 2 | ✅ + managed settings | hooks | n/a | P2-01, P2-07 |
+| Deny by default; no shell | 2 | ✅ | hooks | n/a | P2-01 |
 | Per-playbook tool scoping | 2 | ✅ | hooks | server only | P2-02, P2-03, P8-02 |
 | Safe compute tools | 2 | ✅ | — | — | P2-05 |
 | Domain-restricted web search/fetch, WAF hosts refused | 2, 6 | ✅ | hooks | — | P2-04 |
@@ -523,10 +526,10 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
     model does not look like a frozen app. Time spent inside `$.model.complete` does not count against a
     hook's 10-second limit.
   - Done when: tests cover fit, better match, timeout, unparseable reply and unknown suggestion.
-- [ ] **P2-07** `IT` · `plugin` · S — **Managed-settings lockdown template** (`deploy/managed-settings.lockdown.json`):
+- ~~**P2-07** `IT` · `plugin` · S — **Managed-settings lockdown template** (`deploy/managed-settings.lockdown.json`):
   `permissions.deny` for `Bash`, `Write`, `Edit`, `NotebookEdit`, and the plugin enabled at managed scope so
-  users cannot disable it. The deny applies to the whole machine (see D-09). ⛔ D-09
-  - Done when: on a test machine, the denied tools stay denied with the plugin disabled.
+  users cannot disable it. The deny applies to the whole machine (see D-09). ⛔ D-09~~
+  Dropped: no IT lockdown (D-09).
 
 - [ ] **P2-08** `plugin` · M — **Turn ceilings per question** (decided 2026-10-05). The mod counts the model
   requests of each question per loop (`turn.step`, keyed by `turnId` and `agentId`) and enforces
@@ -740,11 +743,11 @@ Write things down here when they are decided against, so nobody "fixes" them by 
 | Desktop surface lacks a UI feature the terminal has (e.g. link clicks) | Citation UX differs | Decided by spike P0-05; button-row fallback |
 | Connector sign-in does not work in Claude Code | No MVP | Spike P0-04 first; server-side auth work early |
 | Users cannot reach a private repo | Install and updates fail | D-02: public repo without playbook text, or archive served by yvoke-web |
-| Users disable the plugin | Policy not enforced | Managed-settings lockdown (P2-07) |
-| The mod blocks users' other Claude Code work (it runs in every session) | Coding sessions lose shell and file tools; every prompt needs a playbook | Enforce only in the Yvoke folder (P1-10); machine-wide lockdown only on consultant-only machines (D-09) |
+| Users disable the plugin | Policy not enforced | Accepted: Yvoke is opt-in (D-09) |
+| The mod blocks users' other Claude Code work (it runs in every session) | Coding sessions lose shell and file tools; every prompt needs a playbook | Enforce only in the Yvoke folder (P1-10); no IT lockdown (D-09) |
 | A `tool.call` hook cannot tell which agent made the call | Lead-only rules (P6-04) cannot be enforced | Spike P0-07 before Phase 6 is designed; the budget (P6-06) uses `agent.spawn` instead |
 | The mod cannot reach a claude.ai connector in practice (documented as working through `$.mcp.call`) | Live playbooks, citation pane, feedback and sync have no server | Spike P0-04; fall back to `.mcp.json` |
-| A policy hook throws or times out, or mods are off (`disableAllHooks`, `--safe-mode`, hooks worker crashed) | The tool runs or the prompt goes through: policy fails open | `.catch` on every enforcing hook (section 10.4); managed `permissions.deny` as the floor (D-09) |
+| A policy hook throws or times out, or mods are off (`disableAllHooks`, `--safe-mode`, hooks worker crashed) | The tool runs or the prompt goes through: policy fails open | `.catch` on every enforcing hook (section 10.4); Claude Code's permission prompts still apply |
 | Server tasks are on the critical path (P1-01, P1-06 for M1; P4-01 for M3; P5-01, P6-01 later) | Plugin work waits on yvoke-web | Agree dates for the `server` tasks with the yvoke-web team before Phase 1 starts |
 | Non-developer users find the Code tab, folder trust and slash commands unfamiliar | Slow adoption; support load | Scripted folder setup (P7-08), user guide (P7-05), pilot measures onboarding (P7-09) |
 
