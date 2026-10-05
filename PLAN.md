@@ -507,6 +507,16 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   users cannot disable it. The deny applies to the whole machine (see D-09). ⛔ D-09
   - Done when: on a test machine, the denied tools stay denied with the plugin disabled.
 
+- [ ] **P2-08** `plugin` · M — **Turn ceilings per question** (decided 2026-10-05). The mod counts the model
+  requests of each question per loop (`turn.step`, keyed by `turnId` and `agentId`) and enforces
+  configurable ceilings from `userConfig`: single agent 25, lead 60, each specialist and the reviewer 20
+  (yvoke-desktop's shipped values). At the ceiling it **delivers rather than discards**: further tool calls
+  in that loop are denied with a message telling the model to answer now with what it has, and the answer
+  is flagged (*stopped at the turn limit*) by a line under it. A specialist at its ceiling returns its
+  partial answer to the lead. Fails closed (3.3). Port the ceiling cases from yvoke-desktop's tests where
+  they exist.
+  - Done when: tests cover under the limit, at the limit for each role, the flag line, and a hook failure.
+
 ### Phase 3 — Citations
 
 **Milestone M2:** every citation in an answer opens the passage it names.
