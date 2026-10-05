@@ -1,6 +1,6 @@
 # P0-01 Repository scaffold
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
 
 The empty plugin that every later task builds on: a marketplace at the repository root, one plugin
 `yvoke` with a mod that does nothing yet, type-checking, one test, and the plugin rows of the verification
