@@ -152,7 +152,7 @@ Claude Code engine (Desktop Code tab / terminal)
 
 Each decision blocks the tasks listed under it. Record the outcome and date under the box when ticking.
 
-- [ ] **D-01** `PO` — **Which Claude plans do users have?** Individual Pro/Max (as yvoke-desktop's spec
+- [x] **D-01** `PO` — **Which Claude plans do users have?** Individual Pro/Max (as yvoke-desktop's spec
   assumes) or a Team/Enterprise organization?
   - Decides the distribution route: Pro/Max → Git marketplace, ideally pushed by MDM managed settings
     (route B); Team/Enterprise → claude.ai organization sync (route C) is also available.
@@ -160,7 +160,10 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
   - **Install route decided 2026-10-05** (together with P7-04): the pilot installs from the Git
     marketplace (route A or B); rollout moves to an MDM-copied directory marketplace (route D) once IT
     enforces policy. Plugins from Git, a URL or claude.ai sync always run as *user* mods: they cannot be
-    listed in `prependPlugins` and do not load under `allowManagedModsOnly`. Still open: which plans users have.
+    listed in `prependPlugins` and do not load under `allowManagedModsOnly`.
+  - **Decided 2026-10-05 (Eduard): Team/Enterprise.** An admin adds the Yvoke connector for the organization
+    (D-03, Chat/Cowork) and can push the plugin by claude.ai organization sync (route C). With no IT lockdown
+    (D-09), route C is a simpler rollout than MDM (route D); P7-04 picks between them.
 - [ ] **D-02** `PO` · `IT` — **How do users get access to the marketplace repository?** Options: users' own
   GitHub access to a private repo; a public repo containing no playbook text; or yvoke-web serving
   `marketplace.json` and a plugin `archive` behind an auth header.
