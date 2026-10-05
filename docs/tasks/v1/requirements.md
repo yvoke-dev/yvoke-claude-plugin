@@ -30,8 +30,8 @@ same pull request.
 ### 2.1 Session setup and system prompt
 
 - `/yvoke`, typed before a session's first question, makes it a Yvoke session until `/clear`. (P1-10)
-- A new Yvoke session shows a setup band with **area** (default OIM), **mode** (single agent or one of the
-  area's multi-agent profiles) and, for single agent, **playbook** (default `oim-full`). The lists come live
+- A new Yvoke session shows a setup band with **area** (default OIM), **mode** (single agent or the
+  area's multi-agent profile, D-15) and, for single agent, **playbook** (default `oim-full`). The lists come live
   from the server; prototypes are hidden unless enabled. (P1-08, P1-12)
 - Sending the first question locks the setup. From then on the band and the status line show it read-only.
   `/resume` and `/branch` keep it. (P1-08)

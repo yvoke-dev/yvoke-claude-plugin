@@ -267,6 +267,13 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     use the organization connector (D-03), not the plugin's `.mcp.json`, so the setting does not affect
     them. The server keeps the name `yvoke`, so tool names (D-05) stay the same.
   - Blocks: P0-11, P1-02.
+- [x] **D-15** `PO` · `server` — **What is an area?** D-11 introduced the area; yvoke-web already has
+  multi-agent profiles, each one a knowledge base such as OIM or PingID with its own orchestrator, reviewer
+  and specialist playbooks (`OrchestratorProperties`).
+  - **Decided 2026-10-05 (Eduard): an area is that knowledge base.** Each area offers *Single agent* plus
+    its one multi-agent profile. `list_areas` adds only each area's playbooks and its default playbook.
+    Today there is one area (OIM); more will follow, so nothing may assume a single area.
+  - Blocks: P1-12.
 
 ## 4. Notes for implementers
 
@@ -485,10 +492,10 @@ existing tools' do (P1-03 relies on it).
 | `submit_feedback(…)` | the feedback store behind `PUT /messages/{id}/feedback` | an id. Keyed to the synced message id, as the desktop's endpoint (D-08): rating, comment, client `claude-plugin`, plugin version. After v1, with sync. | P4-01 (after v1) |
 | sync tools: create conversation, append turn, record run | `DesktopSyncService`, `DesktopOrchestratorRunService` | ids; an idempotency key per turn, which the REST API lacks today | P5-01 (after v1, D-07) |
 
-**Areas are new.** yvoke-web's *knowledge area* is a content collection (*OIM Docs*, *OIM Database*) that a
-playbook decides; the plugin's *area* (D-11) groups playbooks and profiles, so a playbook and a profile each
-need an area attribute, and an area a default playbook. 🔍 `DesktopSyncController` describes profiles as
-"knowledge bases"; check whether that is already the grouping meant. Agree the name before building it.
+**An area is a knowledge base (D-15).** The plugin's *area* (D-11) is yvoke-web's existing multi-agent
+profile, which `DesktopSyncController` already calls a knowledge base (OIM, PingID). It is not yvoke-web's
+*knowledge area*, a content collection (*OIM Docs*, *OIM Database*) that a playbook decides. A playbook
+needs an area attribute, and an area a default playbook. Today there is one area, OIM.
 
 ### 5.4 Which model sees which tool (P1-13)
 

@@ -1,7 +1,7 @@
 # Yvoke for Claude v1: plan
 
 > **Status:** draft v4 · 2026-10-05 (split into intent, requirements, design and this plan; all decisions
-> D-01 to D-14 taken). How work moves through these documents is in [docs/sdlc.md](../../sdlc.md).
+> D-01 to D-15 taken). How work moves through these documents is in [docs/sdlc.md](../../sdlc.md).
 > **What we are building:** one Claude plugin that brings Yvoke Desktop's capabilities into Claude, fully
 > in **Claude Code** through a **mod**, and as live playbook stubs in **Chat** and **Cowork** (D-10).
 
@@ -60,7 +60,7 @@ unless it says otherwise. `cloud` runs in a Claude cloud session (Claude Code 2.
 2. **P0-09** Entra client *Yvoke for Claude* (`Eduard`, Entra admin). P0-04 and P1-02 need its client ID
    and callback port.
 3. **P1-01** and **P1-06** server tools in yvoke-web (`cloud`, in the yvoke-web repository). **P1-12**
-   follows once the area is named ([intent 8](intent.md#8-open-questions)).
+   follows (D-15: an area is a knowledge base).
 4. Spikes **P0-04** to **P0-07** (`machine`), in one session on Eduard's computer, in that order. P0-04
    waits for P0-09. **P0-08** needs a claude.ai organization where a test plugin can be installed.
 
@@ -209,7 +209,7 @@ a cloud session.
   - Done when: the tool returns the `default-chat` text, and the server's `initialize` result carries no
     base instructions.
 - [ ] **P1-02** `plugin` · S — **Connector configuration.** Ship the `.mcp.json` entry D-03 chose: server `yvoke`,
-  the fixed URL, and the Entra client and callback port from P0-09. ⛔ P0-09
+  the server URL setting, and the Entra client and callback port from P0-09. ⛔ P0-09
   - The URL comes from `${user_config.serverUrl}` with the production URL as its default (D-14). Chat and
     Cowork reach the server through the organization connector instead (D-03), so they never read it.
   - Done when: a fresh machine with the plugin installed can call `search_corpus` after one sign-in.
@@ -249,7 +249,7 @@ a cloud session.
   - Done when: tests cover success, server down, unknown playbook, and a hook failure (fails closed).
 - [ ] **P1-08** `plugin` · M — **Session setup: area, mode, playbook** (D-11).
   - In a new Yvoke session a band above the prompt (`ui.render` on `AbovePrompt`) shows three `Select`s:
-    **area** (default OIM), **mode** (*Single agent* plus the area's multi-agent profiles; OIM offers both)
+    **area** (default OIM), **mode** (*Single agent* plus the area's multi-agent profile, D-15)
     and, for single agent, **playbook** (default `oim-full`). Lists come live from the server (P1-12);
     prototypes are hidden unless enabled. Until Phase 6 is built, the mode list offers only *Single agent*.
   - The selection **locks when the first question is sent**: the user can accept the defaults by just
@@ -282,11 +282,11 @@ a cloud session.
 - [ ] **P1-13** `server` · S — **Keep plugin-control tools away from models that should not call them**
   ([design 5.4](design.md#54-which-model-sees-which-tool-p1-13)). `get_system_prompt`, `list_playbooks`, `get_playbook`, `submit_feedback` and the sync tools are for
   Claude clients, not for the web's in-app assistant, which today shares one tool set with every MCP client.
-- [ ] **P1-12** `server` · S — **Areas.** An MCP tool (`list_areas`, or `_meta.area` on playbooks and
-  profiles) that says which areas exist, which modes and profiles each offers, and each area's default
-  playbook (OIM: `oim-full`). 🔍 "Area" here groups playbooks and profiles; it is not yvoke-web's *knowledge
-  area* (a content collection such as *OIM Docs*), which the playbook still decides. Agree the name with
-  the yvoke-web team.
+- [ ] **P1-12** `server` · S — **Areas** (D-15). A `list_areas` MCP tool that lists the knowledge bases
+  (today only OIM), each with its multi-agent profile and its default playbook (OIM: `oim-full`), plus an
+  area attribute on each playbook so `list_playbooks(area)` can filter. An area is not yvoke-web's
+  *knowledge area* (a content collection such as *OIM Docs*), which the playbook still decides.
+  - Done when: server tests cover one area, two areas, and a playbook listed under its area.
 
 ### Phase 2 — Tool policy
 
