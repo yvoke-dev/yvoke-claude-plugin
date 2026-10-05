@@ -509,5 +509,5 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
 - Skills (frontmatter): <https://code.claude.com/docs/en/skills>
 - Plugin support per surface: <https://claude.com/docs/plugins/platform-support>
 - MCP Apps: <https://claude.com/docs/connectors/building/mcp-apps/getting-started>
-- Review of draft v3, with the findings behind design section 4: [docs/reviews/2026-10-05-plan-v3-review.md](../../reviews/2026-10-05-plan-v3-review.md)
-- yvoke-desktop coverage check (gaps C1–C13; D-11 decided): [docs/reviews/2026-10-05-yvoke-desktop-coverage.md](../../reviews/2026-10-05-yvoke-desktop-coverage.md)
+- Review of draft v3, with the findings behind design section 4: [2026-10-05-plan-v3-review.md](https://github.com/yvoke-dev/yvoke-claude-plugin/blob/8f1bbb16c093f829e09675b0a865dfcc8425520a/docs/reviews/2026-10-05-plan-v3-review.md) (in git history)
+- yvoke-desktop coverage check (gaps C1–C13; D-11 decided): [2026-10-05-yvoke-desktop-coverage.md](https://github.com/yvoke-dev/yvoke-claude-plugin/blob/8f1bbb16c093f829e09675b0a865dfcc8425520a/docs/reviews/2026-10-05-yvoke-desktop-coverage.md) (in git history)

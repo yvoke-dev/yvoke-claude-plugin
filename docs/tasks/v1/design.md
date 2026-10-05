@@ -107,7 +107,7 @@ yvoke-claude-plugin/
 ├── scripts/                        ← skill stub generator, release helpers
 ├── deploy/                         ← managed-settings template for IT (P7-03)
 ├── docs/                           ← sdlc.md, specs/ (what is built), tasks/<release>/ (intent, requirements,
-│                                     design, plan, one folder per task), reviews, user guide, security review
+│                                     design, plan, one folder per task), user guide, security review
 └── .github/workflows/              ← CI (P0-02), catalogue sync (P1-05)
 ```
 
@@ -374,7 +374,7 @@ the same PR.
 
 The desktop app ran its own agent loop through the Agent SDK. Claude Code runs the loop, and the mod only
 steers it, so some desktop behaviours need deliberate work. The full list, with proposals, is in
-[the coverage check](../../reviews/2026-10-05-yvoke-desktop-coverage.md). The ones that affect most tasks:
+[the coverage check](https://github.com/yvoke-dev/yvoke-claude-plugin/blob/8f1bbb16c093f829e09675b0a865dfcc8425520a/docs/reviews/2026-10-05-yvoke-desktop-coverage.md) (removed from the repo; link is to the last version). The ones that affect most tasks:
 
 - **The `yvoke-web` server has its own orchestrator** (`OrchestrationService.java`), which the desktop's
   `orchestration.ts` mirrors grant for grant. When the two disagree, ask before choosing; do not pick the
