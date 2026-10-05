@@ -68,9 +68,8 @@ plan mode, from the release's requirements, design and `AGENTS.md`:
 The plan is good enough when someone who never saw the conversation could carry it out from the plan
 alone.
 
-**Who approves the plan:** for **M** and **L** tasks, the product owner approves the plan in the task's
-draft pull request before any code is written. For **S** tasks, Claude continues straight into
-implementation and the reviewer reads the plan alongside the code.
+**Who approves the plan:** the product owner approves every task's plan, whatever its size, in the task's
+draft pull request before any code is written (decided 2026-10-05).
 
 ### Step 4. Build (tests first)
 
