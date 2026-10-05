@@ -195,12 +195,15 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
     Chat and Cowork nothing enforces the call; if P0-08 shows the model skipping it, fall back to copied text
     in a separate private marketplace.
   - Blocks: P1-04, P1-05.
-- [ ] **D-05** `plugin` — **Naming.** The plugin name is user-facing (`/yvoke:<skill>`) and prefixes the
+- [x] **D-05** `plugin` — **Naming.** The plugin name is user-facing (`/yvoke:<skill>`) and prefixes the
   mod's own tools (`mcp__<plugin>__<tool>`). The server's tool names differ by how it is reached: a server
   in the plugin's `.mcp.json` is `plugin:<plugin>:<server>` with tools `mcp__plugin_<plugin>_<server>__<tool>`;
   a claude.ai connector gets a connector-specific name (in the Desktop Code tab, `mcp__<uuid>__<tool>`).
   Neither collides with the mod's tools, so the plugin can simply be named `yvoke`.
   🔍 Confirm the names on each surface (P0-04).
+  - **Decided 2026-10-05 (Eduard): plugin `yvoke`, server `yvoke` in `.mcp.json`.** Claude Code tool names are
+    `mcp__plugin_yvoke_yvoke__<tool>` (e.g. `mcp__plugin_yvoke_yvoke__search_corpus`); commands are
+    `/yvoke:<name>`. Do not rename after rollout: users' permission rules use these names.
   - Blocks: P2-04, P2-05.
 - [x] **D-06** `PO` · `plugin` — **Multi-agent profiles: registered live by the mod (`$.agent.register`)
   or generated into `agents/*.md`?** Live keeps the server as source of truth and works only in Claude Code;
