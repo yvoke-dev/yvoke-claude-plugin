@@ -1,8 +1,10 @@
-# Yvoke for Claude: intent
+# Yvoke for Claude v1: intent
+
+**Author:** Eduard · **Status:** accepted (decisions D-01 to D-11 taken 2026-10-05) · **Updated:** 2026-10-05
 
 Why we are building the plugin, who it is for, and what they will do with it. What the plugin must do is in
 [requirements.md](requirements.md), how it is built is in [design.md](design.md), and the work and its
-progress are in [PLAN.md](../PLAN.md).
+progress are in [plan.md](plan.md).
 
 **What we are building:** one Claude plugin that brings Yvoke Desktop's capabilities into Claude. It
 works fully in **Claude Code** (the Desktop app's **Code** tab and the terminal) through a **mod**. In v1,
@@ -12,7 +14,15 @@ connector (D-10).
 **Reference implementation:** [`yvoke-dev/yvoke-desktop`](https://github.com/yvoke-dev/yvoke-desktop). Its
 `spec/` chapters say *what* each feature is for; its `tests/` say *exactly* how it behaves.
 
-## 1. Goal
+## 1. Problem
+
+Consultants and support engineers get grounded, cited answers from the Yvoke knowledge base through Yvoke
+Desktop, a separate Electron app that runs its own agent loop and has to be installed, signed in and kept
+up to date on its own. Many of them already work in Claude, on their organization's Claude plan. Today they
+switch apps to ask Yvoke, and in Claude itself they have no playbooks, no enforced tool rules and no
+verified citations.
+
+## 2. Goal
 
 Consultants and support engineers should get the same grounded, cited, playbook-scoped answers from the
 Yvoke knowledge base inside Claude that they get in Yvoke Desktop, on their own Claude subscription, without
@@ -29,7 +39,7 @@ installing a separate app.
 - Behaviour is pinned by automated tests in this repo, as it is in yvoke-desktop.
 - After v1, once conversations sync: 👍/👎 feedback on an answer reaches yvoke-web (D-07, D-08).
 
-## 2. Users
+## 3. Users
 
 - **Consultants and support engineers** ask questions about OIM and get cited answers. Some of them also use
   Claude Code for coding on the same machine.
@@ -37,9 +47,9 @@ installing a separate app.
   Enterprise (D-01).
 - **The yvoke-web team** owns the server, its playbooks, profiles and base instructions.
 
-## 3. Use cases
+## 4. Use cases
 
-Each use case names the tasks in [PLAN.md](../PLAN.md) that deliver it.
+Each use case names the tasks in [plan.md](plan.md) that deliver it.
 
 | # | Who | Use case | What they see | Tasks |
 | --- | --- | --- | --- | --- |
@@ -58,7 +68,7 @@ Each use case names the tasks in [PLAN.md](../PLAN.md) that deliver it.
 
 After v1: rate an answer with 👍/👎 (Phase 4) and find Claude conversations in the Yvoke account (Phase 5).
 
-## 4. Scope and target surfaces
+## 5. Scope and target surfaces
 
 One plugin, three surfaces. Each surface loads only the parts it supports.
 
@@ -71,13 +81,31 @@ One plugin, three surfaces. Each surface loads only the parts it supports.
 Not targeted: VS Code extension UI (mod hooks run there, but nothing it draws is shown), WSL sessions in the
 Desktop app (no plugins), cloud sessions (hooks run, nothing is drawn).
 
-## 5. Not in v1
+## 6. Not in v1
 
 - Conversation sync into the Yvoke account (D-07) and rating answers, which builds on sync (D-08).
 - Cowork hooks, MCP App widgets and citation URLs for Chat and Cowork (P8-02 to P8-04).
 - An IT lockdown of shell and file tools (D-09). Claude Code's own permission prompts still apply.
 
-## 6. Not planned and known gaps
+## 7. Constraints
+
+- Users are on Claude Team or Enterprise; an admin adds the connector and can push the plugin (D-01).
+- The marketplace repository is public, so it never holds playbook text, secrets or customer data (D-02).
+- yvoke-web stays the source of truth; there is no cached fallback when it is unreachable.
+- yvoke-desktop's Entra registration and REST API do not change.
+- The mod API is early access and needs Claude Code ≥ v2.1.287; it changes between releases.
+- Using Yvoke is opt-in; there is no IT lockdown (D-09).
+
+## 8. Open questions
+
+- What to call the new "area" concept on yvoke-web, and whether its "profiles (knowledge bases)" already
+  are areas (P1-12).
+- The production API scope (the desktop's ends in `/desktop`) and the claude.ai connector callback URL for
+  the new Entra client (P0-09).
+- Mod API behaviour the spikes settle: tool names per surface, drawing in the Desktop Code tab, `/branch`,
+  dynamic subagents (P0-04 to P0-08).
+
+## 9. Not planned and known gaps
 
 Write things down here when they are decided against, so nobody "fixes" them by accident.
 

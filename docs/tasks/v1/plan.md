@@ -1,16 +1,16 @@
-# Yvoke for Claude — implementation plan
+# Yvoke for Claude v1 — plan
 
 > **Status:** draft v4 · 2026-10-05 (split into intent, requirements, design and this plan; all decisions
-> D-01 to D-11 taken)
+> D-01 to D-11 taken). How work moves through these documents is in [docs/sdlc.md](../../sdlc.md).
 > **What we are building:** one Claude plugin that brings Yvoke Desktop's capabilities into Claude, fully
 > in **Claude Code** through a **mod**, and as live playbook stubs in **Chat** and **Cowork** (D-10).
 
 | Document | Answers | Read it when |
 | --- | --- | --- |
-| [docs/intent.md](docs/intent.md) | Why, for whom, use cases, scope, what is not planned | You want to know what the plugin is for |
-| [docs/requirements.md](docs/requirements.md) | What the plugin must do, per surface | You decide whether something is a bug or a change |
-| [docs/design.md](docs/design.md) | Architecture, constraints, decisions D-01 to D-11, notes for implementers, yvoke-web changes | Before you pick up a task |
-| **PLAN.md** (this file) | The tasks, their order and their progress | You pick up, finish or re-plan a task |
+| [intent.md](intent.md) | Why, for whom, use cases, scope, what is not planned | You want to know what the plugin is for |
+| [requirements.md](requirements.md) | What the plugin must do, per surface | You decide whether something is a bug or a change |
+| [design.md](design.md) | Architecture, constraints, decisions D-01 to D-11, notes for implementers, yvoke-web changes | Before you pick up a task |
+| **plan.md** (this file) | The tasks, their order and their progress | You pick up, finish or re-plan a task |
 
 ---
 
@@ -31,15 +31,17 @@ Rules:
    `- [x] **P0-01** … ([#12](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/12))`.
 2. **Never renumber.** New work gets the next free ID in its phase; dropped work is struck through
    (`~~P3-05~~`) with one line saying why, not deleted.
-3. **Decisions are tasks too** ([design section 3](docs/design.md#3-decisions)). A decision is ticked when its outcome is written under it.
+3. **Decisions are tasks too** ([design section 3](design.md#3-decisions)). A decision is ticked when its outcome is written under it.
 4. Each task names its **owner area**: `plugin` (this repo), `server` (yvoke-web / its MCP server),
    `IT` (deployment, managed settings), `PO` (product-owner decision).
 5. Size is a rough guess: **S** ≤ 1 day, **M** ≤ 3 days, **L** ≤ 2 weeks.
+6. **A task gets its own folder when work starts**: `docs/tasks/v1/<ID>/plan.md` (files, order of work,
+   risks, proof), plus `findings.md` for a spike. See [docs/sdlc.md](../../sdlc.md).
 
 Count progress from the repository root:
 
 ```bash
-echo "done $(grep -cE '^\s*- \[x\]' PLAN.md) / total $(grep -cE '^\s*- \[[ x]\]' PLAN.md)"
+echo "done $(grep -cE '^\s*- \[x\]' docs/tasks/v1/plan.md) / total $(grep -cE '^\s*- \[[ x]\]' docs/tasks/v1/plan.md)"
 ```
 
 ---
@@ -48,17 +50,18 @@ echo "done $(grep -cE '^\s*- \[x\]' PLAN.md) / total $(grep -cE '^\s*- \[[ x]\]'
 
 ### Phase 0 — Foundation and spikes
 
-The spikes de-risk everything later in the plan. Record each spike's findings in `docs/spikes/<id>.md`
-(what was tried, Claude Code version, surface, result) before ticking it.
+The spikes de-risk everything later in the plan. Record each spike's findings in
+`docs/tasks/v1/<id>/findings.md` (what was tried, Claude Code version, surface, result) before ticking it.
+Spikes need the Desktop Code tab and a signed-in Claude Code, so they run on a developer's machine, not in
+a cloud session.
 
 - [ ] **P0-01** `plugin` · S — **Repository scaffold.**
   - `README.md`; `.gitignore`; `.claude-plugin/marketplace.json`; `plugins/yvoke/.claude-plugin/plugin.json`;
     `hooks/hooks.json`; a no-op `hooks/register.tsx`; `types/index.d.ts`; `package.json` and `tsconfig.json`
     for type-checking.
-  - `AGENTS.md` for this repo, carrying over yvoke-desktop's rules that apply here: TDD,
-    "a test does not count until you have seen it fail", regression test first, no secrets in logs,
-    smallest change at the root cause. `CLAUDE.md` is the single line `@AGENTS.md`, so there is one copy
-    of the rules and nothing to keep in sync.
+  - Fill in the plugin commands in `AGENTS.md`'s verification block (P0-10 added the file with
+    yvoke-desktop's rules: TDD, "a test does not count until you have seen it fail", regression test
+    first, no secrets in logs, smallest change at the root cause).
   - Done when: `claude plugin validate .` and `claude plugin validate plugins/yvoke` pass, and the plugin
     loads with `claude --plugin-dir plugins/yvoke`.
 - [ ] **P0-02** `plugin` · M — **CI.** GitHub Actions on every push and PR:
@@ -76,6 +79,11 @@ The spikes de-risk everything later in the plan. Record each spike's findings in
     of `~/.claude/settings.json`, or add the working copy as a local marketplace and use `/reload-plugins`;
   - type-checking with the generated `.claude-plugin/types/`; reading `claude --debug` output.
   - Done when: a second developer follows it from a clean machine and gets a hot-reloading mod.
+- [x] **P0-10** `plugin` · S — **Development process and agent harness.** `docs/sdlc.md` (intent → spec →
+  task plan → tests first → PR → specs updated), `docs/specs/`, `docs/tasks/<release>/`, `AGENTS.md` with
+  the rules and a verification block, `CLAUDE.md` as `@AGENTS.md`, project skills `start-task` and
+  `finish-task`, and a hook that blocks edits to existing tests during a bug fix.
+  ([#2](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/2))
 - [ ] **P0-04** `plugin` · `server` · S — **Spike: reaching the Yvoke server from Claude Code.**
   - Can the Yvoke MCP server be used from the Code tab as a claude.ai connector, from a plugin `.mcp.json`,
     or both? How does each sign in with Entra ID? What server and tool names does each produce
@@ -138,7 +146,7 @@ The spikes de-risk everything later in the plan. Record each spike's findings in
     active playbook and whether the reviewer ran from the transcript at `transcript_path`, as P8-02 needs.
   - Done when: findings feed D-10 and Phase 8.
 
-- [ ] **P0-09** `server` · `IT` · S — **Entra client registration for Claude clients** ([design 5.2](docs/design.md#52-sign-in-for-claude-clients-p0-09-decides-d-03)).
+- [ ] **P0-09** `server` · `IT` · S — **Entra client registration for Claude clients** ([design 5.2](design.md#52-sign-in-for-claude-clients-p0-09-decides-d-03)).
   A public-client app registration (or the desktop's, extended) with the redirect URIs Claude Code and
   claude.ai use, consented for the API scope yvoke-web checks. Feeds D-03 and P1-02.
   - Done when: `claude mcp add --transport http --client-id <id> --callback-port <port> yvoke <url>` signs
@@ -227,7 +235,7 @@ The spikes de-risk everything later in the plan. Record each spike's findings in
   - Done when: tests cover the folder itself, a subfolder, an unrelated folder, a same-prefix sibling, a
     case difference, Windows separators, and a folder change mid-session.
 - [ ] **P1-13** `server` · S — **Keep plugin-control tools away from models that should not call them**
-  ([design 5.4](docs/design.md#54-which-model-sees-which-tool-p1-13)). `get_playbook`, `submit_feedback` and the sync tools are for the mod, not for the web's
+  ([design 5.4](design.md#54-which-model-sees-which-tool-p1-13)). `get_playbook`, `submit_feedback` and the sync tools are for the mod, not for the web's
   in-app assistant, which today shares one tool set with every MCP client.
 - [ ] **P1-12** `server` · S — **Areas.** An MCP tool (`list_areas`, or `_meta.area` on playbooks and
   profiles) that says which areas exist, which modes and profiles each offers, and each area's default
@@ -264,7 +272,7 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   - The domain list comes from the plugin's `userConfig`, like every other deployment setting (Yvoke folder,
     role models, budgets). **Decided 2026-10-05:** all settings stay in `userConfig` and are editable by the
     user, as in yvoke-desktop; where IT deploys managed `pluginConfigs`, those values apply. 🔍 Confirm in
-    P0-06 that managed `pluginConfigs` override a user's own values; if they do not, record it in [intent 6](docs/intent.md#6-not-planned-and-known-gaps).
+    P0-06 that managed `pluginConfigs` override a user's own values; if they do not, record it in [intent 9](intent.md#9-not-planned-and-known-gaps).
   - Done when: yvoke-desktop's web cases from `policy.test.ts` pass here.
 - [ ] **P2-05** `plugin` · M — **Safe compute tools.** Register `calculate`, `statistics` and `date_diff` with
   `$.tool.register`, ported from yvoke-desktop's `computeTools.ts` with its `computeTools.test.ts`. Withheld when
@@ -292,7 +300,7 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   (yvoke-desktop's shipped values). At the ceiling it **delivers rather than discards**: further tool calls
   in that loop are denied with a message telling the model to answer now with what it has, and the answer
   is flagged (*stopped at the turn limit*) by a line under it. A specialist at its ceiling returns its
-  partial answer to the lead. Fails closed ([requirements 1](docs/requirements.md#1-principles-carried-over-from-yvoke-desktop)). Port the ceiling cases from yvoke-desktop's tests where
+  partial answer to the lead. Fails closed ([requirements 1](requirements.md#1-principles-carried-over-from-yvoke-desktop)). Port the ceiling cases from yvoke-desktop's tests where
   they exist.
   - Done when: tests cover under the limit, at the limit for each role, the flag line, and a hook failure.
 
@@ -404,7 +412,7 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
     mod-originated revision prompt (`UserMessage` with a plugin origin) draws each rejected draft and its
     revision prompt as one collapsed *Draft rejected by reviewer* row that opens on click, so the final
     answer reads clean. Drawing only: the stored transcript, `/resume` and copy keep the draft, which is
-    recorded in [intent 6](docs/intent.md#6-not-planned-and-known-gaps).
+    recorded in [intent 9](intent.md#9-not-planned-and-known-gaps).
 - [ ] **P6-08** `plugin` · S — **A specialist's clarifying question** is shown to the user, not left as a
   locked composer with nothing to answer (yvoke-desktop limit).
 
@@ -428,7 +436,7 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
     same admin-only path on every machine, enabled in managed settings) for rollout once IT enforces policy.
     Only route D makes the mod the organization's, so it can run first (`prependPlugins`) and survives
     `allowManagedModsOnly`.
-- [ ] **P7-11** `server` · S — **Per-user rate limit on `/mcp`** ([design 5.5](docs/design.md#55-behaviour-to-fix-on-the-server)). Searches from AI clients are
+- [ ] **P7-11** `server` · S — **Per-user rate limit on `/mcp`** ([design 5.5](design.md#55-behaviour-to-fix-on-the-server)). Searches from AI clients are
   not rate-limited today; the plugin moves every consultant onto that route.
 - [ ] **P7-05** `plugin` · S — **User guide** (`docs/user-guide.md`): install, sign in, the Yvoke folder,
   picking playbooks and profiles, citations, feedback, what is different from Yvoke Desktop.
@@ -486,7 +494,7 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
 | The mod blocks users' other Claude Code work (it runs in every session) | Coding sessions lose shell and file tools; every prompt needs a playbook | Enforce only in the Yvoke folder (P1-10); no IT lockdown (D-09) |
 | A `tool.call` hook cannot tell which agent made the call | Lead-only rules (P6-04) cannot be enforced | Spike P0-07 before Phase 6 is designed; the budget (P6-06) uses `agent.spawn` instead |
 | The mod cannot reach a claude.ai connector in practice (documented as working through `$.mcp.call`) | Live playbooks, citation pane, feedback and sync have no server | Spike P0-04; fall back to `.mcp.json` |
-| A policy hook throws or times out, or mods are off (`disableAllHooks`, `--safe-mode`, hooks worker crashed) | The tool runs or the prompt goes through: policy fails open | `.catch` on every enforcing hook ([design 4.4](docs/design.md#44-rules-that-are-easy-to-get-wrong)); Claude Code's permission prompts still apply |
+| A policy hook throws or times out, or mods are off (`disableAllHooks`, `--safe-mode`, hooks worker crashed) | The tool runs or the prompt goes through: policy fails open | `.catch` on every enforcing hook ([design 4.4](design.md#44-rules-that-are-easy-to-get-wrong)); Claude Code's permission prompts still apply |
 | Server tasks are on the critical path (P1-01, P1-06 for M1; P4-01 for M3; P5-01, P6-01 later) | Plugin work waits on yvoke-web | Agree dates for the `server` tasks with the yvoke-web team before Phase 1 starts |
 | Non-developer users find the Code tab, folder trust and slash commands unfamiliar | Slow adoption; support load | Scripted folder setup (P7-08), user guide (P7-05), pilot measures onboarding (P7-09) |
 
@@ -501,5 +509,5 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
 - Skills (frontmatter): <https://code.claude.com/docs/en/skills>
 - Plugin support per surface: <https://claude.com/docs/plugins/platform-support>
 - MCP Apps: <https://claude.com/docs/connectors/building/mcp-apps/getting-started>
-- Review of draft v3, with the findings behind design section 4: [docs/reviews/2026-10-05-plan-v3-review.md](docs/reviews/2026-10-05-plan-v3-review.md)
-- yvoke-desktop coverage check (gaps C1–C13; D-11 decided): [docs/reviews/2026-10-05-yvoke-desktop-coverage.md](docs/reviews/2026-10-05-yvoke-desktop-coverage.md)
+- Review of draft v3, with the findings behind design section 4: [docs/reviews/2026-10-05-plan-v3-review.md](../../reviews/2026-10-05-plan-v3-review.md)
+- yvoke-desktop coverage check (gaps C1–C13; D-11 decided): [docs/reviews/2026-10-05-yvoke-desktop-coverage.md](../../reviews/2026-10-05-yvoke-desktop-coverage.md)

@@ -2,7 +2,7 @@
 
 What the plugin must do. Why it exists and who uses it is in [intent.md](intent.md); how it is built is
 in [design.md](design.md); the tasks that deliver each requirement, with their **Done when** tests, are in
-[PLAN.md](../PLAN.md). Where a task's **Done when** and this page disagree, fix whichever is wrong in the
+[plan.md](plan.md). Where a task's **Done when** and this page disagree, fix whichever is wrong in the
 same pull request.
 
 ## 1. Principles carried over from yvoke-desktop

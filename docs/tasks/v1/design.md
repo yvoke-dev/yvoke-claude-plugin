@@ -1,7 +1,7 @@
 # Yvoke for Claude: design
 
 How the plugin is built. Why it exists is in [intent.md](intent.md), what it must do is in
-[requirements.md](requirements.md), and the tasks are in [PLAN.md](../PLAN.md).
+[requirements.md](requirements.md), and the tasks are in [plan.md](plan.md).
 
 ## 1. Architecture
 
@@ -90,10 +90,10 @@ In Chat and Cowork there is no mod: the user invokes a playbook stub, the stub t
 
 ```text
 yvoke-claude-plugin/
-├── PLAN.md                         ← the work plan and progress
 ├── README.md
-├── AGENTS.md                       ← rules for agents working in this repo (P0-01)
+├── AGENTS.md                       ← rules for agents working in this repo
 ├── CLAUDE.md                       ← one line, `@AGENTS.md`, so the two cannot drift
+├── .claude/                        ← agent harness: settings, hooks, skills (docs/sdlc.md)
 ├── .claude-plugin/marketplace.json ← the repo is its own marketplace
 ├── plugins/yvoke/
 │   ├── .claude-plugin/plugin.json  ← name, version, userConfig, "types"
@@ -106,7 +106,8 @@ yvoke-claude-plugin/
 │   └── tests/*.test.ts             ← `claude plugin test plugins/yvoke`
 ├── scripts/                        ← skill stub generator, release helpers
 ├── deploy/                         ← managed-settings template for IT (P7-03)
-├── docs/                           ← intent, requirements, design, spikes, contributing, security review, user guide
+├── docs/                           ← sdlc.md, specs/ (what is built), tasks/<release>/ (intent, requirements,
+│                                     design, plan, one folder per task), reviews, user guide, security review
 └── .github/workflows/              ← CI (P0-02), catalogue sync (P1-05)
 ```
 
@@ -130,7 +131,7 @@ No `agents/*.md`: profiles are registered live by the mod (D-06).
 
 ## 3. Decisions
 
-Each decision blocks the tasks in [PLAN.md](../PLAN.md) listed under it. Record the outcome and date under the box when ticking.
+Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the outcome and date under the box when ticking.
 
 - [x] **D-01** `PO` — **Which Claude plans do users have?** Individual Pro/Max (as yvoke-desktop's spec
   assumes) or a Team/Enterprise organization?
@@ -373,7 +374,7 @@ the same PR.
 
 The desktop app ran its own agent loop through the Agent SDK. Claude Code runs the loop, and the mod only
 steers it, so some desktop behaviours need deliberate work. The full list, with proposals, is in
-[the coverage check](reviews/2026-10-05-yvoke-desktop-coverage.md). The ones that affect most tasks:
+[the coverage check](../../reviews/2026-10-05-yvoke-desktop-coverage.md). The ones that affect most tasks:
 
 - **The `yvoke-web` server has its own orchestrator** (`OrchestrationService.java`), which the desktop's
   `orchestration.ts` mirrors grant for grant. When the two disagree, ask before choosing; do not pick the
@@ -393,8 +394,8 @@ steers it, so some desktop behaviours need deliberate work. The full list, with 
 ## 5. Changes on the web side (yvoke-web)
 
 Everything the plugin needs from yvoke-web, in one place. Facts about the current server were read from
-`yvoke-dev/yvoke-web` at `main` on 2026-10-05. Task IDs refer to [PLAN.md](../PLAN.md); `server` tasks belong to the
-yvoke-web team and should be dated with them before Phase 1 starts ([PLAN.md](../PLAN.md), Risks).
+`yvoke-dev/yvoke-web` at `main` on 2026-10-05. Task IDs refer to [plan.md](plan.md); `server` tasks belong to the
+yvoke-web team and should be dated with them before Phase 1 starts ([plan.md](plan.md), Risks).
 
 ### 5.1 What yvoke-web already has
 
