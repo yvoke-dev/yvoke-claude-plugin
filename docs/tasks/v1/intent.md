@@ -55,13 +55,13 @@ Each use case names the tasks in [plan.md](plan.md) that deliver it.
 | --- | --- | --- | --- | --- |
 | U1 | Admin, once | **Roll it out** | Adds the Yvoke connector for the organization and pushes the plugin; the pilot installs it from the Git marketplace instead. Nothing else on the machine is locked down. | P7-03, P7-04 |
 | U2 | Consultant, first use | **Install and sign in** | The first time the plugin talks to Yvoke, a browser window opens for the usual Microsoft sign-in. After that the token refreshes on its own. | P0-09, P1-02 |
-| U3 | Consultant, daily | **Ask with the defaults** | Opens the Yvoke folder in the Code tab and just types. OIM, single agent and `oim-full` apply, and the answer comes back with citations. | P1-07, P1-08, P1-10 |
+| U3 | Consultant, daily | **Ask with the defaults** | Opens the Code tab in any folder, types `/yvoke`, then just types the question. OIM, single agent and `oim-full` apply, and the answer comes back with citations. | P1-07, P1-08, P1-10 |
 | U4 | Consultant | **Pick a specific playbook** | Changes the playbook in the setup band before the first question. The preflight may suggest a better fit; the user decides. | P1-08, P2-06 |
 | U5 | Consultant | **Check a source** | Clicks a citation to read the exact passage, with the surrounding section behind a collapsed control. | P3-01 – P3-03 |
 | U6 | Consultant | **Run an investigation** | Chooses a multi-agent profile as the mode. Cards show each specialist's sub-question and answer, the reviewer's verdict, and a banner if the final answer was not approved. | Phase 6 |
 | U7 | Consultant | **Answer a clarifying question** | When the question is ambiguous, Claude asks with its native question prompt, then continues. | P1-09, P6-08 |
-| U8 | Consultant | **Start over with another setup** | Area, mode and playbook are fixed once the first question is sent. `/clear` starts a new session with a fresh setup band; `/resume` brings back an old session with its setup. | P1-08 |
-| U9 | Developer on the same laptop | **Code as usual** | In any folder other than the Yvoke folder, Claude Code behaves exactly as before. | P1-10 |
+| U8 | Consultant | **Start over with another setup** | Area, mode and playbook are fixed once the first question is sent. `/clear` ends the Yvoke session, and `/yvoke` starts a new one with a fresh setup band; `/resume` brings back an old session with its setup. | P1-08 |
+| U9 | Developer on the same laptop | **Code as usual** | In any session where they did not type `/yvoke`, Claude Code behaves exactly as before. | P1-10 |
 | U10 | Chat or Cowork user | **Use a playbook outside Claude Code** | Invokes a Yvoke playbook skill. Claude fetches the playbook from the server and answers from the knowledge base, without the setup band, the tool rules or the source pane. | P1-04, P8-01 |
 | U11 | Anyone | **Server unreachable** | The question fails with a `Yvoke Backend:` message. There is no stale cached answer. | P1-03, P1-07 |
 | U12 | Consultant | **Very long question** | A loop that hits the turn ceiling still delivers what it has, marked *stopped at the turn limit*. | P2-08 |
@@ -113,7 +113,7 @@ Write things down here when they are decided against, so nobody "fixes" them by 
   readable by any connected client of the server. Not a secret today either.
 - **Isolation from the user's own Claude setup.** In Claude, the user's other plugins, skills, memory and
   connectors can affect answers; Yvoke Desktop excluded them. Managed settings can narrow this, not remove it.
-  The other direction is handled: outside the Yvoke folder the mod changes nothing (P1-10), but the
+  The other direction is handled: outside a Yvoke session the mod changes nothing (P1-10), but the
   playbook skills and the Yvoke connector are still offered in every session.
 - **Company cost reporting.** Model usage stays on each user's Claude subscription, as with Yvoke Desktop.
 - **Removing a rejected draft from the record.** Claude Code keeps every turn; the mod only collapses

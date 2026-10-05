@@ -10,7 +10,7 @@ How the plugin is built. Why it exists is in [intent.md](intent.md), what it mus
 ```mermaid
 flowchart LR
   repo["GitHub: yvoke-claude-plugin<br/>public marketplace, no playbook text (D-02)"]
-  subgraph pc["User's computer: Claude Code in the Yvoke folder"]
+  subgraph pc["User's computer: Claude Code, a session started with /yvoke"]
     model["Claude (the model)"]
     mod["yvoke mod (in-process hooks)<br/>setup band · prompt builder · tool gate<br/>compute tools · citations · multi-agent review"]
     conn["MCP server 'yvoke'<br/>from the plugin's .mcp.json (D-03)<br/>holds the Entra token"]
@@ -34,7 +34,7 @@ flowchart LR
 | Marketplace repo | This repository, public (D-02) | Holds the plugin. Never holds playbook text, secrets or customer data. |
 | Plugin `yvoke` | `plugin.json`, `.mcp.json`, mod, playbook stubs | The unit users install. Every setting lives in its `userConfig`; IT can preset them. |
 | MCP connection | Server `yvoke` in `.mcp.json` | Claude Code's own connection to yvoke-web. Signs in through Entra and keeps the token. The model's tool calls and the mod's `$.mcp.call` both use it, so the mod never handles a token. |
-| Mod | `hooks/register.tsx`, in-process in Claude Code | Everything Yvoke-specific in Claude Code (section 1.2). Active only inside the Yvoke folder. |
+| Mod | `hooks/register.tsx`, in-process in Claude Code | Everything Yvoke-specific in Claude Code (section 1.2). Active only in a session the user started with `/yvoke` (D-13). |
 | yvoke-web | Spring server, MCP at `/mcp` | Source of truth for base instructions, playbooks, profiles and the knowledge base. Gets new MCP tools for the plugin (section 5). |
 | Entra ID | New public client *Yvoke for Claude* | Signs Claude Code and the claude.ai connector in with the API scope the desktop uses. yvoke-desktop's registration and REST API stay unchanged. |
 | Organization connector | Added by an admin on claude.ai (D-01) | Chat and Cowork reach the same `/mcp` URL through it; the playbook stubs depend on it. |
@@ -45,7 +45,7 @@ flowchart LR
 Claude Code engine (Desktop Code tab / terminal)
  ├─ skills/          playbook stubs for Chat and Cowork (D-04); loaded but not offered in Claude Code (D-11)
  ├─ MCP server yvoke from .mcp.json → search_corpus, get_section, verify_citations, …
- └─ mod (register.tsx), in-process hooks, only inside the Yvoke folder (P1-10):
+ └─ mod (register.tsx), in-process hooks, only in a session started with /yvoke (P1-10):
      ├─ AbovePrompt      session setup band: area, mode, playbook; read-only once locked (P1-08)
      ├─ prompt.submit    playbook preflight; locks the session's setup on the first question
      ├─ prompt.compose   system prompt = base instructions + the session's playbook, from the server
@@ -65,8 +65,8 @@ feedback and sync capture (D-07, D-08).
 
 A single-agent question in Claude Code:
 
-1. The user opens a session in the Yvoke folder. The mod checks the folder on every event; outside it, the
-   mod passes everything through (P1-10).
+1. The user opens a session in any folder and types `/yvoke`. Until then, and in every session without it,
+   the mod passes everything through (P1-10, D-13).
 2. The setup band shows area, mode and playbook, filled from `list_areas` and `list_playbooks` (P1-08, P1-12).
 3. The user sends a question. If the area has two or more playbooks, the preflight check may suggest another
    one; it fails open (P2-06).
@@ -123,11 +123,11 @@ No `agents/*.md`: profiles are registered live by the mod (D-06).
   answers grounded for users who choose it, and are not a security boundary. No IT lockdown.
 - If IT sets **`allowManagedModsOnly`**, mods installed from Git or claude.ai sync stop loading. Only a mod
   copied by MDM into an admin-only directory marketplace counts as the organization's (P7-04).
-- In the Code tab, **no mod loads until the user trusts the session's folder**. Users will keep a dedicated
-  "Yvoke" folder (P7-08).
-- **A mod's hooks run in every session that loads the plugin**, not only in the Yvoke folder. Without
-  scoping, deny-by-default and the playbook gate would block the user's other Claude Code work, such as
-  coding. The mod enforces only inside the Yvoke folder (P1-10).
+- In the Code tab, **no mod loads until the user trusts the session's folder**. Yvoke needs no special
+  folder; any trusted folder works for Yvoke (P7-08).
+- **A mod's hooks run in every session that loads the plugin.** Without scoping, deny-by-default and the
+  playbook gate would block the user's other Claude Code work, such as coding. The mod enforces only in a
+  session the user started with `/yvoke` (P1-10, D-13).
 
 ## 3. Decisions
 
@@ -224,10 +224,10 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
   - Managed `permissions.deny` applies to every Claude Code session on the machine, not only the Yvoke
     folder. It suits consultant-only machines. On machines where users also code with Claude Code, the
     options are mod-only enforcement, or an organization-managed policy mod (`prependPlugins`) that applies
-    the deny only inside the Yvoke folder. 🔍 Confirm whether users can disable a managed policy mod.
+    the deny only in Yvoke sessions. 🔍 Confirm whether users can disable a managed policy mod.
   - **Decided 2026-10-05 (Eduard): mod only, no IT lockdown.** Users opt in by installing the plugin and
-    working in the Yvoke folder; Claude Code's own permission prompts still guard shell and file tools. The
-    mod's in-folder rules (P2-01 to P2-03) stay, as answer quality rather than security. P2-07 is dropped.
+    starting Yvoke sessions; Claude Code's own permission prompts still guard shell and file tools. The
+    mod's in-session rules (P2-01 to P2-03) stay, as answer quality rather than security. P2-07 is dropped.
   - Blocks: P2-07.
 - [x] **D-10** `PO` — **Is Chat/Cowork support in scope for v1**, or Claude Code only?
   - **Decided 2026-10-05 (Eduard): Claude Code plus playbook stubs.** v1 is built for Claude Code. Chat and
@@ -251,6 +251,15 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     `get_system_prompt` and not as MCP `instructions`. The mod adds them in Yvoke sessions (P1-07); Chat and
     Cowork stubs fetch them (P8-01).
   - Blocks: P1-01.
+- [x] **D-13** `PO` · `plugin` — **Where does Yvoke work, and how does a session become a Yvoke session?**
+  Until now the mod applied only inside a configured Yvoke folder.
+  - **Decided 2026-10-05 (Eduard): any folder, started with `/yvoke`.** There is no Yvoke folder. A session
+    is plain Claude Code until the user types `/yvoke`; from then on the setup band, system prompt and tool
+    rules apply to that session until `/clear`. `/resume` and `/branch` keep it a Yvoke session.
+  - Default chosen with it: `/yvoke` works only before the session's first question. In a session that
+    already has turns it tells the user to `/clear` first, so Yvoke answers never build on coding turns.
+  - Replaces the folder setting and the path matching in P1-10; P7-08 only covers folder trust.
+  - Blocks: P1-10.
 
 ## 4. Notes for implementers
 
@@ -335,7 +344,7 @@ the same PR.
 | End of turn | `turn.complete`: `answer`, `reason`, `isAborted`, `agentId`, `usage` | Returning `{ text }` shows a line *under* the answer; the record never changes. |
 | Re-prompt | `$.prompt.submit` | Queues a new turn once idle; never `await` it inside `turn.complete`. |
 | `/clear`, `/resume`, `/branch` | `classic.SessionStart` (`source`: `startup`, `resume`, `clear`, `compact`, `fork`); `session.end` (`reason`, `sessionId`) | `session.start` fires once per process, not after `/clear`. |
-| Yvoke-folder scope | `$.session.root()`, `$.session.cwd()` | `root` moves on `/cd`, host directory changes and worktree moves: re-check per event. |
+| Yvoke session (D-13) | `/yvoke` via `$.command.register`; a flag in `$.state`, and in `$.store` under `$.session.id` | `$.state` does not survive `/clear`, which is what ends a Yvoke session. Restore the flag on `classic.SessionStart` with `source` `resume` or `fork`. |
 | Server calls | `$.mcp.call(server, tool, args)` | Any connected server, connectors included; `$.mcp.connect` only for the plugin's own `.mcp.json` entries. |
 | Preflight model call | `$.model.complete({ model, prompt, timeoutMs })` | Never rejects for provider errors; check `isAnswered`. Uses the user's quota. |
 | Session values | `$.state` (declared in `types/index.d.ts` under `PluginState.yvoke`) | Survives hot reload, not `/clear`. Module variables do not survive a reload. |
@@ -356,8 +365,8 @@ the same PR.
   ```
 
   Tests cover the throw and the timeout path for each one.
-- **Outside the Yvoke folder, call `next(e)` and nothing else.** The mod loads in every Claude Code session
-  of the user (P1-10).
+- **Outside a Yvoke session, call `next(e)` and nothing else.** The mod loads in every Claude Code session
+  of the user; only `/yvoke` makes a session a Yvoke session (P1-10, D-13).
 - **The module environment is not Node.** It has no `require`, no dynamic `import()` (a module holding one
   does not load), no DOM and no `process`. Static `import` of the plugin's own `.ts` files works, so
   generated data such as a playbook map can be a `.ts` module. JSX compiles against the global `h`.

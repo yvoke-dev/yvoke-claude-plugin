@@ -110,15 +110,15 @@ a cloud session.
   - Hiding tools: per the mods reference, `tool.describe` can only reword a tool or defer it behind tool
     search, and `agent.offer` can withhold subagent types. Tools are therefore denied at call time, not
     hidden; confirm, and check that a deferred tool stays out of the model's context until searched.
-  - `$.session.cwd` and `$.session.root` in the Code tab and the terminal: which one names the folder the
-    session was opened in, and does it change during the session (P1-10)?
+  - A mod command named `yvoke` next to the plugin's `/yvoke:<skill>` skills: does `/yvoke` register and
+    autocomplete cleanly on both surfaces (P1-10)?
   - `prompt.submit` returning `{ drop }`: does the typed text stay in the prompt box? If not, restore it
     with `$.prompt.fill` (P1-08 promises the draft is kept).
   - `/clear`, `/resume` and `/branch`: `$.state` resets on `/clear` and `session.start` does not fire again
     after any of them. Is `$.session.id` the same after `/resume`, so state saved per session can be
     restored (P1-08, P6-01)?
-  - Done when: findings confirm (or rule out) live playbooks (D-04), sticky scoping (P2-02) and the folder
-    check (P1-10).
+  - Done when: findings confirm (or rule out) live playbooks (D-04), sticky scoping (P2-02) and the `/yvoke`
+    start (P1-10).
 - [ ] **P0-07** `plugin` · S — **Spike: dynamic subagents.**
   - `$.agent.register` with a restricted tool list, model and effort; `$.agent.spawn`; whether delegation
     shows up in `tool.call` as `Agent`/`Task` so it can be counted; `turn.complete` + `$.prompt.submit` for
@@ -207,30 +207,26 @@ a cloud session.
   - Kept in `$.state`, and in `$.store` under the session id so `/resume` restores it and `/branch` keeps it
     (`classic.SessionStart` `source`). 🔍 P0-06 for `/branch`.
   - Playbook skills are not offered in Claude Code: generated skills carry `disable-model-invocation`, and
-    a `skill.prompt` hook inside the Yvoke folder answers with a pointer to the setup band.
+    a `skill.prompt` hook in a Yvoke session answers with a pointer to the setup band.
   - A server with no areas or playbooks: the band says so and questions are refused (no fallback).
-  - Only inside the Yvoke folder. ⛔ P1-10, P1-12
+  - Only in a Yvoke session (P1-10). ⛔ P1-10, P1-12
   - Done when: tests cover the defaults, changing each select before the first question, the lock, the
     read-only line on `terminal` and `desktop`, `/clear`, `/resume`, and server down.
 - [ ] **P1-09** `plugin` · S — **Clarifying questions.** Deny the server's `ask_clarifying_question` with a
   message telling the model to use Claude Code's native `AskUserQuestion`. Yvoke Desktop intercepts that tool;
   nothing else does.
   - Done when: a test shows the deny and its message.
-- [ ] **P1-10** `plugin` · S — **Yvoke session scope.** The mod's hooks run in every session that loads the
-  plugin, so the mod decides at session start whether this is a Yvoke session: the session's folder
-  (`$.session.cwd` / `$.session.root`) is the configured Yvoke folder or inside it. The folder comes from
-  deployment configuration (`userConfig`, default `~/Yvoke`).
-  - Inside: policy, playbook gate, compute tools, preflight and UI all apply.
-  - Outside: every hook passes the event through unchanged and nothing is registered or drawn, so the user's
-    other Claude Code work is untouched.
-  - Path matching is on segment boundaries: `~/Yvoke-old` is not inside `~/Yvoke`. **Decided 2026-10-05:**
-    plain string comparison of normalised paths, with no file access: case-insensitive on macOS and
-    Windows, `\` and `/` treated alike, `~` expanded. A folder reached through a symlink or alias counts as
-    outside. The scope is re-checked on every event, because `$.session.root()` moves on `/cd`, a directory
-    change by the Desktop app, or a worktree move.
-  - 🔍 Confirm in P0-06 which of `cwd` and `root` names the session's folder in the Code tab.
-  - Done when: tests cover the folder itself, a subfolder, an unrelated folder, a same-prefix sibling, a
-    case difference, Windows separators, and a folder change mid-session.
+- [ ] **P1-10** `plugin` · S — **Yvoke session start** (D-13). The mod's hooks run in every session that loads
+  the plugin, in any folder. A session becomes a Yvoke session only when the user types `/yvoke`.
+  - In a Yvoke session: policy, playbook gate, compute tools, preflight and UI all apply.
+  - In any other session: every hook passes the event through unchanged and nothing is registered or drawn,
+    so the user's other Claude Code work is untouched.
+  - `/yvoke` works only before the session's first question; afterwards it says to `/clear` first. Typing it
+    again in a Yvoke session changes nothing. `/clear` ends the Yvoke session. The flag is kept in `$.state`
+    and in `$.store` under the session id, so `/resume` and `/branch` keep it (`classic.SessionStart`
+    `source`, as P1-08).
+  - Done when: tests cover a session without `/yvoke`, `/yvoke` before the first question, `/yvoke` after it,
+    `/yvoke` twice, `/clear`, `/resume`, and `/branch`.
 - [ ] **P1-13** `server` · S — **Keep plugin-control tools away from models that should not call them**
   ([design 5.4](design.md#54-which-model-sees-which-tool-p1-13)). `get_playbook`, `submit_feedback` and the sync tools are for the mod, not for the web's
   in-app assistant, which today shares one tool set with every MCP client.
@@ -266,8 +262,8 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   - `WebFetch`: URL checked against the allow-list (host or subdomain, path on segment boundaries); hosts in
     `WAF_CHALLENGED_HOSTS` refused first, with an instruction to use `WebSearch`; an empty or unparseable list
     refuses everything.
-  - The domain list comes from the plugin's `userConfig`, like every other deployment setting (Yvoke folder,
-    role models, budgets). **Decided 2026-10-05:** all settings stay in `userConfig` and are editable by the
+  - The domain list comes from the plugin's `userConfig`, like every other deployment setting (role
+    models, budgets). **Decided 2026-10-05:** all settings stay in `userConfig` and are editable by the
     user, as in yvoke-desktop; where IT deploys managed `pluginConfigs`, those values apply. 🔍 Confirm in
     P0-06 that managed `pluginConfigs` override a user's own values; if they do not, record it in [intent 9](intent.md#9-not-planned-and-known-gaps).
   - Done when: yvoke-desktop's web cases from `policy.test.ts` pass here.
@@ -423,7 +419,7 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
   (validate, type-check, tests); no hand-made tags.
 - [ ] **P7-03** `IT` · `plugin` · S — **Managed-settings template** (`deploy/managed-settings.json`):
   `extraKnownMarketplaces` with `autoUpdate: true` and `enabledPlugins`, for Intune/MDM (route B), plus the
-  deployment `pluginConfigs` (Yvoke folder, web domains, role models and budgets; the server URL is fixed in
+  deployment `pluginConfigs` (web domains, role models and budgets; the server URL is fixed in
   `.mcp.json`, see P1-02). ⛔ D-01
 - [ ] **P7-04** `IT` · `plugin` · M — **Distribution route set up and tested end to end:** route A (users add
   the repo), B (managed settings via MDM) or C (claude.ai organization sync), including how users get read
@@ -435,7 +431,7 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
     `allowManagedModsOnly`.
 - [ ] **P7-11** `server` · S — **Per-user rate limit on `/mcp`** ([design 5.5](design.md#55-behaviour-to-fix-on-the-server)). Searches from AI clients are
   not rate-limited today; the plugin moves every consultant onto that route.
-- [ ] **P7-05** `plugin` · S — **User guide** (`docs/user-guide.md`): install, sign in, the Yvoke folder,
+- [ ] **P7-05** `plugin` · S — **User guide** (`docs/user-guide.md`): install, sign in, starting with `/yvoke`,
   picking playbooks and profiles, citations, feedback, what is different from Yvoke Desktop.
 - [ ] **P7-06** `plugin` · S — **Security review pack** (`docs/security.md`): the `claude plugin validate`
   `hooks:` and `calls:` output for each release, what data leaves the machine and to where, what the mod
@@ -445,17 +441,17 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
   - managed `PreToolUse` hooks run before every mod, and a block from one is final.
 - [ ] **P7-07** `plugin` · S — **Compatibility.** Minimum supported Claude Code version documented and
   tested in CI; the mod reads `$.session.version` at session start and shows a clear message if it is too old.
-- [ ] **P7-08** `plugin` · S — **Folder trust.** Document (and if possible script) the dedicated "Yvoke" folder
-  users open in the Code tab, so the trust prompt appears once. It is the same folder P1-10 scopes the mod
-  to; the script creates it at the configured path.
+- [ ] **P7-08** `plugin` · S — **Folder trust.** No mod loads in the Code tab until the user trusts the
+  session's folder. Yvoke works in any folder (D-13), so document that users trust the folder they work in
+  once; for users who have none, suggest (and if possible script) a folder to keep for Yvoke sessions.
 - [ ] **P7-09** `PO` · M — **Pilot** with 3–5 consultants on macOS and Windows for two weeks; collect issues;
   go/no-go for wider rollout. Include users who are not developers, and record how long each takes from
   install to a first cited answer, and where they get stuck (Code tab, folder trust, slash commands).
 - [ ] **P7-10** `plugin` · S — **`/yvoke-doctor` diagnostics** (spec chapter 8). One command that reports
-  the Claude Code version against the minimum, whether this is a Yvoke session (P1-10) and why, whether the
+  the Claude Code version against the minimum, whether this is a Yvoke session (P1-10), whether the
   Yvoke server is connected and signed in, the server's version, how many playbooks it offers, and the
   active playbook or profile. Uses P1-03; never prints tokens or other secrets.
-  - Done when: tests cover a healthy session, outside the folder, server not connected and signed out.
+  - Done when: tests cover a healthy session, a session without `/yvoke`, server not connected and signed out.
 
 ### Phase 8 — Chat and Cowork (lower fidelity; D-10: only P8-01 in v1)
 
@@ -488,7 +484,7 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
 | Connector sign-in does not work in Claude Code | No MVP | Spike P0-04 first; server-side auth work early |
 | Users cannot reach a private repo | Install and updates fail | D-02: public repo without playbook text, or archive served by yvoke-web |
 | Users disable the plugin | Policy not enforced | Accepted: Yvoke is opt-in (D-09) |
-| The mod blocks users' other Claude Code work (it runs in every session) | Coding sessions lose shell and file tools; every prompt needs a playbook | Enforce only in the Yvoke folder (P1-10); no IT lockdown (D-09) |
+| The mod blocks users' other Claude Code work (it runs in every session) | Coding sessions lose shell and file tools; every prompt needs a playbook | Enforce only in sessions started with `/yvoke` (P1-10, D-13); no IT lockdown (D-09) |
 | A `tool.call` hook cannot tell which agent made the call | Lead-only rules (P6-04) cannot be enforced | Spike P0-07 before Phase 6 is designed; the budget (P6-06) uses `agent.spawn` instead |
 | The mod cannot reach a claude.ai connector in practice (documented as working through `$.mcp.call`) | Live playbooks, citation pane, feedback and sync have no server | Spike P0-04; fall back to `.mcp.json` |
 | A policy hook throws or times out, or mods are off (`disableAllHooks`, `--safe-mode`, hooks worker crashed) | The tool runs or the prompt goes through: policy fails open | `.catch` on every enforcing hook ([design 4.4](design.md#44-rules-that-are-easy-to-get-wrong)); Claude Code's permission prompts still apply |

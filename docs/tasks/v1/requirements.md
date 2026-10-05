@@ -21,14 +21,15 @@ same pull request.
   **Done when** includes a test for the throw and the timeout path ([design 4.4](design.md#44-rules-that-are-easy-to-get-wrong)).
 - **One session, one setup.** A session's area, mode and playbook are chosen once and cannot change
   afterwards; a different setup is a new session (`/clear`). Decided 2026-10-05 (D-11).
-- **Only inside the Yvoke folder.** The mod's rules and UI apply only in a session whose folder is the
-  configured Yvoke folder or inside it. Everywhere else Claude Code behaves as if the mod were not there
-  (P1-10).
+- **Only in a Yvoke session.** Yvoke works in any folder. The mod's rules and UI apply only in a session the
+  user started with `/yvoke`. Everywhere else Claude Code behaves as if the mod were not there (P1-10,
+  D-13).
 
 ## 2. Behaviour in Claude Code
 
 ### 2.1 Session setup and system prompt
 
+- `/yvoke`, typed before a session's first question, makes it a Yvoke session until `/clear`. (P1-10)
 - A new Yvoke session shows a setup band with **area** (default OIM), **mode** (single agent or one of the
   area's multi-agent profiles) and, for single agent, **playbook** (default `oim-full`). The lists come live
   from the server; prototypes are hidden unless enabled. (P1-08, P1-12)
