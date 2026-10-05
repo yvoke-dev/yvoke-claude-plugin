@@ -359,6 +359,12 @@ The spikes de-risk everything later in the plan. Record each spike's findings in
     active playbook and whether the reviewer ran from the transcript at `transcript_path`, as P8-02 needs.
   - Done when: findings feed D-10 and Phase 8.
 
+- [ ] **P0-09** `server` · `IT` · S — **Entra client registration for Claude clients** (section 11.2).
+  A public-client app registration (or the desktop's, extended) with the redirect URIs Claude Code and
+  claude.ai use, consented for the API scope yvoke-web checks. Feeds D-03 and P1-02.
+  - Done when: `claude mcp add --transport http --client-id <id> --callback-port <port> yvoke <url>` signs
+    in from a clean machine and lists the tools, and the claude.ai connector does the same.
+
 ### Phase 1 — Knowledge base, base instructions and playbooks (MVP)
 
 **Milestone M1:** in the Code tab, a user picks a playbook, asks a question, and gets a grounded answer.
@@ -436,6 +442,9 @@ The spikes de-risk everything later in the plan. Record each spike's findings in
   - Path matching is on segment boundaries: `~/Yvoke-old` is not inside `~/Yvoke`.
   - 🔍 Confirm in P0-06 which of `cwd` and `root` is stable for the session.
   - Done when: tests cover the folder itself, a subfolder, an unrelated folder and a same-prefix sibling.
+- [ ] **P1-13** `server` · S — **Keep plugin-control tools away from models that should not call them**
+  (section 11.4). `get_playbook`, `submit_feedback` and the sync tools are for the mod, not for the web's
+  in-app assistant, which today shares one tool set with every MCP client.
 - [ ] **P1-12** `server` · S — **Areas.** An MCP tool (`list_areas`, or `_meta.area` on playbooks and
   profiles) that says which areas exist, which modes and profiles each offers, and each area's default
   playbook (OIM: `oim-full`). 🔍 "Area" here groups playbooks and profiles; it is not yvoke-web's *knowledge
@@ -616,6 +625,8 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
     same admin-only path on every machine, enabled in managed settings) for rollout once IT enforces policy.
     Only route D makes the mod the organization's, so it can run first (`prependPlugins`) and survives
     `allowManagedModsOnly`.
+- [ ] **P7-11** `server` · S — **Per-user rate limit on `/mcp`** (section 11.5). Searches from AI clients are
+  not rate-limited today; the plugin moves every consultant onto that route.
 - [ ] **P7-05** `plugin` · S — **User guide** (`docs/user-guide.md`): install, sign in, the Yvoke folder,
   picking playbooks and profiles, citations, feedback, what is different from Yvoke Desktop.
 - [ ] **P7-06** `plugin` · S — **Security review pack** (`docs/security.md`): the `claude plugin validate`
@@ -849,3 +860,107 @@ steers it, so some desktop behaviours need deliberate work. The full list, with 
 - **Turn ceilings are not native.** If cost has to be bounded, count `turn.step` (coverage C4).
 - **Billing.** The desktop removed `ANTHROPIC_API_KEY` to keep billing on the subscription. A plugin cannot,
   so `/yvoke-doctor` reports which applies (coverage C11).
+
+---
+
+## 11. Changes on the web side (yvoke-web)
+
+Everything the plugin needs from yvoke-web, in one place. Facts about the current server were read from
+`yvoke-dev/yvoke-web` at `main` on 2026-10-05. Task IDs refer to section 6; `server` tasks belong to the
+yvoke-web team and should be dated with them before Phase 1 starts (section 8).
+
+### 11.1 What yvoke-web already has
+
+- **An MCP server at `/mcp`** (Spring AI, streamable HTTP, tools and prompts enabled, name `Yvoke`, version
+  from the build). Tools are `@Tool` classes in `src/main/java/de/palsoftware/yvoke/mcp/tools/`; playbooks
+  are MCP prompts from `mcp/prompts/PromptsService.java`.
+- **MCP OAuth discovery already in place** (`shared/security/ProtectedResourceMetadataController.java`):
+  `/.well-known/oauth-protected-resource` names Entra as the authorization server, a 401 from `/mcp`
+  carries `WWW-Authenticate: Bearer resource_metadata=…`, and `/.well-known/oauth-authorization-server`
+  republishes Entra's endpoints for clients that look for RFC 8414 metadata. This is why Claude clients
+  can already connect today.
+- **One token check for `/mcp` and `/api/chat/**`** (`SecurityConfig.java`): an Entra JWT from the tenant,
+  with the configured audience (`APP_SECURITY_MCP_AUDIENCE`), and either the configured scope
+  (`APP_SECURITY_MCP_SCOPE`) or the `User`/`Admin` app role. Users are created on first sign-in. The check
+  does not care which client app obtained the token.
+- **yvoke-desktop's own Entra sign-in**: a public-client registration (`settings.json`: client
+  `a1824d0a-…`, scope `api://a1824d0a-…/desktop`), MSAL with PKCE, whose token the server accepts on both
+  `/mcp` and `/api/chat/v1`.
+- **The desktop's REST API** (`chat/api/DesktopSyncController.java`, `/api/chat/v1`): `GET /playbooks`,
+  `GET /orchestrator/profiles`, `POST /orchestrator/runs`, `GET /prompts/system/{name}`, conversations,
+  messages and `PUT /messages/{id}/feedback`.
+
+**Nothing here changes for yvoke-desktop.** Its registration, scope and REST API stay as they are; the
+plugin adds a second client and a few MCP tools beside them.
+
+### 11.2 Sign-in for Claude clients (P0-09, decides D-03)
+
+The plugin cannot borrow the desktop's sign-in. Claude Code and claude.ai are OAuth clients of their own,
+and Entra offers no dynamic client registration, so each needs a client ID registered in advance.
+
+| Client | How it signs in | Redirect URI to register |
+| --- | --- | --- |
+| Claude Code, from the plugin's `.mcp.json` | `"oauth": { "clientId": "<id>", "callbackPort": <port>, "scopes": "<api scope> offline_access" }`; no secret (public client, PKCE) | `http://localhost:<port>/callback` (exactly `localhost`, not `127.0.0.1`) |
+| claude.ai custom connector (Chat, Cowork, and Claude Code through sync) | Connector's advanced settings: OAuth client ID (and secret, if the registration is confidential) | claude.ai's connector callback 🔍 confirm the exact URL in P0-04 |
+
+Changes:
+
+- **Register the client.** Recommended: a new registration *Yvoke for Claude* that requests the existing
+  API scope, so sign-ins show up per client in Entra's logs and can be revoked on their own. The quicker
+  option is to add the redirect URIs above to the desktop's registration. Either way the token's audience
+  must stay the one `APP_SECURITY_MCP_AUDIENCE` names, or the server must accept both audiences.
+- **Make the advertised scope match.** `scopes_supported` in the protected-resource metadata is
+  `APP_SECURITY_MCP_SCOPE`; the plugin's `oauth.scopes` and the registration's consent must use the same
+  value, plus `offline_access` so Claude Code can refresh without a new browser sign-in. 🔍 The desktop's
+  scope ends in `/desktop`; check what production sets.
+- **Pick a fixed callback port** (one unlikely to be in use) and document it. If the port is busy on a
+  machine, sign-in fails there.
+- 🔍 MCP clients send the RFC 8707 `resource` parameter; it works for today's connector, but confirm it for
+  the new registration in P0-04.
+
+### 11.3 New MCP tools
+
+Each wraps logic the server already has. Inputs and outputs are JSON; errors start with `ERROR:` as the
+existing tools' do (P1-03 relies on it).
+
+| Tool | Wraps | Returns | Task |
+| --- | --- | --- | --- |
+| `get_system_prompt(name = "default-chat")` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions. Optionally also served as MCP `instructions` for Chat/Cowork. | P1-01 |
+| `list_areas()` | new | each area, its modes (*single agent*, its profiles), its default playbook (OIM: `oim-full`) | P1-12 |
+| `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`, area | P1-06, P1-12 |
+| `get_playbook(name)` | `PromptsService` | the playbook's full text and the same metadata | P1-06 |
+| `list_profiles(area?)` / `get_profile(name)` | as `GET /orchestrator/profiles` | lead, reviewer and specialist playbooks, `prototype`, area | P6-01 |
+| `submit_feedback(…)` | the feedback store behind `PUT /messages/{id}/feedback` | an id. Self-contained payload (D-08): rating, comment, question, answer, area, mode, playbook or profile, cited ids, model, client `claude-plugin`, plugin version. Needs storage that does not require a server message id. | P4-01 |
+| sync tools: create conversation, append turn, record run | `DesktopSyncService`, `DesktopOrchestratorRunService` | ids; an idempotency key per turn, which the REST API lacks today | P5-01 (only if D-07) |
+
+**Areas are new.** yvoke-web's *knowledge area* is a content collection (*OIM Docs*, *OIM Database*) that a
+playbook decides; the plugin's *area* (D-11) groups playbooks and profiles, so a playbook and a profile each
+need an area attribute, and an area a default playbook. 🔍 `DesktopSyncController` describes profiles as
+"knowledge bases"; check whether that is already the grouping meant. Agree the name before building it.
+
+### 11.4 Which model sees which tool (P1-13)
+
+yvoke-web's spec says AI clients and the in-app assistant share one tool set, so a new tool is offered to
+the web's own assistant and to every connected client, including the model in Claude Code and Chat.
+`get_playbook`, `submit_feedback` and the sync tools are meant for the mod, not for any model.
+
+- Recommended: keep them on the same `/mcp` server (one sign-in) and leave them out of the in-app
+  assistant's tool set. In Claude Code the mod's deny-by-default already stops the model from calling them,
+  and the mod reaches them through `$.mcp.call`, which is not a model tool call. In Chat and Cowork the model
+  sees them; tool descriptions should say they are for the client, not for answering.
+- Alternative: a second MCP endpoint (for example `/mcp/client`) with only these tools, listed as a second
+  server in the plugin's `.mcp.json`. Cleaner separation, but a second connection to sign in.
+
+### 11.5 Behaviour to fix on the server
+
+- **Rate limiting (P7-11).** Searches from AI clients are not rate-limited (yvoke-web spec ch. 7). Every
+  plugin user arrives through that route.
+- **Deleted playbooks stay listed until a restart** (spec ch. 7). With a live list (D-11) that becomes
+  visible to every plugin user. Refresh the prompt and tool listing when a playbook changes.
+- **The client's version.** The MCP `clientInfo` a server sees is Claude Code's, not the plugin's. Feedback
+  and sync payloads therefore carry the plugin version themselves.
+- **`ask_clarifying_question` reports success without asking anyone** (spec ch. 7). The plugin denies it in
+  Claude Code (P1-09); leave it as is unless Chat needs a change.
+- **Conversations from the plugin** (only if D-07): mark them as coming from the Claude plugin, as desktop
+  conversations are marked *Desktop*, so the web sidebar and the admin register can tell them apart.
+
