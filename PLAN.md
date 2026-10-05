@@ -444,9 +444,14 @@ The spikes de-risk everything later in the plan. Record each spike's findings in
   - Inside: policy, playbook gate, compute tools, preflight and UI all apply.
   - Outside: every hook passes the event through unchanged and nothing is registered or drawn, so the user's
     other Claude Code work is untouched.
-  - Path matching is on segment boundaries: `~/Yvoke-old` is not inside `~/Yvoke`.
-  - 🔍 Confirm in P0-06 which of `cwd` and `root` is stable for the session.
-  - Done when: tests cover the folder itself, a subfolder, an unrelated folder and a same-prefix sibling.
+  - Path matching is on segment boundaries: `~/Yvoke-old` is not inside `~/Yvoke`. **Decided 2026-10-05:**
+    plain string comparison of normalised paths, with no file access: case-insensitive on macOS and
+    Windows, `\` and `/` treated alike, `~` expanded. A folder reached through a symlink or alias counts as
+    outside. The scope is re-checked on every event, because `$.session.root()` moves on `/cd`, a directory
+    change by the Desktop app, or a worktree move.
+  - 🔍 Confirm in P0-06 which of `cwd` and `root` names the session's folder in the Code tab.
+  - Done when: tests cover the folder itself, a subfolder, an unrelated folder, a same-prefix sibling, a
+    case difference, Windows separators, and a folder change mid-session.
 - [ ] **P1-13** `server` · S — **Keep plugin-control tools away from models that should not call them**
   (section 11.4). `get_playbook`, `submit_feedback` and the sync tools are for the mod, not for the web's
   in-app assistant, which today shares one tool set with every MCP client.

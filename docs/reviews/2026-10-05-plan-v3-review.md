@@ -125,6 +125,8 @@ need to wait for it. Noted in PLAN.md.
 
 ### M3. The Yvoke-folder check (P1-10) cannot be done once at session start
 
+> **Decided 2026-10-05:** normalised path comparison, no file access, re-checked per event (PLAN.md P1-10).
+
 `$.session.root()` moves during a session on `/cd`, on a directory change by the host (the Desktop app), or
 on a worktree move. A shell `cd` does not move it. `$.session.cwd()` is "the directory the session runs in".
 **Change:** re-evaluate the scope in each enforcing hook (one cheap `$` call, outside the hook's budget),
@@ -141,6 +143,8 @@ restore or keep the active playbook. P0-06 should confirm that `fork` is what `/
 
 ### M5. Deployment configuration in `userConfig` is user-editable unless managed settings win
 
+> **Decided 2026-10-05:** all settings stay in `userConfig`; managed `pluginConfigs` apply where IT deploys them (PLAN.md P2-04).
+
 Every non-secret `userConfig` field is a row in the `/config` menu, and `$.config.set` exists. The Yvoke
 folder (P1-10), web domains (P2-04), role models and budgets (P6-02) can therefore be changed by the user
 unless managed `pluginConfigs` override them. P2-04 already flags this with 🔍. Add the same 🔍 to P1-10,
@@ -148,6 +152,8 @@ and have a fallback ready: serve the security-relevant values (web allow-list) f
 from `userConfig`.
 
 ### M6. The repository is already public
+
+> **Decided 2026-10-05:** live playbook stubs, no playbook text in the repo (PLAN.md D-04).
 
 `yvoke-dev/yvoke-claude-plugin` is public (as are `yvoke-desktop` and `yvoke-web`). That settles most of D-02
 and has a direct consequence for D-04: **copied playbooks would be published**. If any playbook text is

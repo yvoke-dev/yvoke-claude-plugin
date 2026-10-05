@@ -4,6 +4,8 @@
 (and `src/main/agent/orchestration.ts` where the spec was ambiguous) against PLAN.md section 5 (parity map)
 and the tasks in section 6.
 
+**Decisions taken 2026-10-05:** C1 fixed in P6-04; C2/C3 by D-11; C4 → P2-08 (enforce, deliver what exists); C8 → P6-07 (collapse rejected drafts). The rest stay as proposals.
+
 **Result.** The plan carries over everything that makes an answer *grounded and governed*: knowledge-base
 tools, base instructions, playbooks, the required-playbook gate, preflight, deny by default, scoping,
 compute, web rules, clarifying questions, citations, rating, sync, multi-agent review and the error prefix.
