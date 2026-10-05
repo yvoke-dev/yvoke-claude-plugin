@@ -4,7 +4,7 @@
 (and `src/main/agent/orchestration.ts` where the spec was ambiguous) against PLAN.md section 5 (parity map)
 and the tasks in section 6.
 
-**Decisions taken 2026-10-05:** C1 fixed in P6-04; C2/C3 by D-11; C4 → P2-08 (enforce, deliver what exists); C8 → P6-07 (collapse rejected drafts). The rest stay as proposals.
+**Decisions taken 2026-10-05:** C1 fixed in P6-04; C2/C3 by D-11; C4 → P2-08 (enforce, deliver what exists); C8 → P6-07 (collapse rejected drafts); D-08: rating comes after sync, keyed to the message id as in the desktop. The rest stay as proposals.
 
 **Result.** The plan carries over everything that makes an answer *grounded and governed*: knowledge-base
 tools, base instructions, playbooks, the required-playbook gate, preflight, deny by default, scoping,
@@ -85,5 +85,5 @@ Claude Code changes the behaviour in a way the plan does not mention.
 
 Reviewer "NOT APPROVED" read as approved (P6-03), advisory specialist budget (P6-06), `log`/`ln` description
 (P2-05), duplicate turns on resend (P5-02), stale sync dot (P5-03), reviewer recorded as "reviewer" (P5-05),
-a specialist's clarifying question with nothing on screen (P6-08), feedback blocked until sync (D-08), no
+a specialist's clarifying question with nothing on screen (P6-08), no
 managed configuration (P7-03), and the release workflow not running tests (P7-02).

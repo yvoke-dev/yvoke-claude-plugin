@@ -52,7 +52,7 @@ installing a separate app.
   question, and gets an answer whose citations open the cited passage.
 - The playbook decides which Yvoke tools the assistant may use, and that rule is enforced in code, not only
   requested in a prompt.
-- 👍/👎 feedback on an answer reaches yvoke-web.
+- After v1, once conversations sync: 👍/👎 feedback on an answer reaches yvoke-web (D-08).
 - A multi-agent profile runs lead → specialists → reviewer, with review enforced in code.
 - Behaviour is pinned by automated tests in this repo, as it is in yvoke-desktop.
 
@@ -219,13 +219,16 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
   - Privacy: sync's retry queue (P5-02) keeps questions and answers unencrypted in `$.store` on disk until
     they are sent, the same class of issue as yvoke-desktop decision #10.
   - **Decided 2026-10-05 (Eduard): no sync in v1.** Conversations stay in Claude's own history. Phase 5 and
-    the server's sync tools move after v1; feedback stays self-contained (D-08).
+    the server's sync tools move after v1, and rating follows sync (D-08).
   - Blocks: all of Phase 5.
-- [ ] **D-08** `PO` · `server` — **Feedback shape.** Yvoke Desktop's feedback is keyed to a server message
+- [x] **D-08** `PO` · `server` — **Feedback shape.** Yvoke Desktop's feedback is keyed to a server message
   id that only exists because it syncs conversations. Without sync (D-07), feedback must be self-contained:
   rating, comment, question, answer, playbook, cited ids, model, client and plugin version.
   - Recommendation: **always self-contained**, whatever D-07 decides. If sync is added later, P5-04 adds
     the server's message id to the same payload. Phase 4 then does not wait on D-07.
+  - **Decided 2026-10-05 (Eduard): rating comes after sync.** No rating in v1. Phase 4 is built after
+    Phase 5, and a rating attaches to the synced message id as in yvoke-desktop, so `submit_feedback` wraps
+    the existing feedback store and needs no new storage. The self-contained payload is not built.
   - Blocks: P4-01.
 - [ ] **D-09** `IT` — **Lockdown level.** Mod-only enforcement (user can disable the plugin), or managed
   settings that deny `Bash`, `Write`, `Edit`, etc. on consultant machines.
@@ -561,26 +564,28 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
 - [ ] **P3-04** `server` · S — **Passage deep link** in yvoke-web (open a passage by id in the browser), used
   by the pane's *Open in Yvoke* action and by Chat/Cowork links (P8-04). 🔍 check whether a route exists.
 
-### Phase 4 — Feedback
+### Phase 4 — Feedback (after v1; built after Phase 5, D-08)
 
 **Milestone M3:** 👍/👎 on an answer arrives in yvoke-web's feedback screens.
 
+Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02).
+
 - [ ] **P4-01** `server` · M — **Feedback endpoint for Claude clients**, as an MCP tool (`submit_feedback`), so
-  the connector's sign-in authenticates it. Fields per D-08; marked as coming from the Claude plugin with its
-  version. ⛔ D-08
+  the connector's sign-in authenticates it. Keyed to the synced message id (D-08), as yvoke-desktop's
+  `PUT /messages/{id}/feedback`; marked as coming from the Claude plugin with its version. ⛔ P5-01
 - [ ] **P4-02** `plugin` · M — **Turn capture.** For each completed turn, keep the question
   (`prompt.submit`), the final answer text, the active playbook, the model, the cited ids and the tool
   names (`session.append` / `turn.complete`), keyed by turn, in session state. Only the main conversation's
   turns: `turn.complete` also fires for subagents (`e.agentId` set), and those are not rated.
 - [ ] **P4-03** `plugin` · M — **👍/👎 under each final reply.** 👍 may carry a comment; 👎 requires one
   (comment form in a pane). A new rating replaces the previous one; the form opens pre-filled with the last
-  comment. ⛔ P4-01, P4-02
+  comment. Only on turns that have synced; until then the buttons show "syncing". ⛔ P4-01, P4-02, P5-02
 - [ ] **P4-04** `plugin` · S — **Every submit outcome has a recovery path:** success, error from the server
   (buttons re-enabled, message shown), and a stale or duplicate submit. This is yvoke-desktop's "async action
   state machine" pitfall. Done when: a test covers each of the three.
 - ~~**P4-05** `plugin` · S — **Feedback without a synced message.** When conversations are not synced
   (D-07), feedback is self-contained; when they are, it attaches to the server's message id. ⛔ D-07~~
-  Dropped: feedback is always self-contained (D-08 recommendation), and attaching the message id is P5-04.
+  Dropped: rating always uses the synced message id (D-08).
 
 ### Phase 5 — Conversation sync and traces (after v1; D-07: no sync in v1)
 
@@ -594,8 +599,8 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
     entries with a visible "not synced" state, and remove entries once sent (privacy, D-07).
 - [ ] **P5-03** `plugin` · S — **Sync state** shown per conversation (pending / failed / synced), updated on
   every change (fixes yvoke-desktop's stale sync dot).
-- [ ] **P5-04** `plugin` · S — **Feedback attaches to the synced message id** once the turn has synced, as an
-  extra field on the self-contained payload (D-08).
+- ~~**P5-04** `plugin` · S — **Feedback attaches to the synced message id**~~ Folded into P4-01/P4-03:
+  rating is keyed to the message id from the start (D-08).
 - [ ] **P5-05** `plugin` · M — **Multi-agent trace upload**: role, round, playbook, model, instructions,
   output, verdict and token counts per step, with a size cap per step. Name the reviewer's real playbook
   (yvoke-desktop records it as "reviewer"). ⛔ P5-01, Phase 6
@@ -803,7 +808,7 @@ the same PR.
   | `GET /prompts/system/default-chat` (base instructions) | MCP `instructions`, or a `get_system_prompt` tool | P1-01 |
   | MCP `prompts/list` + `prompts/get` (playbooks) | `list_playbooks` / `get_playbook` tools (with areas) | P1-06, P1-12 |
   | `GET /orchestrator/profiles` | `list_profiles` / `get_profile` tools | P6-01 |
-  | `PUT /messages/{id}/feedback` | `submit_feedback` tool, self-contained (D-08) | P4-01 |
+  | `PUT /messages/{id}/feedback` | `submit_feedback` tool, keyed to the synced message id (D-08; after v1) | P4-01 |
   | `/conversations…`, `/messages`, `POST /orchestrator/runs` | sync and trace tools, only if D-07 says yes | P5-01 |
 
   Worst case, if a server tool cannot be added in time: the read-only configuration (base instructions,
@@ -974,8 +979,8 @@ existing tools' do (P1-03 relies on it).
 | `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`, area | P1-06, P1-12 |
 | `get_playbook(name)` | `PromptsService` | the playbook's full text and the same metadata | P1-06 |
 | `list_profiles(area?)` / `get_profile(name)` | as `GET /orchestrator/profiles` | lead, reviewer and specialist playbooks, `prototype`, area | P6-01 |
-| `submit_feedback(…)` | the feedback store behind `PUT /messages/{id}/feedback` | an id. Self-contained payload (D-08): rating, comment, question, answer, area, mode, playbook or profile, cited ids, model, client `claude-plugin`, plugin version. Needs storage that does not require a server message id. | P4-01 |
-| sync tools: create conversation, append turn, record run | `DesktopSyncService`, `DesktopOrchestratorRunService` | ids; an idempotency key per turn, which the REST API lacks today | P5-01 (only if D-07) |
+| `submit_feedback(…)` | the feedback store behind `PUT /messages/{id}/feedback` | an id. Keyed to the synced message id, as the desktop's endpoint (D-08): rating, comment, client `claude-plugin`, plugin version. After v1, with sync. | P4-01 (after v1) |
+| sync tools: create conversation, append turn, record run | `DesktopSyncService`, `DesktopOrchestratorRunService` | ids; an idempotency key per turn, which the REST API lacks today | P5-01 (after v1, D-07) |
 
 **Areas are new.** yvoke-web's *knowledge area* is a content collection (*OIM Docs*, *OIM Database*) that a
 playbook decides; the plugin's *area* (D-11) groups playbooks and profiles, so a playbook and a profile each
