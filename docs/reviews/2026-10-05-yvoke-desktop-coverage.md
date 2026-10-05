@@ -33,6 +33,8 @@ Claude Code changes the behaviour in a way the plan does not mention.
 
 ## Proposed decision D-11
 
+> **Decided 2026-10-05:** mod state, chosen once per session in a setup band (area, mode, playbook; defaults OIM, single agent, `oim-full`). See PLAN.md D-11. C2 and C3 are resolved by it.
+
 **D-11** `PO` · `plugin` — **In Claude Code, are playbooks skills or mod state?**
 
 - *Skills* (the plan today): one generated skill per playbook, invoked as `/yvoke:<name>`; its text enters the

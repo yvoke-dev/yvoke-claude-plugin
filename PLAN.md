@@ -47,8 +47,9 @@ installing a separate app.
 
 **Success looks like:**
 
-- A consultant installs one plugin (or IT installs it for them), opens the Code tab in Claude Desktop, picks a
-  playbook, asks a question, and gets an answer whose citations open the cited passage.
+- A consultant installs one plugin (or IT installs it for them), opens the Code tab in Claude Desktop, accepts
+  or changes the session's area, mode and playbook (defaults: OIM, single agent, `oim-full`), asks a
+  question, and gets an answer whose citations open the cited passage.
 - The playbook decides which Yvoke tools the assistant may use, and that rule is enforced in code, not only
   requested in a prompt.
 - 👍/👎 feedback on an answer reaches yvoke-web.
@@ -82,7 +83,7 @@ yvoke-claude-plugin/
 ├── plugins/yvoke/
 │   ├── .claude-plugin/plugin.json  ← name, version, userConfig, "types"
 │   ├── .mcp.json                   ← Yvoke MCP server, if not provided as a claude.ai connector (D-03)
-│   ├── skills/<playbook>/SKILL.md  ← generated from the server's playbooks (P1-04)
+│   ├── skills/<playbook>/SKILL.md  ← generated from the server's playbooks, Chat/Cowork only (P1-04)
 │   ├── agents/*.md                 ← only if profiles are generated statically (D-06)
 │   ├── hooks/hooks.json            ← { "modules": ["./register.tsx"] }
 │   ├── hooks/register.tsx          ← the mod entry point; wires the modules below
@@ -99,12 +100,13 @@ yvoke-claude-plugin/
 
 ```text
 Claude Code engine (Desktop Code tab / terminal)
- ├─ skills/          playbooks; the mod fills each one's body from the server when invoked
+ ├─ skills/          playbooks for Chat and Cowork only (D-11); not offered in Claude Code
  ├─ connector        Yvoke MCP server → search_corpus, get_section, verify_citations, …
  └─ mod (register.tsx), in-process hooks:
+     ├─ AbovePrompt      session setup band: area, mode, playbook; read-only once locked (P1-08)
      ├─ tool.call        deny by default; per-playbook scoping; web allow-list; compute tools
-     ├─ prompt.submit    playbook-required gate; playbook preflight
-     ├─ skill.prompt     live playbook text from the server
+     ├─ prompt.submit    locks the session's selection on the first question; playbook preflight
+     ├─ prompt.compose   system prompt = base instructions + the session's playbook, from the server
      ├─ ui.render        citation links in replies; 👍/👎 under replies; delegation cards
      ├─ Pane             citation source panel; feedback comment form
      ├─ turn.complete    enforced review rounds; feedback/sync capture
@@ -120,7 +122,13 @@ Claude Code engine (Desktop Code tab / terminal)
 - **The tests are the contract.** TDD (red → green → refactor); a test only counts once it has been seen
   failing; a bug gets a failing regression test before its fix.
 - **Make the bug unrepresentable** rather than documenting it.
-- **The preflight check fails open; everything else that enforces policy fails closed.**
+- **The preflight check fails open; everything else that enforces policy fails closed.** Decided
+  2026-10-05: every enforcing hook (`tool.call`, `prompt.submit`, `prompt.compose`, `agent.spawn`) is
+  registered with a `.catch` that answers the safe result (`{ deny }`, `{ drop }`, or a refusal text),
+  because the engine otherwise skips a hook that throws or times out and runs the call. Each such task's
+  **Done when** includes a test for the throw and the timeout path (section 10.4).
+- **One session, one setup.** A session's area, mode and playbook are chosen once and cannot change
+  afterwards; a different setup is a new session (`/clear`). Decided 2026-10-05 (D-11).
 
 ### 3.4 Platform constraints that shape the design
 
@@ -149,6 +157,10 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
   - Decides the distribution route: Pro/Max → Git marketplace, ideally pushed by MDM managed settings
     (route B); Team/Enterprise → claude.ai organization sync (route C) is also available.
   - Blocks: P7-03, P7-04.
+  - **Install route decided 2026-10-05** (together with D-09 and P7-04): the pilot installs from the Git
+    marketplace (route A or B); rollout moves to an MDM-copied directory marketplace (route D) once IT
+    enforces policy. Plugins from Git, a URL or claude.ai sync always run as *user* mods: they cannot be
+    listed in `prependPlugins` and do not load under `allowManagedModsOnly`. Still open: which plans users have.
 - [ ] **D-02** `PO` · `IT` — **How do users get access to the marketplace repository?** Options: users' own
   GitHub access to a private repo; a public repo containing no playbook text; or yvoke-web serving
   `marketplace.json` and a plugin `archive` behind an auth header.
@@ -171,6 +183,8 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
   full `SKILL.md` text generated into the repo by a scheduled job.
   - Recommendation: **live**, to keep yvoke-desktop's "no stale instructions" rule. Copied text also
     works in Chat and Cowork, where no mod runs, so Chat/Cowork may need copied text either way (see P8-01).
+  - **Claude Code is settled by D-11** (live, through the mod, no skills). This decision now covers only
+    Chat and Cowork.
   - Blocks: P1-04, P1-05.
 - [ ] **D-05** `plugin` — **Naming.** The plugin name is user-facing (`/yvoke:<skill>`) and prefixes the
   mod's own tools (`mcp__<plugin>__<tool>`). The server's tool names differ by how it is reached: a server
@@ -207,6 +221,16 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
   - Blocks: P2-07.
 - [ ] **D-10** `PO` — **Is Chat/Cowork support in scope for v1**, or Claude Code only?
   - Blocks: Phase 8.
+- [x] **D-11** `PO` · `plugin` — **In Claude Code, are playbooks skills or mod state?**
+  - **Decided 2026-10-05 (Eduard): mod state, chosen once per session.** A small Yvoke UI in the session
+    selects the **area** (default OIM), the **mode** (single agent or multi-agent; OIM offers both) and, for
+    single agent, the **playbook** (default `oim-full`). The agent's system prompt is the base instructions
+    loaded from the server, with the playbook's text added to it. Once chosen, area, mode and playbook cannot
+    change for that session, and all three stay visible in it.
+  - Consequences: no playbook skills in Claude Code (they stay for Chat/Cowork, P1-04, P8-01); the list of
+    areas and playbooks is read live from the server; nothing to restore or switch mid-conversation; the
+    model cannot start a playbook by itself.
+  - Blocks: P1-08, P1-07, P1-12.
 
 ---
 
@@ -219,8 +243,8 @@ Every Yvoke Desktop capability, where it lands, and which tasks deliver it. Chap
 | --- | --- | --- | --- | --- | --- |
 | Knowledge-base tools (search, sections, graph, records) | 2 | ✅ connector | ✅ | ✅ | P1-01, P1-02 |
 | Base instructions from the server | 2 | ✅ | ✅ | 🔍 | P1-01 |
-| Playbooks (pick, `/` autocomplete, sticky per conversation) | 1, 2 | ✅ | ✅ (skills) | ✅ (skills) | P1-04 – P1-08 |
-| Playbook required for a single-agent question | 1 | ✅ | — | — | P1-08 |
+| Playbooks (pick, `/` autocomplete, sticky per conversation) | 1, 2 | ✅ setup band, fixed per session (D-11) | ✅ (skills) | ✅ (skills) | P1-04 – P1-08, P1-12 |
+| Playbook required for a single-agent question | 1 | ✅ (the default `oim-full` applies) | — | — | P1-08 |
 | Playbook preflight check | 1, 2 | ✅ | — | — | P2-06 |
 | Deny by default; no shell | 2 | ✅ + managed settings | hooks | n/a | P2-01, P2-07 |
 | Per-playbook tool scoping | 2 | ✅ | hooks | server only | P2-02, P2-03, P8-02 |
@@ -360,8 +384,9 @@ The spikes de-risk everything later in the plan. Record each spike's findings in
     `McpPrompts.callGetSection` does);
   - prefixes server failures with `Yvoke Backend:`.
   - Done when: tests cover not connected, timeout, error flag, `ERROR:` body and success.
-- [ ] **P1-04** `plugin` · M — **Skill generator** (`scripts/generate-skills.ts`). Reads the server's
-  playbook catalogue (`prompts/list` with `_meta`) and writes one `skills/<name>/SKILL.md` per playbook. ⛔ D-04
+- [ ] **P1-04** `plugin` · M — **Skill generator** (`scripts/generate-skills.ts`), **for Chat and Cowork
+  only** (D-11). Reads the server's playbook catalogue (`prompts/list` with `_meta`) and writes one
+  `skills/<name>/SKILL.md` per playbook. In Claude Code the mod hides them (P1-08). ⛔ D-04, D-10
   - Leaves out playbooks whose `targetAgent` is `orchestrator` or `reviewer`, and keeps `prototype` playbooks
     out of the default set.
   - Writes `tools` and `codeExecution` from `_meta` into the skill's metadata so the mod can read them.
@@ -372,23 +397,30 @@ The spikes de-risk everything later in the plan. Record each spike's findings in
   when playbooks change on the server.
   - Done when: adding a test playbook on the server produces a PR within a day.
 - [ ] **P1-06** `server` · S — **`get_playbook(name)` MCP tool** returning a playbook's full text and
-  metadata. Needed because a mod can call MCP tools but not read MCP prompts. ⛔ D-04 (only if live)
-- [ ] **P1-07** `plugin` · M — **Live playbook text.** A `skill.prompt` hook fetches the playbook's text via
-  P1-06 when the skill is invoked. A fetch failure fails the question with a clear `Yvoke Backend:` message.
-  There is deliberately no cached fallback. ⛔ D-04, P1-06
-  - Done when: tests cover success, server down and unknown playbook.
-- [ ] **P1-08** `plugin` · M — **Active playbook state.**
-  - Invoking a playbook skill makes it the session's active playbook, kept across messages (`$.state`) until
-    the user switches or clears it.
-  - The status line shows it; `/yvoke-playbook` lists, switches and clears. Register commands last in the
-    `session.start` hook, or inside `try`/`catch`: a name clash throws and skips the rest of the hook.
-  - **Playbook required:** a single-agent question without an active playbook is refused with a message, and
-    the draft is kept; not gated when the server offers no playbooks or a profile is active (spec chapter 1).
-    Only inside the Yvoke folder. ⛔ P1-10
-  - **Across `/clear`, `/resume` and `/branch`:** `/clear` starts a new conversation with no active
-    playbook; `/resume` restores the resumed conversation's playbook (saved per session id); `/branch` keeps
-    it. 🔍 P0-06
-  - Done when: tests cover set, keep across turns, switch, clear, the required gate, `/clear` and `/resume`.
+  metadata. Needed because a mod can call MCP tools but not read MCP prompts. Required by D-11.
+- [ ] **P1-07** `plugin` · M — **System prompt from the server.** When the session's setup locks (P1-08),
+  the mod fetches the base instructions and, in single-agent mode, the playbook's text (P1-06), and serves
+  them from a `prompt.compose` hook as one `scope: 'session'` section: base instructions plus the playbook
+  text, in the order Q4 of the 2026-10-05 review sets. A fetch failure drops the question with a clear
+  `Yvoke Backend:` message and keeps the setup unlocked. There is deliberately no cached fallback.
+  ⛔ D-11, P1-06
+  - Done when: tests cover success, server down, unknown playbook, and a hook failure (fails closed).
+- [ ] **P1-08** `plugin` · M — **Session setup: area, mode, playbook** (D-11).
+  - In a new Yvoke session a band above the prompt (`ui.render` on `AbovePrompt`) shows three `Select`s:
+    **area** (default OIM), **mode** (*Single agent* plus the area's multi-agent profiles; OIM offers both)
+    and, for single agent, **playbook** (default `oim-full`). Lists come live from the server (P1-12);
+    prototypes are hidden unless enabled.
+  - The selection **locks when the first question is sent**: the user can accept the defaults by just
+    typing. From then on the band shows a read-only line (*OIM · Single agent · oim-full*), and the status
+    line shows the same. Nothing can change it; a different setup is a new session (`/clear`).
+  - Kept in `$.state`, and in `$.store` under the session id so `/resume` restores it and `/branch` keeps it
+    (`classic.SessionStart` `source`). 🔍 P0-06 for `/branch`.
+  - Playbook skills are not offered in Claude Code: generated skills carry `disable-model-invocation`, and
+    a `skill.prompt` hook inside the Yvoke folder answers with a pointer to the setup band.
+  - A server with no areas or playbooks: the band says so and questions are refused (no fallback).
+  - Only inside the Yvoke folder. ⛔ P1-10, P1-12
+  - Done when: tests cover the defaults, changing each select before the first question, the lock, the
+    read-only line on `terminal` and `desktop`, `/clear`, `/resume`, and server down.
 - [ ] **P1-09** `plugin` · S — **Clarifying questions.** Deny the server's `ask_clarifying_question` with a
   message telling the model to use Claude Code's native `AskUserQuestion`. Yvoke Desktop intercepts that tool;
   nothing else does.
@@ -403,6 +435,11 @@ The spikes de-risk everything later in the plan. Record each spike's findings in
   - Path matching is on segment boundaries: `~/Yvoke-old` is not inside `~/Yvoke`.
   - 🔍 Confirm in P0-06 which of `cwd` and `root` is stable for the session.
   - Done when: tests cover the folder itself, a subfolder, an unrelated folder and a same-prefix sibling.
+- [ ] **P1-12** `server` · S — **Areas.** An MCP tool (`list_areas`, or `_meta.area` on playbooks and
+  profiles) that says which areas exist, which modes and profiles each offers, and each area's default
+  playbook (OIM: `oim-full`). 🔍 "Area" here groups playbooks and profiles; it is not yvoke-web's *knowledge
+  area* (a content collection such as *OIM Docs*), which the playbook still decides. Agree the name with
+  the yvoke-web team.
 
 ### Phase 2 — Tool policy
 
@@ -416,11 +453,10 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   - Includes `Bash`, file tools, other MCP servers and `Agent`/`Task` outside a profile.
   - Applies only in a Yvoke session. ⛔ P1-10
   - Done when: tests cover each class of tool.
-- [ ] **P2-02** `plugin` · M — **Per-playbook scoping, sticky.** A playbook that declares tools gets exactly
+- [ ] **P2-02** `plugin` · M — **Per-playbook scoping.** A playbook that declares tools gets exactly
   those (plus the always-added three); one that declares none gets the default set (`DEFAULT_KB_TOOLS`).
-  Scoping follows the active playbook from P1-08, so it holds across messages (unlike skill
-  `disallowed-tools`, which clears on the next message). ⛔ P1-08
-  - Done when: tests cover declared tools, no declaration, and a switch mid-conversation.
+  Scoping follows the session's playbook from P1-08, which never changes during the session. ⛔ P1-08
+  - Done when: tests cover declared tools and no declaration.
 - [ ] **P2-03** `plugin` · S — **Re-namespacing.** Playbooks name tools by their base name (`search_corpus`).
   The mod maps each to the Yvoke server's real tool name, using the server P1-03 found (D-05 lists the
   forms). Do not port yvoke-desktop's fixed `MCP_TOOL_PREFIX`; port `qualifyTool`'s tests with the prefix
@@ -438,12 +474,13 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   `$.tool.register`, ported from yvoke-desktop's `computeTools.ts` with its `computeTools.test.ts`. Withheld when
   the active playbook declares `codeExecution: false`. ⛔ D-05
   - Fix while porting: make the `log` (base 10) vs `ln` difference explicit in the tool description.
-- [ ] **P2-06** `plugin` · M — **Playbook preflight check.** On submit, when there are at least two
-  playbooks and a playbook is active, ask the model (`$.model.complete`, no tools, 45 s timeout) whether the
-  playbook fits; if not, show a band with **Switch to …** / **Send anyway**.
+- [ ] **P2-06** `plugin` · M — **Playbook preflight check.** On the first question of a single-agent
+  session, before the setup locks (P1-08), when the area offers at least two playbooks, ask the model
+  (`$.model.complete`, no tools, 45 s timeout) whether the playbook fits; if not, show a band with
+  **Switch to …** / **Send anyway**. Either answer locks the setup.
   - Fails open on every error, including a reply with `isAnswered: false`: `$.model.complete` reports a
-    Claude API failure that way rather than by rejecting. Runs on the conversation's first message and after
-    each playbook switch, not again for the same playbook. Port `playbookValidation.test.ts`.
+    Claude API failure that way rather than by rejecting. Runs once per session, on the first question.
+    Port `playbookValidation.test.ts`.
   - Shows that the check is running (`$.ui.status` or the band above the prompt) while it waits, so a slow
     model does not look like a frozen app. Time spent inside `$.model.complete` does not count against a
     hook's 10-second limit.
@@ -523,9 +560,9 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
 **Milestone M4:** a profile runs lead → specialists → reviewer with review enforced in code.
 
 - [ ] **P6-01** `plugin` · `server` · M — **Profiles.** Read profiles from the server (new MCP tool
-  `list_profiles` / `get_profile`, or a generated `agents/` directory, per D-06). `/yvoke-profile` lists,
-  switches and clears; prototypes are hidden unless enabled. The active profile follows the same `/clear`,
-  `/resume` and `/branch` rules as the active playbook (P1-08). ⛔ D-06
+  `list_profiles` / `get_profile`, or a generated `agents/` directory, per D-06). A profile is chosen as the
+  session's mode in the setup band (P1-08) and is fixed for the session; prototypes are hidden unless
+  enabled. ⛔ D-06, P1-08
 - [ ] **P6-02** `plugin` · M — **Specialist agent types**, one per profile specialist, from the base
   instructions plus the specialist's playbook. Tools follow yvoke-desktop's `mapSpecialistTools` (declared or
   default knowledge-base tools, compute unless `codeExecution: false`, web only if declared). Model and effort
@@ -539,8 +576,7 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   server's orchestrator playbook relies on the last); other knowledge-base tools are denied to it, but not to the specialists (how the hook tells them
   apart comes from P0-07). The desktop runtime adapter text is appended to its
   instructions, with `REVIEW_FEEDBACK_HEADING` and `EVIDENCE_HEADING` byte-identical to the server's.
-  Switching between single-agent and a profile, or between profiles, requires a new conversation (yvoke-desktop
-  pitfall: sessions cannot resume across modes).
+  The mode is fixed per session (D-11), which also avoids yvoke-desktop's pitfall of resuming across modes.
 - [ ] **P6-05** `plugin` · L — **Review enforced in code** (on the lead's `turn.complete`; subagents' turns,
   which carry `e.agentId`, are ignored):
   - delegations happened but no review → re-prompt once to run the reviewer;
@@ -575,6 +611,10 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   the repo), B (managed settings via MDM) or C (claude.ai organization sync), including how users get read
   access (D-02). If IT requires `allowManagedModsOnly`, use an MDM-copied directory marketplace instead.
   ⛔ D-01, D-02
+  - Decided 2026-10-05: route A/B for the pilot; **route D** (a directory marketplace that MDM copies to the
+    same admin-only path on every machine, enabled in managed settings) for rollout once IT enforces policy.
+    Only route D makes the mod the organization's, so it can run first (`prependPlugins`) and survives
+    `allowManagedModsOnly`.
 - [ ] **P7-05** `plugin` · S — **User guide** (`docs/user-guide.md`): install, sign in, the Yvoke folder,
   picking playbooks and profiles, citations, feedback, what is different from Yvoke Desktop.
 - [ ] **P7-06** `plugin` · S — **Security review pack** (`docs/security.md`): the `claude plugin validate`
@@ -659,7 +699,7 @@ Write things down here when they are decided against, so nobody "fixes" them by 
 - Plugin support per surface: <https://claude.com/docs/plugins/platform-support>
 - MCP Apps: <https://claude.com/docs/connectors/building/mcp-apps/getting-started>
 - Review of draft v3, with the findings behind section 10: [docs/reviews/2026-10-05-plan-v3-review.md](docs/reviews/2026-10-05-plan-v3-review.md)
-- yvoke-desktop coverage check (gaps C1–C13, proposed D-11): [docs/reviews/2026-10-05-yvoke-desktop-coverage.md](docs/reviews/2026-10-05-yvoke-desktop-coverage.md)
+- yvoke-desktop coverage check (gaps C1–C13; D-11 decided): [docs/reviews/2026-10-05-yvoke-desktop-coverage.md](docs/reviews/2026-10-05-yvoke-desktop-coverage.md)
 
 ---
 
@@ -715,8 +755,9 @@ the same PR.
 | Deny a tool | `on('tool.call', h)` → `{ deny: reason }` | `e.tool` is the full name; `e.agentId` set for subagents. Managed `PreToolUse` hooks run first. |
 | Rewrite a tool's input (WebSearch domains) | `next({ ...e, input: { … } })` | Managed hooks run again on the rewritten call. |
 | Gate a prompt | `on('prompt.submit', h)` → `{ drop: reason }` | The reason is shown to the user. Whether the draft stays is 🔍 P0-06; `$.prompt.fill` restores it. |
-| Live playbook text | `on('skill.prompt', { skill }, h)` → `{ text }` | Input is only `{ skill, text }`: no caller, no metadata (review H4). Check the exact `skill` spelling (`yvoke:<name>`?) in P0-06. |
-| Base instructions fallback | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. |
+| Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Cached until `$.ui.invalidate('prompt.compose')`; the text is fixed per session, so one fetch at lock. |
+| Hide playbook skills in Claude Code | `on('skill.prompt', { skill }, h)` → `{ text }` | Input is only `{ skill, text }`: no caller, no metadata. |
+| Session setup band | `ui.render` on `{ component: 'AbovePrompt' }` with `Select`s from `$.ui.resolve(e)` | `mobile` has no `Select`: show the read-only line there. |
 | Mod commands | `$.command.register({ name, description })` in `session.start`, answered by `command.run` | No `:` in names. Register last or in `try`/`catch`. |
 | Compute tools | `$.tool.register(…)` + `tool.call` on `mcp__yvoke__<name>` | Register in `session.start` (awaited) so they are listed on turn one. |
 | Subagents | `$.agent.register` (`yvoke:<name>`), `$.agent.spawn`, `agent.spawn` (`{ deny }`, `parentAgentId`), `agent.offer` (`{ isOffered: false }`) | |
@@ -780,8 +821,8 @@ steers it, so some desktop behaviours need deliberate work. The full list, with 
   `prompt.compose` hooks while a profile is active, not with an agent definition (coverage C5, C6).
 - **Nothing is discarded from the transcript.** The desktop dropped failed turns and rejected drafts; Claude
   Code keeps both. Design what the user sees (coverage C8) instead of trying to delete rows.
-- **Switching a playbook does not reset the conversation** the way the desktop's session restart did
-  (coverage C2, proposed D-11).
+- **Playbooks never switch mid-session** (D-11): the desktop restarted its session on a switch, and here a
+  different setup is simply a new session.
 - **Turn ceilings are not native.** If cost has to be bounded, count `turn.step` (coverage C4).
 - **Billing.** The desktop removed `ANTHROPIC_API_KEY` to keep billing on the subscription. A plugin cannot,
   so `/yvoke-doctor` reports which applies (coverage C11).

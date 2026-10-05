@@ -19,6 +19,8 @@ design. **Low** is a detail an implementer would otherwise trip on.
 
 ### H1. Policy hooks fail open unless they are written not to
 
+> **Decided 2026-10-05:** fail closed (PLAN.md 3.3).
+
 Principle 3.3 says "everything else that enforces policy fails closed". The engine does the opposite by
 default:
 
@@ -42,6 +44,8 @@ default:
   the plugin". D-09's managed `permissions.deny` is the only floor that survives all of them.
 
 ### H2. A mod installed from Git, URL or claude.ai sync is always a *user* mod
+
+> **Decided 2026-10-05:** Git marketplace for the pilot, MDM directory marketplace for rollout (PLAN.md D-01, P7-04).
 
 From the admin docs: "A plugin that Claude Code copies into its cache counts as a user's, even when managed
 `enabledPlugins` enables it. That covers every plugin from a GitHub, git, URL, or npm source." The same goes
@@ -78,6 +82,8 @@ P1-03 discovers it, for example by matching the server's tool names in `$.tool.l
 confirm it on the Desktop Code tab.
 
 ### H4. `skill.prompt` cannot tell who invoked a playbook, and carries no metadata
+
+> **Resolved 2026-10-05 by D-11:** playbooks are chosen once per session in the mod's setup band; no playbook skills in Claude Code.
 
 `skill.prompt` fires for `/yvoke:<skill>`, for the model's own `Skill` tool call, and for a preload. Its
 input is only `{ skill, text }`. Two consequences:
