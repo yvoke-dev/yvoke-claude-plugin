@@ -260,6 +260,13 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     already has turns it tells the user to `/clear` first, so Yvoke answers never build on coding turns.
   - Replaces the folder setting and the path matching in P1-10; P7-08 only covers folder trust.
   - Blocks: P1-10.
+- [x] **D-14** `PO` · `plugin` — **Is the server URL fixed in `.mcp.json`, or a setting?** A developer needs
+  to point the plugin at a local yvoke-web (P0-11).
+  - **Decided 2026-10-05 (Eduard): a setting.** `.mcp.json` reads the URL from `${user_config.serverUrl}`,
+    which defaults to the production URL. A developer sets `http://localhost:<port>/mcp`. Chat and Cowork
+    use the organization connector (D-03), not the plugin's `.mcp.json`, so the setting does not affect
+    them. The server keeps the name `yvoke`, so tool names (D-05) stay the same.
+  - Blocks: P0-11, P1-02.
 
 ## 4. Notes for implementers
 

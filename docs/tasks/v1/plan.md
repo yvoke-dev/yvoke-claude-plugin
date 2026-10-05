@@ -1,7 +1,7 @@
 # Yvoke for Claude v1: plan
 
 > **Status:** draft v4 · 2026-10-05 (split into intent, requirements, design and this plan; all decisions
-> D-01 to D-13 taken). How work moves through these documents is in [docs/sdlc.md](../../sdlc.md).
+> D-01 to D-14 taken). How work moves through these documents is in [docs/sdlc.md](../../sdlc.md).
 > **What we are building:** one Claude plugin that brings Yvoke Desktop's capabilities into Claude, fully
 > in **Claude Code** through a **mod**, and as live playbook stubs in **Chat** and **Cowork** (D-10).
 
@@ -122,10 +122,8 @@ a cloud session.
 - [ ] **P0-11** `plugin` · `server` · S — **Dev environment** (proposed 2026-10-05). A developer installs the
   working copy in their own Claude Code and points it at a yvoke-web running on their machine.
   - Install: the repo as a local marketplace (`/plugin marketplace add <path>`), or `--plugin-dir` (P0-03).
-  - Server URL: 🔍 decision pending. Recommended: `${user_config.serverUrl}` in `.mcp.json`, defaulting to
-    the production URL, so a developer sets `http://localhost:<port>/mcp`. Chat and Cowork use the
-    organization connector (D-03), so the plugin's `.mcp.json` URL never matters there. The server keeps its
-    name `yvoke`, so tool names (D-05) do not change.
+  - Server URL: `${user_config.serverUrl}` in `.mcp.json`, defaulting to the production URL (D-14); a
+    developer sets `http://localhost:<port>/mcp`.
   - Sign-in: a local yvoke-web accepts a dummy dev token, as yvoke-desktop uses in local dev (Eduard,
     2026-10-05). The plugin sends it as a bearer header only when it is set, from a `userConfig` value
     (never committed), so no Entra client is needed for dev. The task plan works out how `.mcp.json`
@@ -211,8 +209,8 @@ a cloud session.
     base instructions.
 - [ ] **P1-02** `plugin` · S — **Connector configuration.** Ship the `.mcp.json` entry D-03 chose: server `yvoke`,
   the fixed URL, and the Entra client and callback port from P0-09. ⛔ P0-09
-  - The URL is written into `.mcp.json` as a fixed value, not `${user_config.*}`: Chat ignores a server whose
-    URL references one, and Cowork ignores it when the option has no default.
+  - The URL comes from `${user_config.serverUrl}` with the production URL as its default (D-14). Chat and
+    Cowork reach the server through the organization connector instead (D-03), so they never read it.
   - Done when: a fresh machine with the plugin installed can call `search_corpus` after one sign-in.
 - [ ] **P1-03** `plugin` · S — **One server client module** (`src/server.ts`) used by every feature:
   - calls the plugin's own server `yvoke` by its fixed name (D-03, D-05; the exact name `$.mcp.call`
