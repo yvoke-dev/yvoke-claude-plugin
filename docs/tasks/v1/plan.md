@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | [intent.md](intent.md) | Why, for whom, use cases, scope, what is not planned | You want to know what the plugin is for |
 | [requirements.md](requirements.md) | What the plugin must do, per surface | You decide whether something is a bug or a change |
-| [design.md](design.md) | Architecture, constraints, decisions D-01 to D-11, notes for implementers, yvoke-web changes | Before you pick up a task |
+| [design.md](design.md) | Architecture, constraints, decisions (D-xx), notes for implementers, yvoke-web changes | Before you pick up a task |
 | **plan.md** (this file) | The tasks, their order and their progress | You pick up, finish or re-plan a task |
 
 ---
@@ -92,8 +92,6 @@ a cloud session.
   - From the mod: `$.mcp.call(server, "get_section", …)` and `search_corpus`, once against a `.mcp.json`
     server (after `$.mcp.connect`) and once against the claude.ai connector by the name `/mcp` lists. The
     API documents both as working; confirm it on the Desktop Code tab.
-  - Does Claude Code apply the server's MCP `instructions` to the system prompt, for a `.mcp.json` server
-    and for a connector?
   - What happens when the Entra token expires during a session: silent refresh, a sign-in prompt, or a
     failed call? What error does `$.mcp.call` return then, so P1-03 can tell the user to sign in again?
   - Done when: a throwaway `/yvoke-ping` command prints the server version and one search hit, and the
@@ -156,14 +154,13 @@ a cloud session.
 
 **Milestone M1:** in the Code tab, a user picks a playbook, asks a question, and gets a grounded answer.
 
-- [ ] **P1-01** `server` · S — **Serve the base instructions as the MCP server's `instructions`.** Return the
-  `default-chat` prompt in the MCP `initialize` result, so every Claude client that honours server
-  instructions applies them, with no copy in this repo. ⛔ D-03
-  - Fallback if P0-04 finds a surface that ignores them: in Claude Code the mod fetches the text from the
-    server and appends it as a section (`scope: 'session'`) from a `prompt.compose` hook (`prompt.section` can
-    only rewrite or drop an existing section); in Chat/Cowork a skill tells Claude to fetch it.
-  - Done when: a Claude Code session shows the instructions under the server's entry and an answer follows
-    the citation contract (bare `[uuid]` markers).
+- [ ] **P1-01** `server` · S — **`get_system_prompt(name = "default-chat")` MCP tool** returning the base
+  instructions, as `GET /prompts/system/{name}` does today. The server does **not** send them as MCP
+  `instructions` (D-12): those would reach every session that connects, including users' coding sessions,
+  and Yvoke sessions would get them twice. In Claude Code the mod adds the text (P1-07); in Chat and Cowork
+  the playbook stubs fetch it (P8-01). ⛔ D-03
+  - Done when: the tool returns the `default-chat` text, and the server's `initialize` result carries no
+    base instructions.
 - [ ] **P1-02** `plugin` · S — **Connector configuration.** Ship the chosen setup from D-03 (`.mcp.json` with
   the server URL, or documented claude.ai connector steps), with Entra sign-in. ⛔ D-03
   - The URL is written into `.mcp.json` as a fixed value, not `${user_config.*}`: Chat ignores a server whose
@@ -463,10 +460,10 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
 ### Phase 8 — Chat and Cowork (lower fidelity; D-10: only P8-01 in v1)
 
 - [ ] **P8-01** `plugin` · S — **Playbook skills usable in Chat and Cowork.** Without a mod, a stub cannot
-  fetch its text itself, so each stub tells Claude to call `get_playbook` first (D-04 decided: live stubs).
-  In v1 (D-10). ⛔ P1-06
-  - Done when: in Chat and Cowork, invoking a stub makes Claude call `get_playbook` before answering, in the
-    P0-08 spike's test conversations.
+  fetch its text itself, so each stub tells Claude to call `get_system_prompt` and then `get_playbook` first
+  (D-04 decided: live stubs; D-12: base instructions by tool only). In v1 (D-10). ⛔ P1-01, P1-06
+  - Done when: in Chat and Cowork, invoking a stub makes Claude call `get_system_prompt` and `get_playbook`
+    before answering, in the P0-08 spike's test conversations.
   - Skills for these surfaces use only the portable frontmatter fields (`name`, `description`, `license`,
     `compatibility`, `metadata`, `allowed-tools`); Claude Code extras such as `disallowed-tools`,
     `context: fork` and `!` command injection do not apply there.

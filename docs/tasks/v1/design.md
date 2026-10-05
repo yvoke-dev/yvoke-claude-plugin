@@ -244,6 +244,13 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     areas and playbooks is read live from the server; nothing to restore or switch mid-conversation; the
     model cannot start a playbook by itself.
   - Blocks: P1-08, P1-07, P1-12.
+- [x] **D-12** `PO` · `server` — **Base instructions: MCP server `instructions` or a tool?**
+  - The plugin's MCP server loads in every Claude Code session, so server `instructions` would also reach
+    users' coding sessions, and Yvoke sessions would get them twice (once more from P1-07).
+  - **Decided 2026-10-05 (Eduard): tool only.** yvoke-web serves the base instructions through
+    `get_system_prompt` and not as MCP `instructions`. The mod adds them in Yvoke sessions (P1-07); Chat and
+    Cowork stubs fetch them (P8-01).
+  - Blocks: P1-01.
 
 ## 4. Notes for implementers
 
@@ -286,7 +293,7 @@ the same PR.
 
   | yvoke-desktop call | Plugin route | Task |
   | --- | --- | --- |
-  | `GET /prompts/system/default-chat` (base instructions) | MCP `instructions`, or a `get_system_prompt` tool | P1-01 |
+  | `GET /prompts/system/default-chat` (base instructions) | `get_system_prompt` tool (D-12) | P1-01 |
   | MCP `prompts/list` + `prompts/get` (playbooks) | `list_playbooks` / `get_playbook` tools (with areas) | P1-06, P1-12 |
   | `GET /orchestrator/profiles` | `list_profiles` / `get_profile` tools | P6-01 |
   | `PUT /messages/{id}/feedback` | `submit_feedback` tool, keyed to the synced message id (D-08; after v1) | P4-01 |
@@ -453,7 +460,7 @@ existing tools' do (P1-03 relies on it).
 
 | Tool | Wraps | Returns | Task |
 | --- | --- | --- | --- |
-| `get_system_prompt(name = "default-chat")` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions. Optionally also served as MCP `instructions` for Chat/Cowork. | P1-01 |
+| `get_system_prompt(name = "default-chat")` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions. Not also served as MCP `instructions` (D-12). | P1-01 |
 | `list_areas()` | new | each area, its modes (*single agent*, its profiles), its default playbook (OIM: `oim-full`) | P1-12 |
 | `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`, area | P1-06, P1-12 |
 | `get_playbook(name)` | `PromptsService` | the playbook's full text and the same metadata | P1-06 |
