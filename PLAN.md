@@ -205,11 +205,13 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
     configuration (P6-02) need live registration. 🔍 Unless agent files accept `${user_config.*}`.
   - Depends on: P0-07.
   - Blocks: P6-01.
-- [ ] **D-07** `PO` — **Should conversations be synced into the user's Yvoke account** (as Yvoke Desktop
+- [x] **D-07** `PO` — **Should conversations be synced into the user's Yvoke account** (as Yvoke Desktop
   does), or stay only in Claude? This affects privacy review, server work, and whether feedback can attach to
   a server message id.
   - Privacy: sync's retry queue (P5-02) keeps questions and answers unencrypted in `$.store` on disk until
     they are sent, the same class of issue as yvoke-desktop decision #10.
+  - **Decided 2026-10-05 (Eduard): no sync in v1.** Conversations stay in Claude's own history. Phase 5 and
+    the server's sync tools move after v1; feedback stays self-contained (D-08).
   - Blocks: all of Phase 5.
 - [ ] **D-08** `PO` · `server` — **Feedback shape.** Yvoke Desktop's feedback is keyed to a server message
   id that only exists because it syncs conversations. Without sync (D-07), feedback must be self-contained:
@@ -572,7 +574,7 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   (D-07), feedback is self-contained; when they are, it attaches to the server's message id. ⛔ D-07~~
   Dropped: feedback is always self-contained (D-08 recommendation), and attaching the message id is P5-04.
 
-### Phase 5 — Conversation sync and traces (only if D-07 says yes)
+### Phase 5 — Conversation sync and traces (after v1; D-07: no sync in v1)
 
 - [ ] **P5-01** `server` · M — **Sync over MCP.** Tools to create a conversation (marked as from the Claude
   plugin), append a finished turn, and upload a multi-agent trace, all authenticated by the connector.
