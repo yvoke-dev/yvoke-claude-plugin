@@ -75,8 +75,10 @@ draft pull request before any code is written (decided 2026-10-05).
 
 - Red, then green, then refactor. A test counts only once it has been seen failing.
 - **A bug fix starts with a failing regression test**, committed on its own. Then `start-task` turns on the
-  test freeze (`.claude/state/fix-mode`): a hook refuses edits to existing test files until the fix is
-  done, so the fix cannot pass by weakening a test. If the test itself is wrong, Claude stops and asks.
+  test freeze: it records the test's commit on the task plan's **Regression test** line, and while that plan
+  is in progress a hook refuses edits to existing test files, so the fix cannot pass by weakening a test.
+  The plan is committed, so the freeze holds in every session (decided 2026-10-05). If the test itself is
+  wrong, Claude stops and asks.
 - Claude runs the verification commands from `AGENTS.md` after each step and before saying anything is
   done, and shows their output.
 - If the work has to differ from the task plan, Claude updates `plan.md` in the same commit as the change.
@@ -90,7 +92,8 @@ One task, one branch, one pull request, opened as a draft as soon as there is so
 2. Updates `docs/specs/` for the behaviour the task delivered.
 3. Ticks the task's box in the release `plan.md` with the PR link, and corrects `requirements.md` or
    `design.md` if the work showed them wrong.
-4. Turns off the test freeze.
+4. Sets the task plan's status to done, which turns off the test freeze, after checking that no existing
+   test changed since the regression-test commit.
 5. Marks the pull request ready for review once CI is green.
 
 The product owner reviews and merges. Claude never merges.
