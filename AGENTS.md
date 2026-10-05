@@ -28,7 +28,7 @@ You are building **Yvoke for Claude**, a Claude plugin with a Claude Code mod. R
   with a recommendation, one at a time, and record the answer in the release's `design.md`.
 - **Keep documents true.** If the work differs from the task plan, update the task's `plan.md` in the same
   commit. If it shows `requirements.md` or `design.md` wrong, fix them in the same pull request. Update
-  `docs/specs/` when behaviour is merged.
+  `docs/specs/` in the pull request that delivers the behaviour.
 - Write plainly: short sentences, active voice, no jargon a consultant would not know.
 
 ## Verification
@@ -44,4 +44,5 @@ Run these before saying anything is done, and show the output. Each must pass.
 | Tests | `claude plugin test plugins/yvoke` | every test passes, none skipped (from P0-01) |
 
 Rows marked "from P0-01" apply once the plugin scaffold exists. P0-01 fills in any missing detail, and
-P0-02 runs the same commands in CI.
+CI (`.github/workflows/ci.yml`) runs the docs
+check today; P0-02 adds the other rows.

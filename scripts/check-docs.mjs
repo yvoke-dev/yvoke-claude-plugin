@@ -3,8 +3,9 @@
 // Usage: node scripts/check-docs.mjs   (exit code 1 on any problem)
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { join, dirname, resolve, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const root = resolve(dirname(new URL(import.meta.url).pathname), '..')
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const skip = new Set(['.git', 'node_modules'])
 const problems = []
 

@@ -33,9 +33,11 @@ short description for a bug outside the plan.
    **Done when** and the verification commands from `AGENTS.md`. A spike's plan says what will be tried,
    on which surface and Claude Code version, and its findings go in `findings.md` next to it.
 4. **Open a draft pull request** with the plan as its first commit, one task per branch.
-5. **Approval.** For an **M** or **L** task, ask the product owner to approve the plan in the pull request
-   and wait. For an **S** task, continue.
+5. **Approval.** Ask the product owner to approve the plan in the pull request, and wait. This holds for
+   every task, whatever its size.
 6. **Bug fix only:** write the failing regression test, run it to see it fail, and commit it on its own.
-   Then turn on the test freeze by writing the task ID on the first line of `.claude/state/fix-mode` and
-   that commit's hash on the second (create the folder if needed). From now on existing tests cannot be edited.
-7. Set the plan's **Status** to `in progress` and start the first step of *Order of work*.
+   Then add the line `**Regression test:** <that commit's hash>` under the plan's **Release** line.
+7. Set the plan's **Status** to `in progress`, commit the plan, and start the first step of *Order of work*.
+   For a bug fix, the test freeze is now on: while a plan is in progress with a **Regression test** line,
+   the hook refuses edits to existing test files and to existing files under `tests/`, in every session
+   and checkout of the branch.
