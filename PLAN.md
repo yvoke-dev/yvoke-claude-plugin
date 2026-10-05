@@ -534,8 +534,9 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   verdict parsing: the first line must be exactly `APPROVED` or `REJECTED`; anything else is "no clear
   verdict". This fixes yvoke-desktop's defect where "NOT APPROVED" reads as approved. Done when: a regression
   test for "NOT APPROVED" fails before the fix. Port `review.test.ts`.
-- [ ] **P6-04** `plugin` · M — **Lead mode.** While a profile is active, the lead may only delegate and ask
-  the user; knowledge-base tools are denied to it, but not to the specialists (how the hook tells them
+- [ ] **P6-04** `plugin` · M — **Lead mode.** While a profile is active, the lead may only delegate, ask
+  the user and call `verify_citations` (yvoke-desktop's `orchestration.ts` grants exactly those, and the
+  server's orchestrator playbook relies on the last); other knowledge-base tools are denied to it, but not to the specialists (how the hook tells them
   apart comes from P0-07). The desktop runtime adapter text is appended to its
   instructions, with `REVIEW_FEEDBACK_HEADING` and `EVIDENCE_HEADING` byte-identical to the server's.
   Switching between single-agent and a profile, or between profiles, requires a new conversation (yvoke-desktop
@@ -658,6 +659,7 @@ Write things down here when they are decided against, so nobody "fixes" them by 
 - Plugin support per surface: <https://claude.com/docs/plugins/platform-support>
 - MCP Apps: <https://claude.com/docs/connectors/building/mcp-apps/getting-started>
 - Review of draft v3, with the findings behind section 10: [docs/reviews/2026-10-05-plan-v3-review.md](docs/reviews/2026-10-05-plan-v3-review.md)
+- yvoke-desktop coverage check (gaps C1–C13, proposed D-11): [docs/reviews/2026-10-05-yvoke-desktop-coverage.md](docs/reviews/2026-10-05-yvoke-desktop-coverage.md)
 
 ---
 
@@ -762,3 +764,24 @@ the same PR.
   hot-reloading (`yvoke: ui.render (<Component>) refused: …`), and always in the `--debug` log.
 - Mods do not load in a folder the user has not trusted, in WSL sessions in the Desktop app, or under
   `--safe-mode`. Nothing is drawn in VS Code, `-p` or cloud sessions.
+
+### 10.6 Porting from yvoke-desktop: what does not carry over by itself
+
+The desktop app ran its own agent loop through the Agent SDK. Claude Code runs the loop, and the mod only
+steers it, so some desktop behaviours need deliberate work. The full list, with proposals, is in
+[the coverage check](docs/reviews/2026-10-05-yvoke-desktop-coverage.md). The ones that affect most tasks:
+
+- **The `yvoke-web` server has its own orchestrator** (`OrchestrationService.java`), which the desktop's
+  `orchestration.ts` mirrors grant for grant. When the two disagree, ask before choosing; do not pick the
+  desktop's version silently.
+- **The delegation tool has two names**: `Task` in allow lists and `Agent` in the tool call the model emits
+  (`orchestration.ts` lines 10–15). Match both in `tool.call` and `agent.spawn` hooks.
+- **The lead is the main loop.** Its model, effort and instructions are set with `turn.step` and
+  `prompt.compose` hooks while a profile is active, not with an agent definition (coverage C5, C6).
+- **Nothing is discarded from the transcript.** The desktop dropped failed turns and rejected drafts; Claude
+  Code keeps both. Design what the user sees (coverage C8) instead of trying to delete rows.
+- **Switching a playbook does not reset the conversation** the way the desktop's session restart did
+  (coverage C2, proposed D-11).
+- **Turn ceilings are not native.** If cost has to be bounded, count `turn.step` (coverage C4).
+- **Billing.** The desktop removed `ANTHROPIC_API_KEY` to keep billing on the subscription. A plugin cannot,
+  so `/yvoke-doctor` reports which applies (coverage C11).
