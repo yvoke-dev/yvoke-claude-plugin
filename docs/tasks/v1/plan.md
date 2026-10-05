@@ -119,15 +119,16 @@ a cloud session.
   the rules and a verification block, `CLAUDE.md` as `@AGENTS.md`, project skills `start-task` and
   `finish-task`, and a hook that blocks edits to existing tests during a bug fix.
   ([#2](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/2))
-- [ ] **P0-11** `plugin` · `server` · S — **Dev environment** (proposed 2026-10-05). A developer installs the
+- [ ] **P0-11** `plugin` · S — **Dev environment** (proposed 2026-10-05). A developer installs the
   working copy in their own Claude Code and points it at a yvoke-web running on their machine.
   - Install: the repo as a local marketplace (`/plugin marketplace add <path>`), or `--plugin-dir` (P0-03).
   - Server URL: `${user_config.serverUrl}` in `.mcp.json`, defaulting to the production URL (D-14); a
     developer sets `http://localhost:<port>/mcp`.
-  - Sign-in: a local yvoke-web accepts a dummy dev token, as yvoke-desktop uses in local dev (Eduard,
-    2026-10-05). The plugin sends it as a bearer header only when it is set, from a `userConfig` value
-    (never committed), so no Entra client is needed for dev. The task plan works out how `.mcp.json`
-    sends that header next to the Entra sign-in used in production.
+  - Sign-in: a local yvoke-web with a dev profile (`dev`, `local` or `test`) and `app.security.mock=true`
+    trusts any bearer token (`SecurityConfig.jwtDecoder`), as yvoke-desktop uses in local dev. So
+    yvoke-web needs no change. The plugin sends a dummy dev token as a bearer header only when one is set
+    in `userConfig` (never committed), so no Entra client is needed for dev. The task plan works out how
+    `.mcp.json` sends that header next to the Entra sign-in used in production.
   - Done when: on the developer's machine, a session with the plugin lists the local server's tools and
     `search_corpus` answers from the local server. ⛔ P0-01
 - [ ] **P0-04** `plugin` · `server` · S — **Spike: reaching the Yvoke server from Claude Code.**
