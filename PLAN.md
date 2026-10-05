@@ -202,11 +202,15 @@ Each decision blocks the tasks listed under it. Record the outcome and date unde
   Neither collides with the mod's tools, so the plugin can simply be named `yvoke`.
   🔍 Confirm the names on each surface (P0-04).
   - Blocks: P2-04, P2-05.
-- [ ] **D-06** `PO` · `plugin` — **Multi-agent profiles: registered live by the mod (`$.agent.register`)
+- [x] **D-06** `PO` · `plugin` — **Multi-agent profiles: registered live by the mod (`$.agent.register`)
   or generated into `agents/*.md`?** Live keeps the server as source of truth and works only in Claude Code;
   generated files also work in Cowork.
   - Generated files fix `model`, `effort` and `tools` at build time. Role models and budgets from deployment
     configuration (P6-02) need live registration. 🔍 Unless agent files accept `${user_config.*}`.
+  - **Decided 2026-10-05 (Eduard): live.** When multi-agent mode is chosen in the setup band, the mod reads
+    the profile from the server and registers its specialists and reviewer with `$.agent.register`. Role
+    models and budgets come from server configuration. No `agents/*.md` are generated (multi-agent is Claude
+    Code only, D-10).
   - Depends on: P0-07.
   - Blocks: P6-01.
 - [x] **D-07** `PO` — **Should conversations be synced into the user's Yvoke account** (as Yvoke Desktop
