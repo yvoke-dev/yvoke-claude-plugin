@@ -303,8 +303,9 @@ the same PR.
 
 - **The Yvoke MCP server** today exposes `search_corpus`, `get_section`, `get_toc`, `list_documents`,
   `get_graph_neighbors`, `search_graph_entities`, `query_json_objects`, `get_json_schema`,
-  `verify_citations` and `ask_clarifying_question`. `get_system_prompt`, `list_areas`, `list_playbooks`,
-  `get_playbook`, `list_profiles`, `submit_feedback` and the sync tools do not exist yet (P1-01, P1-12, P1-06,
+  `verify_citations` and `ask_clarifying_question`. `get_system_prompt` is added by P1-01
+  ([yvoke-web#5](https://github.com/yvoke-dev/yvoke-web/pull/5)). `list_areas`, `list_playbooks`,
+  `get_playbook`, `list_profiles`, `submit_feedback` and the sync tools do not exist yet (P1-12, P1-06,
   P6-01, P4-01, P5-01). Server code lives in `yvoke-dev/yvoke-web`.
 - **What yvoke-desktop reads over REST, and the plugin's route for it.** The desktop calls yvoke-web's REST
   API (`/api/chat/v1`, `SyncClient.ts`) with its own Entra bearer token, and reads playbooks as MCP
@@ -484,7 +485,7 @@ existing tools' do (P1-03 relies on it).
 
 | Tool | Wraps | Returns | Task |
 | --- | --- | --- | --- |
-| `get_system_prompt(name = "default-chat")` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions. Not also served as MCP `instructions` (D-12). | P1-01 |
+| `get_system_prompt(name = "default-chat")` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions as plain text, chat prompts only. An unknown or empty prompt is an `ERROR:` line, not `""` as in REST. Not also served as MCP `instructions` (D-12). | P1-01 |
 | `list_areas()` | new | each area, its modes (*single agent*, its profiles), its default playbook (OIM: `oim-full`) | P1-12 |
 | `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`, area | P1-06, P1-12 |
 | `get_playbook(name)` | `PromptsService` | the playbook's full text and the same metadata | P1-06 |

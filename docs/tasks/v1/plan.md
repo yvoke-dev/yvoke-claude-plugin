@@ -201,13 +201,15 @@ a cloud session.
 
 **Milestone M1:** in the Code tab, a user picks a playbook, asks a question, and gets a grounded answer.
 
-- [ ] **P1-01** `server` · S — **`get_system_prompt(name = "default-chat")` MCP tool** returning the base
+- [x] **P1-01** `server` · S — **`get_system_prompt(name = "default-chat")` MCP tool** returning the base
   instructions, as `GET /prompts/system/{name}` does today. The server does **not** send them as MCP
   `instructions` (D-12): those would reach every session that connects, including users' coding sessions,
   and Yvoke sessions would get them twice. In Claude Code the mod adds the text (P1-07); in Chat and Cowork
   the playbook stubs fetch it (P8-01).
   - Done when: the tool returns the `default-chat` text, and the server's `initialize` result carries no
     base instructions.
+  - Delivered in [yvoke-web#5](https://github.com/yvoke-dev/yvoke-web/pull/5); plan in
+    [P1-01/plan.md](P1-01/plan.md).
 - [ ] **P1-02** `plugin` · S — **Connector configuration.** Ship the `.mcp.json` entry D-03 chose: server `yvoke`,
   the server URL setting, and the Entra client and callback port from P0-09. ⛔ P0-09
   - The URL comes from `${user_config.serverUrl}` with the production URL as its default (D-14). Chat and

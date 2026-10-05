@@ -1,6 +1,6 @@
 # P1-01 get_system_prompt MCP tool
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** done
 
 The code lives in [`yvoke-dev/yvoke-web`](https://github.com/yvoke-dev/yvoke-web); this plan lives here.
 
@@ -83,9 +83,11 @@ Each step starts with a test, seen red before the code that makes it green.
 
 - Done-when half 1: `McpServerEndpointsIT` `tools/call` case, plus `GetSystemPromptToolTest`.
 - Done-when half 2: `McpServerEndpointsIT` `initialize` case.
+- Delivered in [yvoke-web#5](https://github.com/yvoke-dev/yvoke-web/pull/5).
 - yvoke-web checks, output in the yvoke-web PR:
   - `./mvnw test` (unit and JS tiers, Spotless)
-  - `./mvnw verify -Pit-tests` (needs Docker; if the cloud session cannot run Docker, yvoke-web CI runs
-    it on the PR and the PR says so)
+  - `./mvnw verify -Pit-tests` (needs Docker). The cloud session ran it on a locally built test database
+    image, because its network blocks the Debian mirrors the real image installs from; yvoke-web CI
+    builds the real one.
 - This repository: `node scripts/check-docs.mjs` prints `check-docs: OK (N Markdown files)`. The plugin
   rows of the verification table do not apply yet (no scaffold).
