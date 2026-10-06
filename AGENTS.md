@@ -49,3 +49,7 @@ Run these before saying anything is done, and show the output. Each must pass.
 declarations only when it loads the mod, so the script loads it once in print mode, with no sign-in and no
 model call, and waits for `plugins/yvoke/.claude-plugin/types/` to appear. That folder is never committed.
 CI (`.github/workflows/ci.yml`) runs the docs check today; P0-02 adds the other rows.
+
+If `claude plugin test` fails with "hooks modules are turned off", your own `~/.claude` has mods switched off
+(for example after an offline session). Start `claude` once with network access, or run the tests with a
+throwaway `CLAUDE_CONFIG_DIR`. A fresh config, as in CI, is not affected.

@@ -49,7 +49,7 @@ jobs for the plugin checks (P0-02), the contributor guide (P0-03), `src/` module
    and the `.gitignore` line. Run `npm install`, `npm run types`, `npx tsc --noEmit`: no output, exit 0.
    Then put a deliberate type error in `register.tsx`, see `tsc` fail, and restore.
 5. **It loads.** Run `claude --plugin-dir plugins/yvoke --debug -p "hi"` and find the line in the debug
-   log that says the `yvoke` module loaded with no error. Run `claude plugin marketplace add .` and
+   log that says the `yvoke` module loaded with no error. Run `claude plugin marketplace add ./` (a bare `.` is refused) and
    `claude plugin install yvoke@yvoke` in a throwaway `HOME` to check the local-marketplace install P0-11
    will use.
 6. **Documents.** Fill in `AGENTS.md`'s rows and the README from the real output of steps 2 to 5.

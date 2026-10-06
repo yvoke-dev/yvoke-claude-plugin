@@ -9,7 +9,7 @@ Yvoke knowledge base, and multi-agent investigations with enforced review.
 **Status:** scaffold. The plugin installs and loads, but does nothing yet.
 
 Try it from a clone: `claude --plugin-dir plugins/yvoke`, or add the clone as a local marketplace with
-`claude plugin marketplace add .` and install `yvoke@yvoke`.
+`claude plugin marketplace add ./` (the `./` is needed; a bare `.` is refused) and install `yvoke@yvoke`.
 
 | Document | What it covers |
 | --- | --- |

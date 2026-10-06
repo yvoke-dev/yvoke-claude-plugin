@@ -25,10 +25,9 @@ const child = spawn('claude', ['--plugin-dir', plugin, '-p', 'lay types'], {
   stdio: 'ignore',
   env: { ...process.env, CLAUDE_CONFIG_DIR: config, ANTHROPIC_BASE_URL: 'http://127.0.0.1:9', ANTHROPIC_API_KEY: 'unused' },
 })
-child.on('error', (err) => {
-  console.error(`lay-types: could not start claude: ${err.message}`)
-  process.exit(1)
-})
+child.on('error', (err) => stop(1, `lay-types: could not start claude: ${err.message}`))
+process.on('SIGINT', () => stop(130, 'lay-types: interrupted'))
+process.on('SIGTERM', () => stop(143, 'lay-types: stopped'))
 
 const started = Date.now()
 const timer = setInterval(() => {
