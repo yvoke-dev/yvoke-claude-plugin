@@ -354,7 +354,10 @@ the same PR.
   needs, and refuses source the engine could not read. Run it before every push.
 - `claude plugin test plugins/yvoke` runs `*.test.ts` against the real engine with no session, network, fs
   or process. Import `test`, `expect` and `mock` from `claude-code/testing`. Hooks a test registers sit
-  *beneath* the plugin and stand for the engine, so stub the Yvoke server by hooking `mcp.call` in the test:
+  *beneath* the plugin and stand for the engine. A test answers each `$` call the plugin makes, and an
+  answer to a `$` call that returns a value is `{ value }` (`on('session.turns', () => ({ value: 0 }))`).
+  A test's own `$` has no `$.state` or `$.store`, so observe them through behaviour or a stubbed store.
+  Stub the Yvoke server by hooking `mcp.call` in the test:
   `on('mcp.call', () => ({ content: [{ type: 'text', text: '…' }], isError: false }))`. UI tests mount on a
   surface the test names. Loop every UI test over `['terminal', 'desktop'] as const`.
 
@@ -396,7 +399,17 @@ the same PR.
 
   Tests cover the throw and the timeout path for each one.
 - **Outside a Yvoke session, call `next(e)` and nothing else.** The mod loads in every Claude Code session
-  of the user; only `/yvoke` makes a session a Yvoke session (P1-10, D-13).
+  of the user; only `/yvoke` makes a session a Yvoke session (P1-10, D-13). Every enforcing hook opens
+  with these two lines, written in its own file:
+
+  ```ts
+  const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
+  if (isYvoke !== true) return next(e)
+  ```
+
+  There is no shared helper for this: the engine refuses a module that passes `$` to a function imported
+  from another file, a hook built by a wrapper (`on('tool.call', yvokeOnly(h))`), or a `$.state`
+  reference imported from another file (checked on 2.1.291, P1-10). Only `src/session.ts` writes the flag.
 - **The module environment is not Node.** It has no `require`, no dynamic `import()` (a module holding one
   does not load), no DOM and no `process`. Static `import` of the plugin's own `.ts` files works, so
   generated data such as a playbook map can be a `.ts` module. JSX compiles against the global `h`.

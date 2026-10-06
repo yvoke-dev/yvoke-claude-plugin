@@ -1,6 +1,6 @@
 # P1-10 Yvoke session start
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** done
 
 The mod loads in every Claude Code session of the user, in any folder. A session becomes a Yvoke session
 only when the user types `/yvoke` before the first question (D-13). Every other session behaves as if the
@@ -29,6 +29,16 @@ and a throwaway copy of the plugin run with `claude plugin test`:
   next to the plugin's `/yvoke:<skill>` skills, whether running `/yvoke` itself counts as a turn, and
   whether `$.state` is kept on `/branch` and cleared on `/clear` as the mods reference says. The design
   below does not depend on the last two: it sets the flag explicitly on every `classic.SessionStart`.
+
+Found while building:
+
+- `validate` reads the `$.state` contract only where a key is written inline in `PluginState`
+  (`yvoke: { yvokeSession: boolean }`); a key reached through a type alias is "not declared", and the
+  contract file may not import. `YvokeState` therefore repeats the key.
+- `tsc` refuses an import ending in `.ts`; `register.tsx` imports `../src/session` and the engine resolves it.
+- `validate` notes "gating hook without .catch: classic.SessionStart". Left on purpose: that hook enforces
+  nothing, and a catch answer would stop the user's own `SessionStart` settings hooks from running. If it
+  throws, the engine skips it and `/clear` still resets `$.state`.
 
 ## What the user sees
 
