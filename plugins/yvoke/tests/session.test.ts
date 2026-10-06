@@ -9,7 +9,7 @@ import type { On } from 'claude-code'
 const STARTED = "Yvoke session started. Ask your question; Yvoke's setup and rules apply until /clear."
 const TOO_LATE = '/yvoke works only before the first question. Type /clear, then /yvoke.'
 const ALREADY = 'This is already a Yvoke session.'
-const FAILED = 'Yvoke: the session could not be started. Try /yvoke again.'
+const FAILED = 'Yvoke: /yvoke did not work. Try it again.'
 
 type Session = {
   id: string
@@ -18,6 +18,7 @@ type Session = {
   registered: string[]
   writes: string[]
   failStore: boolean
+  failStoreRead: boolean
 }
 
 // The engine beneath the plugin: a session id, a turn count, an in-memory store, and the command list.
@@ -29,6 +30,7 @@ function engine(on: On, start: Partial<Session> = {}): Session {
     registered: [],
     writes: [],
     failStore: false,
+    failStoreRead: false,
     ...start,
   }
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
@@ -38,7 +40,10 @@ function engine(on: On, start: Partial<Session> = {}): Session {
   })
   on('session.turns', () => ({ value: s.turns }))
   on('session.id', () => ({ value: s.id }))
-  on('store.get', (_$, e) => ({ value: s.store.get(e.key) }))
+  on('store.get', (_$, e) => {
+    if (s.failStoreRead) throw new Error('store unreadable')
+    return { value: s.store.get(e.key) }
+  })
   on('store.set', (_$, e) => {
     if (s.failStore) throw new Error('disk full')
     s.writes.push(e.key)
@@ -76,6 +81,21 @@ test('a session without /yvoke: only the command is added, and events reach the 
   expect(answer).toEqual({ result: 'from the engine' })
   expect(seen).toEqual([expect.objectContaining({ tool: 'Bash', command: 'ls' })])
   expect(s.writes).toEqual([])
+})
+
+test('a session without /yvoke: a prompt reaches the engine unchanged', async ($, on) => {
+  engine(on)
+  const seen: unknown[] = []
+  on('prompt.submit', (_$, e) => {
+    seen.push(e)
+    return { text: e.text }
+  })
+
+  await begin($)
+  await $.prompt.submit({ text: 'fix the build', wait: false, origin: { kind: 'composer' } })
+
+  expect(seen).toEqual([expect.objectContaining({ text: 'fix the build' })])
+  expect(seen[0]).not.toHaveProperty('context')
 })
 
 test('/yvoke before the first question starts a Yvoke session and saves it under the session id', async ($, on) => {
@@ -180,4 +200,17 @@ test('a store write that fails leaves the session plain and says so', async ($, 
 
   s.failStore = false
   expect(await typeYvoke($)).toMatchObject({ text: STARTED })
+})
+
+test('/resume when the saved entry cannot be read leaves the session plain', async ($, on) => {
+  const s = engine(on)
+  await begin($)
+  await typeYvoke($)
+
+  s.id = 'unknown'
+  s.turns = 3
+  s.failStoreRead = true
+  await $.classic.SessionStart({ source: 'resume', session_id: 'unknown' })
+
+  expect(await typeYvoke($)).toMatchObject({ text: TOO_LATE })
 })

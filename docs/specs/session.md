@@ -13,11 +13,11 @@
   | No question sent yet | *Yvoke session started. Ask your question; Yvoke's setup and rules apply until /clear.* | Yvoke session |
   | A question was already sent | */yvoke works only before the first question. Type /clear, then /yvoke.* | Unchanged |
   | Already a Yvoke session | *This is already a Yvoke session.* | Unchanged |
-  | The session could not be saved | *Yvoke: the session could not be started. Try /yvoke again.* | Not a Yvoke session |
+  | `/yvoke` failed | *Yvoke: /yvoke did not work. Try it again.* | Not a Yvoke session |
 
 - `/clear` ends a Yvoke session. `/resume` restores what the resumed session was: Yvoke if it was started
-  with `/yvoke`, plain otherwise, whatever the session it was resumed from. `/branch` keeps a Yvoke
-  session.
+  with `/yvoke`, plain otherwise, whatever the session it was resumed from. If the saved entry cannot be
+  read, the resumed session is plain. `/branch` keeps a Yvoke session.
 - What a Yvoke session enforces (setup band, system prompt, tool rules) arrives with later tasks; each
   applies only in a Yvoke session.
 
@@ -35,9 +35,9 @@
 
 ## Tests
 
-- `plugins/yvoke/tests/session.test.ts`: a session without `/yvoke`, `/yvoke` before the first question,
-  after it and twice, `/clear`, `/resume` of a Yvoke and of a plain session, `/branch` of both, and a
-  failed save.
+- `plugins/yvoke/tests/session.test.ts`: a session without `/yvoke` (a tool call and a prompt pass
+  through), `/yvoke` before the first question, after it and twice, `/clear`, `/resume` of a Yvoke and of
+  a plain session, `/branch` of both, a failed save, and a failed read on `/resume`.
 - Not yet checked on a real Claude Code: autocomplete next to the plugin's `/yvoke:<skill>` skills, whether
   `/yvoke` itself counts as a turn, and `$.state` on `/branch` (P0-06).
 

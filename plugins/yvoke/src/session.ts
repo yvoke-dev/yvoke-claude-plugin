@@ -14,7 +14,7 @@ const FLAG = { plugin: 'yvoke', key: 'yvokeSession' } as const
 export const STARTED = "Yvoke session started. Ask your question; Yvoke's setup and rules apply until /clear."
 export const TOO_LATE = '/yvoke works only before the first question. Type /clear, then /yvoke.'
 export const ALREADY = 'This is already a Yvoke session.'
-export const FAILED = 'Yvoke: the session could not be started. Try /yvoke again.'
+export const FAILED = 'Yvoke: /yvoke did not work. Try it again.'
 
 /** The `$.store` key holding one session's Yvoke entry. */
 export const sessionKey = (sessionId: string) => `session:${sessionId}`
@@ -37,7 +37,9 @@ export function registerSession(on: On) {
     const { value: isYvoke } = await $.state.get(FLAG)
     if (isYvoke === true) return { text: ALREADY }
     if ((await $.session.turns()) > 0) return { text: TOO_LATE }
-    // Store first: if it fails, the session stays plain rather than becoming Yvoke now and plain after /resume.
+    // Store first: if it fails, the session stays plain rather than becoming Yvoke now and plain after
+    // /resume. If the store write succeeds and the flag write then fails, the session is plain now and
+    // Yvoke after /resume; the user sees the failure line and can type /yvoke again.
     await $.store.set(sessionKey(await $.session.id()), { yvoke: true })
     await $.state.set(FLAG, true)
     return { text: STARTED }
@@ -47,7 +49,10 @@ export function registerSession(on: On) {
     if (e.source === 'clear') {
       await $.state.set(FLAG, false)
     } else if (e.source === 'resume') {
-      await $.state.set(FLAG, isSavedYvoke(await $.store.get(sessionKey(e.session_id))))
+      // Plain first, so a store read that fails leaves the resumed session plain, never the previous
+      // session's value.
+      await $.state.set(FLAG, false)
+      if (isSavedYvoke(await $.store.get(sessionKey(e.session_id)))) await $.state.set(FLAG, true)
     } else if (e.source === 'fork') {
       const { value: isYvoke } = await $.state.get(FLAG)
       if (isYvoke === true) await $.store.set(sessionKey(e.session_id), { yvoke: true })

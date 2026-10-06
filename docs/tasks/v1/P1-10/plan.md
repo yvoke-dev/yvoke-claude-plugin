@@ -24,11 +24,12 @@ and a throwaway copy of the plugin run with `claude plugin test`:
   file; an imported constant is refused. Hooks defined in a `src/` module and registered from
   `register.tsx` through `registerX(on)` are fine. (Same finding as P1-03.)
 - In tests, each `$` call the mod makes (`command.register`, `session.turns`, `session.id`, `store.get`,
-  `store.set`) is answered by a hook the test registers, so all seven cases run with no real session.
+  `store.set`) is answered by a hook the test registers, so every case runs with no real session.
 - Not checkable in the cloud, left to P0-06 on Eduard's machine: whether `/yvoke` autocompletes cleanly
   next to the plugin's `/yvoke:<skill>` skills, whether running `/yvoke` itself counts as a turn, and
   whether `$.state` is kept on `/branch` and cleared on `/clear` as the mods reference says. The design
-  below does not depend on the last two: it sets the flag explicitly on every `classic.SessionStart`.
+  below does not depend on `/clear` clearing `$.state`, because it sets the flag off explicitly. It does
+  depend on `$.state` being kept on `/branch` (see *Risks*).
 
 Found while building:
 
@@ -36,9 +37,11 @@ Found while building:
   (`yvoke: { yvokeSession: boolean }`); a key reached through a type alias is "not declared", and the
   contract file may not import. `YvokeState` therefore repeats the key.
 - `tsc` refuses an import ending in `.ts`; `register.tsx` imports `../src/session` and the engine resolves it.
-- `validate` notes "gating hook without .catch: classic.SessionStart". Left on purpose: that hook enforces
-  nothing, and a catch answer would stop the user's own `SessionStart` settings hooks from running. If it
-  throws, the engine skips it and `/clear` still resets `$.state`.
+- `validate` notes "gating hook without .catch: classic.SessionStart". Left without a catch on purpose: a
+  catch answer would stop the user's own `SessionStart` settings hooks from running. The hook does decide
+  whether a resumed session is Yvoke, so it fails closed another way: on `resume` it sets the flag off
+  first and on only when the saved entry reads back as Yvoke, so a store read that fails leaves the
+  session plain (found in review).
 
 ## What the user sees
 
@@ -47,7 +50,7 @@ Found while building:
 | New session, nothing asked yet | *Yvoke session started. Ask your question; Yvoke's setup and rules apply until /clear.* | Yvoke session |
 | A question was already sent | */yvoke works only before the first question. Type /clear, then /yvoke.* | Unchanged |
 | Already a Yvoke session | *This is already a Yvoke session.* | Unchanged |
-| The flag could not be saved | *Yvoke: the session could not be started. Try /yvoke again.* | Unchanged, not Yvoke |
+| `/yvoke` failed (store or state) | *Yvoke: /yvoke did not work. Try it again.* | Unchanged, not Yvoke |
 
 `/clear` ends the Yvoke session silently. `/resume` restores whatever the resumed session was: Yvoke or
 not, whichever session it was resumed from. `/branch` keeps it. Outside a Yvoke session the mod draws
@@ -65,8 +68,8 @@ which has to exist to be typed.
   user sees the failure line, so a session is never Yvoke now but plain after `/resume`.
 - **`classic.SessionStart`:**
   - `clear` → flag off.
-  - `resume` → flag = whether `session:<session_id>` holds `{ yvoke: true }`. This also turns the flag
-    *off* when a plain session is resumed from inside a Yvoke one.
+  - `resume` → flag off, then on only if `session:<session_id>` reads back `{ yvoke: true }`. This turns
+    the flag *off* when a plain session is resumed from inside a Yvoke one, and when the read fails.
   - `fork` → if the flag is on, save it under the new session id, so a later `/resume` of the branch
     restores it.
   - `startup`, `compact` → nothing.
@@ -109,7 +112,8 @@ Each step: write the test, run it and see it fail, then write the code.
 4. `/yvoke` twice: the second answers "already", and writes nothing.
 5. `/clear` ends it; `/resume` restores Yvoke and restores plain; `/branch` keeps it and saves it under
    the new id.
-6. Failure path: a store write that fails leaves the flag off with the failure line.
+6. Failure paths: a store write that fails leaves the flag off with the failure line; a store read that
+   fails on `/resume` leaves the session plain.
 7. Spec, plan tick, `npm run check`.
 
 ## Risks
@@ -133,7 +137,7 @@ Each step: write the test, run it and see it fail, then write the code.
 ## Proof
 
 - `plugins/yvoke/tests/session.test.ts`: without `/yvoke`, `/yvoke` before the first question, after it,
-  twice, `/clear`, `/resume` (both ways), `/branch`, and the failure path. These are P1-10's
+  twice, `/clear`, `/resume` (both ways), `/branch` (both ways), a prompt and a tool call passing through, and the two failure paths. These are P1-10's
   **Done when** cases.
 - `npm run check`: docs, both `validate --strict` runs (the `calls:` line names no `$.fs`, `$.process` or
   `$.http`), typecheck, tests.
