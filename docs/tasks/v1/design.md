@@ -277,6 +277,9 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
   - **Decided 2026-10-05 (Eduard): an area is that knowledge base.** Each area offers *Single agent* plus
     its one multi-agent profile. `list_areas` adds only each area's playbooks and its default playbook.
     Today there is one area (OIM); more will follow, so nothing may assume a single area.
+  - **Revised 2026-10-06 (Eduard):** an area is a collection of **system prompts, collections, playbooks
+    and orchestrator profiles**, not just one profile. yvoke-web gets its own `areas` table; see
+    [P1-12/plan.md](P1-12/plan.md) for the model and the follow-up decisions.
   - Blocks: P1-12.
 - [x] **D-16** `PO` · `server` — **Which prompt are the single-agent base instructions?** yvoke-web has a
   stored prompt named `default-chat` and, separately, the prompt an admin marks as the *Active Default

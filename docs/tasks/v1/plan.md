@@ -294,10 +294,11 @@ a cloud session.
 - [ ] **P1-13** `server` · S — **Keep plugin-control tools away from models that should not call them**
   ([design 5.4](design.md#54-which-model-sees-which-tool-p1-13)). `get_system_prompt`, `list_playbooks`, `get_playbook`, `submit_feedback` and the sync tools are for
   Claude clients, not for the web's in-app assistant, which today shares one tool set with every MCP client.
-- [ ] **P1-12** `server` · S — **Areas** (D-15). A `list_areas` MCP tool that lists the knowledge bases
-  (today only OIM), each with its multi-agent profile and its default playbook (OIM: `oim-full`), plus an
-  area attribute on each playbook so `list_playbooks(area)` can filter. An area is not yvoke-web's
-  *knowledge area* (a content collection such as *OIM Docs*), which the playbook still decides.
+- [ ] **P1-12** `server` · L — **Areas** (D-15). An area is a collection of system prompts, collections,
+  playbooks and orchestrator profiles, with a default for each of the first, third and fourth. yvoke-web
+  gets an `areas` table, an area list on each of the four kinds of item, and an admin page. A
+  `list_areas` MCP tool lists each area with its members and defaults (OIM: `oim-full`);
+  `list_playbooks(area)` and `get_system_prompt(area)` filter by it. Plan: [P1-12/plan.md](P1-12/plan.md).
   - Done when: server tests cover one area, two areas, and a playbook listed under its area.
 
 ### Phase 2 — Tool policy
