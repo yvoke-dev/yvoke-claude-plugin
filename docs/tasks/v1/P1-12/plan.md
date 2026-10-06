@@ -79,7 +79,7 @@ Each step starts with a test seen failing, then the code that makes it pass.
 3. **Import and export.** Parser test: `area: OIM` in playbook frontmatter is read and written back.
    Profile JSON keeps `area`. An unknown area is refused with its name.
 4. **`list_areas`.** `AreaToolsTest`: no areas gives `[]`; one area with its members and defaults; two
-   areas sharing one system prompt, each listing only its own playbooks; an unset default is `null`; a
+   areas, each listing only its own members; an unset default is `null`; a
    failure gives the generic `ERROR:` message.
 5. **Filters.** `PlaybookToolsTest` (area filter, `area` field, unknown area `[]`) and
    `GetSystemPromptToolTest` (area default, fallback to D-16's prompt, unknown area `ERROR:`).
