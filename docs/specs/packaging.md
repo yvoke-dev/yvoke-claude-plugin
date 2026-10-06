@@ -26,8 +26,11 @@
 
 - `plugins/yvoke/tests/scaffold.test.ts`: the plugin loads and leaves a tool call unchanged.
 - The verification commands in [AGENTS.md](../../AGENTS.md#verification) check both manifests and the types.
+  CI runs them on every push and pull request and weekly, on Claude Code 2.1.287 and the latest release.
 
 ## History
 
 - P0-01 ([#7](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/7)): marketplace, plugin, empty mod,
   type-checking and the first test.
+- P0-02 ([#9](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/9)): CI runs the plugin checks on the
+  oldest and newest Claude Code.

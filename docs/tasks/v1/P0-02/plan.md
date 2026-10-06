@@ -1,6 +1,6 @@
 # P0-02 CI
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** done
 
 Run every check in the [AGENTS.md verification table](../../../../AGENTS.md#verification) on every push and
 pull request, on the oldest Claude Code the mod supports and on the newest release, plus once a week
@@ -26,18 +26,26 @@ contributor guide (P0-03), the local dev setup (P0-11).
 
 ## Order of work
 
-1. **Red first.** Write the `plugin` job. On this branch, push one commit that breaks
-   `plugins/yvoke/tests/scaffold.test.ts` on purpose (flip its expectation). See the `plugin` job go red on
-   both versions, with the test step named as the failure.
-2. **Green.** Push a `git revert` of that commit, check with `diff -q` against `main` that the test file is
-   back, and see the whole workflow go green. Both commits stay in the branch history as the proof; the
-   PR is squash-merged.
-3. **The `calls:` rule.** The verification table says the plugin's `calls:` line must name no `$.fs`,
-   `$.process` or `$.http`, but only a reader checks it. Add it to the validate step as a `grep` that fails
-   the step if one of the three appears. Prove it the same way: a throwaway commit that calls `$.fs` in
-   `register.tsx` turns the step red, its revert turns it green.
-4. **Schedule.** Run the workflow once by hand with `workflow_dispatch` to show the non-PR triggers work.
-5. **Documents** (`AGENTS.md`, `packaging.md`), then close out with `finish-task`.
+What was done, in order (the commits stay in the branch history; the PR is squash-merged):
+
+1. **The `plugin` job.** First push: GitHub refused the workflow file, because the `runner` context is
+   not allowed in a job-level `env` block. `CLAUDE_CONFIG_DIR` is now set from the install step through
+   `$GITHUB_ENV`. The next run was green on both versions.
+2. **pipefail.** That run's log showed steps running under `bash -e` only, so a failing
+   `claude plugin validate | tee` would have passed. The workflow now sets `defaults.run.shell: bash`,
+   which runs every step with `-eo pipefail`.
+3. **Red, then green.** A commit that flips the scaffold test's expectation turned the `Test` step red on
+   both versions ([run 37446979911](https://github.com/yvoke-dev/yvoke-claude-plugin/actions/runs/37446979911));
+   its revert, checked equal to `main`, was green
+   ([run 37447055327](https://github.com/yvoke-dev/yvoke-claude-plugin/actions/runs/37447055327)).
+4. **The `calls:` rule.** `claude plugin validate` lists `$.fs` and friends on its `calls:` line but still
+   passes, so the validate step greps that line and fails. A commit that calls `$.fs.read` in
+   `register.tsx` (and type-checks and passes the test) turned only that step red on both versions
+   ([run 37447166267](https://github.com/yvoke-dev/yvoke-claude-plugin/actions/runs/37447166267)); its
+   revert, together with the documents, is green.
+5. **Schedule.** Not run by hand: `workflow_dispatch` and `schedule` only work once the workflow is on the
+   default branch. The first Monday run after the merge is the check.
+6. **Documents** (`AGENTS.md`, `packaging.md`), then `finish-task`.
 
 ## Risks
 
@@ -60,6 +68,6 @@ contributor guide (P0-03), the local dev setup (P0-11).
 ## Proof
 
 - **Done when** (plan.md): the run for the deliberately broken test is red and the run after its revert is
-  green; both runs are linked in the PR description.
-- The `calls:` grep: the red and green runs from step 3, linked the same way.
+  green; both are linked in *Order of work* step 3 and in the PR description.
+- The `calls:` grep: the red run from step 4 and the green run on the final commit.
 - The verification commands from `AGENTS.md`, run locally with the output in the PR: `npm run check`.
