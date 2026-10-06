@@ -60,7 +60,7 @@ In yvoke-web (paths under `src/main/java/de/palsoftware/yvoke/` unless shown):
 
 | File | Change |
 | --- | --- |
-| `docker/db/migration/V10__areas.sql` (new) | `CREATE TABLE areas …`; `INSERT` the `OIM` area; on each of the four tables add `area`, set it to `OIM`, then `SET NOT NULL` and the foreign key (`ON UPDATE CASCADE ON DELETE RESTRICT`), each indexed. Only additions, so the previous release still runs against it. |
+| `docker/db/migration/V10__areas.sql` (new) | `CREATE TABLE areas …`; `INSERT` the `OIM` area; on each of the four tables add `area VARCHAR(255) NOT NULL DEFAULT 'OIM'` with the foreign key (`ON UPDATE CASCADE ON DELETE RESTRICT`), each indexed. Only additions, so the previous release still runs against it. |
 | `area/core/…` (new) | `Area` record, `AreaRepository` (JdbcClient), `AreaService`. |
 | `area/web/admin/AreaAdminController.java`, `templates/admin/areas.html` (new), admin nav | The area admin page. |
 | `rag/prompt/Playbook*.java`, `SystemPrompt*.java` | Carry `area`; repository finders by area, uncached. |
@@ -68,6 +68,7 @@ In yvoke-web (paths under `src/main/java/de/palsoftware/yvoke/` unless shown):
 | `chat/orchestration/OrchestratorProfile*.java` | Carry `area`. |
 | `chat/api/model/PlaybookDto.java`, `OrchestratorProfileDto.java` | Add `area`. |
 | `mcp/tools/AreaTools.java` (new), `PlaybookTools.java`, `GetSystemPromptTool.java` | `list_areas`; the `area` parameters. `@McpTool` and `@Tool` kept identical. |
+| `ingest/core/service/IngestService.java` and the ingest API controllers | The `area` parameter for a collection created on the fly. |
 | The four existing admin controllers and templates | *Area* select. |
 | Tests | Unit tests for each of the above; repository ITs for the new columns; `McpToolCatalogueParityTest`; `McpServerEndpointsIT` and `JsonObjectsToolsIT` for the new tool and parameters, in their existing contexts. |
 | `spec/07_using_the_assistant_from_other_tools.md`, `spec/04_…` (curating content) | Areas, the filters, the admin page. |
