@@ -10,10 +10,13 @@ The code lives in [`yvoke-dev/yvoke-web`](https://github.com/yvoke-dev/yvoke-web
 ## What the tool does
 
 - Name `get_system_prompt`, one optional argument `name` (default `default-chat`).
-- It resolves the name exactly as `GET /api/chat/v1/prompts/system/{name}` does today: a prompt stored
-  under that name wins; otherwise `default-chat` means the prompt an admin picked as the default chat
-  prompt (`SystemPromptService.getDefaultChatPromptName()`).
-- It returns the prompt text as plain text, the same text the desktop gets in `systemPrompt`.
+- `default-chat`, or no name, means the chat prompt an admin made active
+  (`SystemPromptService.getDefaultChatPromptName()`), resolved exactly as yvoke-web's single-agent mode
+  resolves its base prompt (`RagService.loadAgenticSystemPrompt`). Any other name is looked up as given.
+  *Changed in review (2026-10-06):* the first version copied the desktop endpoint, where a stored row
+  named `default-chat` wins over the admin's choice. That row ships in every deployment, so the plugin
+  would have stayed on the generic prompt after an admin switched.
+- It returns the prompt text as plain text.
 - Unlike the REST endpoint, it does not answer an unknown name with an empty string. It returns
   `ERROR: system prompt '<name>' does not exist.` (design.md 5.3: errors start with `ERROR:`). An empty
   base instruction would let P1-07 start a session silently without them; an error lets it fail closed.
@@ -25,8 +28,8 @@ The code lives in [`yvoke-dev/yvoke-web`](https://github.com/yvoke-dev/yvoke-web
   pins that it stays so.
 
 The REST endpoint (`DesktopSyncController`) and the desktop are unchanged (design.md 5.1). The new
-service method copies its lookup rather than replacing it, because the endpoint must keep returning any
-type and `""` for an unknown name.
+service method has its own lookup rather than sharing the endpoint's, because the endpoint must keep
+returning any type and `""` for an unknown name.
 
 ## Files that change
 
@@ -50,7 +53,7 @@ In this repository: this plan, then `finish-task` ticks P1-01 in [plan.md](../pl
 
 Each step starts with a test, seen red before the code that makes it green.
 
-1. `SystemPromptServiceTest`: a stored chat prompt by name; `default-chat` falls back to the admin's
+1. `SystemPromptServiceTest`: a stored chat prompt by name; `default-chat` means the admin's active
    default; blank or missing name means `default-chat`; an unknown name and a `KG`/`SUMMARIZE` prompt are
    empty. Then `findChatPrompt`.
 2. `GetSystemPromptToolTest`: text returned as is; default name; unknown and wrong-type names return the
