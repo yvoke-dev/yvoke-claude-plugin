@@ -4,7 +4,7 @@
 
 The code lives in [`yvoke-dev/yvoke-web`](https://github.com/yvoke-dev/yvoke-web); this plan lives here.
 
-**Done when** (from [plan.md](../plan.md)): the tool returns the `default-chat` text, and the server's
+**Done when** (from [plan.md](../plan.md)): the tool returns the active default chat prompt's text, and the server's
 `initialize` result carries no base instructions.
 
 ## What the tool does
@@ -37,7 +37,7 @@ In yvoke-web:
 
 | File | Change |
 | --- | --- |
-| `rag/prompt/SystemPromptService.java` | New `findChatPrompt(String name)`: the name resolution above, moved out of the controller, typed `CHAT`. |
+| `rag/prompt/SystemPromptService.java` | New `findChatPrompt(String name)`: resolves `default-chat` to the admin's active prompt and returns only type `CHAT`. |
 | `mcp/tools/GetSystemPromptTool.java` (new) | The `@Component` with `@McpTool` and `@Tool` on one method, as the other tools do. Registered by the existing classpath scan in `McpToolsConfig`, so `McpToolsConfig` does not change; P1-06 adds its own class beside it without touching shared code. |
 | `src/test/.../mcp/tools/GetSystemPromptToolTest.java` (new) | Unit tests (below). |
 | `src/test/.../rag/prompt/SystemPromptServiceTest.java` | Tests for `findChatPrompt`. |
@@ -92,5 +92,5 @@ Each step starts with a test, seen red before the code that makes it green.
   - `./mvnw verify -Pit-tests` (needs Docker). The cloud session ran it on a locally built test database
     image, because its network blocks the Debian mirrors the real image installs from; yvoke-web CI
     builds the real one.
-- This repository: `node scripts/check-docs.mjs` prints `check-docs: OK (N Markdown files)`. The plugin
-  rows of the verification table do not apply yet (no scaffold).
+- This repository: every row of the AGENTS.md verification table, run after merging main (P0-01 scaffold).
+  P1-01 changes no plugin code, so the plugin rows only show the scaffold still passes.
