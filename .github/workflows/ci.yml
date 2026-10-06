@@ -60,9 +60,14 @@ jobs:
         run: claude plugin validate --strict .
       - name: Validate the plugin and mod
         # The mod must not reach the file system, processes or the network itself (AGENTS.md). Validate
-        # lists those calls but does not fail on them, so this step does.
+        # lists those calls but does not fail on them, so this step does. It fails closed: if a Claude Code
+        # release stops printing the `calls:` line, the step fails rather than passing unchecked.
         run: |
           claude plugin validate --strict plugins/yvoke | tee "$RUNNER_TEMP/validate.txt"
+          if ! grep -q 'calls:' "$RUNNER_TEMP/validate.txt"; then
+            echo "::error::claude plugin validate printed no calls: line, so the \$.fs/\$.process/\$.http rule cannot be checked."
+            exit 1
+          fi
           if grep -E 'calls:.*\$\.(fs|process|http)\b' "$RUNNER_TEMP/validate.txt"; then
             echo "::error::The mod calls \$.fs, \$.process or \$.http; see AGENTS.md, Verification."
             exit 1

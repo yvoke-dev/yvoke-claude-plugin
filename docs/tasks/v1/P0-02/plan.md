@@ -43,6 +43,9 @@ What was done, in order (the commits stay in the branch history; the PR is squas
    `register.tsx` (and type-checks and passes the test) turned only that step red on both versions
    ([run 37447166267](https://github.com/yvoke-dev/yvoke-claude-plugin/actions/runs/37447166267)); its
    revert, together with the documents, is green.
+   After review, the step also fails when the output has no `calls:` line at all, so a Claude Code release
+   that renames or drops that line cannot turn the check off silently (checked locally against a stub
+   output with no such line).
 5. **Schedule.** Not run by hand: `workflow_dispatch` and `schedule` only work once the workflow is on the
    default branch. The first Monday run after the merge is the check.
 6. **Documents** (`AGENTS.md`, `packaging.md`), then `finish-task`.
