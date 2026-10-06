@@ -389,8 +389,8 @@ the same PR.
 ### 4.4 Rules that are easy to get wrong
 
 - **Fail closed explicitly.** A hook that throws, returns a wrong shape or outruns its budget (10 s of its
-  own time; `$` and `next` calls are free) is skipped, and the engine goes on as if it were not there. Every
-  enforcing hook therefore gets a `.catch` with the safe answer (1 s grace):
+  own time; `$` and `next` calls are free, but a `$.clock` wait counts) is skipped, and the engine goes on
+  as if it were not there. Every enforcing hook therefore gets a `.catch` with the safe answer (1 s grace):
 
   ```ts
   on('tool.call', enforcePolicy).catch(() => ({ deny: 'Yvoke: the policy check failed, so this tool was not run.' }))

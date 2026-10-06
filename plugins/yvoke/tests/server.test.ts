@@ -215,6 +215,12 @@ describe('a call that rejects', () => {
     expect(await callYvoke(f.io, 'get_toc')).toEqual({ ok: false, error: 'Yvoke Backend: already said' })
   })
 
+  test('drops a prefix that is already there more than once', async () => {
+    const f = fake({ call: () => Promise.reject(new Error('Yvoke Backend: Yvoke Backend: said twice')) })
+
+    expect(await callYvoke(f.io, 'get_toc')).toEqual({ ok: false, error: 'Yvoke Backend: said twice' })
+  })
+
   test('with no message still says something', async () => {
     const f = fake({ call: () => Promise.reject(undefined) })
 
