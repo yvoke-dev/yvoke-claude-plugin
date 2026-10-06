@@ -55,7 +55,7 @@ unless it says otherwise. `cloud` runs in a Claude cloud session (Claude Code 2.
 **Wave 1: start now, in parallel.**
 
 1. **P0-01** scaffold (`cloud`), then **P0-11** dev environment (`machine`): the working copy installed in
-   Eduard's Claude Code against his local yvoke-web, signed in with its dummy dev token. Every plugin task
+   Eduard's Claude Code against his local yvoke-web, connected through its dev-mode switch. Every plugin task
    builds on these two, and neither waits for P0-09.
 2. **P0-09** Entra client *Yvoke for Claude* (`Eduard`, Entra admin). P0-04 and P1-02 need its client ID
    and callback port.
@@ -120,18 +120,21 @@ a cloud session.
   the rules and a verification block, `CLAUDE.md` as `@AGENTS.md`, project skills `start-task` and
   `finish-task`, and a hook that blocks edits to existing tests during a bug fix.
   ([#2](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/2))
-- [ ] **P0-11** `plugin` · S — **Dev environment** (proposed 2026-10-05). A developer installs the
+- [x] **P0-11** `plugin` · S — **Dev environment** (proposed 2026-10-05). A developer installs the
   working copy in their own Claude Code and points it at a yvoke-web running on their machine.
   - Install: the repo as a local marketplace (`/plugin marketplace add <path>`), or `--plugin-dir` (P0-03).
-  - Server URL: `${user_config.serverUrl}` in `.mcp.json`, defaulting to the production URL (D-14); a
-    developer sets `http://localhost:<port>/mcp`.
-  - Sign-in: a local yvoke-web with a dev profile (`dev`, `local` or `test`) and `app.security.mock=true`
-    trusts any bearer token (`SecurityConfig.jwtDecoder`), as yvoke-desktop uses in local dev. So
-    yvoke-web needs no change. The plugin sends a dummy dev token as a bearer header only when one is set
-    in `userConfig` (never committed), so no Entra client is needed for dev. The task plan works out how
-    `.mcp.json` sends that header next to the Entra sign-in used in production.
+  - Server URL: `${user_config.serverUrl}` in `.mcp.json`, with no default until P1-02 adds the
+    production URL (D-14); a developer sets `http://localhost:<port>/mcp`.
+  - Sign-in: a `devMode` switch in `userConfig` (off by default). The plugin always sends
+    `X-Yvoke-Dev-Mode: true|false`; a local yvoke-web in mock mode (`APP_SECURITY_MOCK=true`, dev profiles
+    only) accepts `true` in place of a sign-in, and any other server ignores it. Not an `Authorization`
+    header: Claude Code turns the OAuth sign-in off whenever `.mcp.json` sets one, even an empty one
+    ([P0-11 plan](P0-11/plan.md)). Off, the plugin uses the normal sign-in. So no Entra client is needed
+    for dev.
   - Done when: on the developer's machine, a session with the plugin lists the local server's tools and
     `search_corpus` answers from the local server. ⛔ P0-01
+  ([#10](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/10), with
+  [yvoke-web#6](https://github.com/yvoke-dev/yvoke-web/pull/6); checked on Eduard's machine 2026-10-06)
 - [ ] **P0-04** `plugin` · `server` · S — **Spike: reaching the Yvoke server from Claude Code.**
   - Can the Yvoke MCP server be used from the Code tab as a claude.ai connector, from a plugin `.mcp.json`,
     or both? How does each sign in with Entra ID? What server and tool names does each produce
@@ -216,6 +219,8 @@ a cloud session.
   the server URL setting, and the Entra client and callback port from P0-09. ⛔ P0-09
   - The URL comes from `${user_config.serverUrl}` with the production URL as its default (D-14). Chat and
     Cowork reach the server through the organization connector instead (D-03), so they never read it.
+  - P0-11 ships `serverUrl` with no default; this task adds the production default. Keep any
+    `Authorization` header out of `.mcp.json`: it turns the OAuth sign-in off (P0-11).
   - Done when: a fresh machine with the plugin installed can call `search_corpus` after one sign-in.
 - [ ] **P1-03** `plugin` · S — **One server client module** (`src/server.ts`) used by every feature:
   - calls the plugin's own server `yvoke` by its fixed name (D-03, D-05; the exact name `$.mcp.call`

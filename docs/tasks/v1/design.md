@@ -266,6 +266,10 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     which defaults to the production URL. A developer sets `http://localhost:<port>/mcp`. Chat and Cowork
     use the organization connector (D-03), not the plugin's `.mcp.json`, so the setting does not affect
     them. The server keeps the name `yvoke`, so tool names (D-05) stay the same.
+  - **Dev sign-in, decided 2026-10-06 (Eduard) in P0-11:** a `devMode` switch in `userConfig`, not a dev
+    token. The plugin always sends `X-Yvoke-Dev-Mode: true|false`; yvoke-web accepts `true` only in mock
+    mode. It cannot be an `Authorization` header: Claude Code turns the OAuth sign-in off whenever
+    `.mcp.json` sets one, even empty. `serverUrl` has no default until P1-02 adds the production URL.
   - Blocks: P0-11, P1-02.
 - [x] **D-15** `PO` · `server` — **What is an area?** D-11 introduced the area; yvoke-web already has
   multi-agent profiles, each one a knowledge base such as OIM or PingID with its own orchestrator, reviewer
@@ -487,6 +491,9 @@ Changes:
   machine, sign-in fails there.
 - 🔍 MCP clients send the RFC 8707 `resource` parameter; it works for today's connector, but confirm it for
   the new registration in P0-04.
+- **Local development (P0-11, done in yvoke-web):** in mock mode only, the MCP chain accepts the plugin's
+  `X-Yvoke-Dev-Mode: true` header in place of a bearer token (`SecurityConfig.mcpBearerTokenResolver`).
+  Outside mock mode the header is never read.
 
 ### 5.3 New MCP tools
 

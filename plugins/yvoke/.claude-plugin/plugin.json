@@ -8,5 +8,18 @@
   },
   "homepage": "https://github.com/yvoke-dev/yvoke-claude-plugin",
   "repository": "https://github.com/yvoke-dev/yvoke-claude-plugin",
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "serverUrl": {
+      "type": "string",
+      "title": "Yvoke server URL",
+      "description": "The Yvoke MCP endpoint, for example http://localhost:8080/mcp for a yvoke-web running on this machine."
+    },
+    "devMode": {
+      "type": "boolean",
+      "title": "Dev mode (local yvoke-web only)",
+      "description": "On: connect without signing in, to a local yvoke-web running in mock mode. Off: the normal sign-in, for any other server.",
+      "default": false
+    }
+  }
 }
