@@ -55,6 +55,10 @@ const io = {
 The scan accepts this and lists `$.mcp.call`, `$.mcp.connect` and `$.clock.sleep` under `calls:` (tried with
 a throwaway hook). No `$.fs`, `$.process` or `$.http`.
 
+The closures are plain arrow functions passed as arguments inside a hook that is itself a function
+literal, so the two other scan refusals P1-10 found (a hook built by a wrapper, an imported `$.state`
+reference) do not apply: `server.ts` builds no hook and reads no state.
+
 ## Files that change
 
 | File | Change |
@@ -63,7 +67,7 @@ a throwaway hook). No `$.fs`, `$.process` or `$.http`.
 | `plugins/yvoke/tests/server.test.ts` (new) | The tests below. |
 | `docs/specs/server-client.md` (new) and `docs/specs/README.md` | What the client does, once merged. |
 | `docs/tasks/v1/plan.md` | Tick P1-03. Reword its first bullet: the call name comes from `$.mcp.connect`, not from P0-04. P2-03 can take the tool prefix from the same answer. |
-| `docs/tasks/v1/design.md` section 4.3/4.4 | Add the scan rule (`$` never crosses an import) and the `io` pattern, since every later task meets it. |
+| `docs/tasks/v1/design.md` section 4.3 | The "Server calls" row points at `callYvoke` and the `io` pattern. The scan rules themselves (`$` never crosses an import, no wrapper-built hooks, `$.state` references written in the same file) go into section 4.4 with P1-10 ([#12](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/12)), which found the same rule; this task does not edit 4.4, so the two pull requests do not collide. |
 
 `hooks/register.tsx` does not change: the module registers no hook. The first feature that calls the server
 (P1-07, P1-10 or P1-12's band) imports it.
