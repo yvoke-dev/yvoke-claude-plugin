@@ -1,0 +1,16 @@
+{
+  "name": "yvoke-claude-plugin",
+  "private": true,
+  "type": "module",
+  "description": "Development tooling for the yvoke Claude plugin. The mod itself has no npm dependencies.",
+  "scripts": {
+    "types": "node scripts/lay-types.mjs",
+    "typecheck": "npm run types && tsc --noEmit",
+    "test": "claude plugin test plugins/yvoke",
+    "validate": "claude plugin validate --strict . && claude plugin validate --strict plugins/yvoke",
+    "check": "node scripts/check-docs.mjs && npm run validate && npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

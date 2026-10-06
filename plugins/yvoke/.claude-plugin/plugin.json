@@ -1,0 +1,12 @@
+{
+  "name": "yvoke",
+  "version": "0.1.0",
+  "description": "Playbook-scoped, cited answers from the Yvoke knowledge base, with multi-agent review.",
+  "author": {
+    "name": "Yvoke",
+    "url": "https://github.com/yvoke-dev"
+  },
+  "homepage": "https://github.com/yvoke-dev/yvoke-claude-plugin",
+  "repository": "https://github.com/yvoke-dev/yvoke-claude-plugin",
+  "types": "./types/index.d.ts"
+}

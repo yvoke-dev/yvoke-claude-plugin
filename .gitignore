@@ -1,3 +1,4 @@
 .claude/state/
 .claude/settings.local.json
 node_modules/
+plugins/yvoke/.claude-plugin/types/

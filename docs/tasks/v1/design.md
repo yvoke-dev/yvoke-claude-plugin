@@ -274,6 +274,14 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     its one multi-agent profile. `list_areas` adds only each area's playbooks and its default playbook.
     Today there is one area (OIM); more will follow, so nothing may assume a single area.
   - Blocks: P1-12.
+- [x] **D-16** `PO` · `server` — **Which prompt are the single-agent base instructions?** yvoke-web has a
+  stored prompt named `default-chat` and, separately, the prompt an admin marks as the *Active Default
+  Chat System Prompt* on the admin page. They are usually the same; they differ once an admin picks
+  another one. The desktop's REST endpoint lets the `default-chat` row win.
+  - **Decided 2026-10-06 (Eduard): the one marked as Active Default Chat System Prompt.**
+    `get_system_prompt` with no name (or `default-chat`) returns it, as yvoke-web's own single-agent mode
+    does. Multi-agent roles get their own system prompts with the profiles (P6-01), not from this tool.
+  - Delivered by: P1-01.
 
 ## 4. Notes for implementers
 
@@ -303,8 +311,9 @@ the same PR.
 
 - **The Yvoke MCP server** today exposes `search_corpus`, `get_section`, `get_toc`, `list_documents`,
   `get_graph_neighbors`, `search_graph_entities`, `query_json_objects`, `get_json_schema`,
-  `verify_citations` and `ask_clarifying_question`. `get_system_prompt`, `list_areas`, `list_playbooks`,
-  `get_playbook`, `list_profiles`, `submit_feedback` and the sync tools do not exist yet (P1-01, P1-12, P1-06,
+  `verify_citations` and `ask_clarifying_question`. `get_system_prompt` is added by P1-01
+  ([yvoke-web#5](https://github.com/yvoke-dev/yvoke-web/pull/5)). `list_areas`, `list_playbooks`,
+  `get_playbook`, `list_profiles`, `submit_feedback` and the sync tools do not exist yet (P1-12, P1-06,
   P6-01, P4-01, P5-01). Server code lives in `yvoke-dev/yvoke-web`.
 - **What yvoke-desktop reads over REST, and the plugin's route for it.** The desktop calls yvoke-web's REST
   API (`/api/chat/v1`, `SyncClient.ts`) with its own Entra bearer token, and reads playbooks as MCP
@@ -335,6 +344,8 @@ the same PR.
   the engine: once a mod has loaded from a folder you own (`--plugin-dir`, `CLAUDE_CODE_PLUGIN_DIRS`), see
   `plugins/yvoke/.claude-plugin/types/claude-code/index.d.ts` (about 20,000 lines; grep for `'tool.call'`,
   `HookBudget` and so on). Do not commit that `types/` folder; it is regenerated on every load.
+  `validate` and `test` do not write it; `npm run types` (`scripts/lay-types.mjs`) loads the mod once in
+  print mode, with no sign-in and no model call, to lay it before `tsc` runs (P0-01).
 - `claude plugin validate plugins/yvoke` prints the `hooks:` and `calls:` lines the security review (P7-06)
   needs, and refuses source the engine could not read. Run it before every push.
 - `claude plugin test plugins/yvoke` runs `*.test.ts` against the real engine with no session, network, fs
@@ -348,7 +359,7 @@ the same PR.
 | Plan uses | API (2.1.289) | Notes |
 | --- | --- | --- |
 | Deny a tool | `on('tool.call', h)` → `{ deny: reason }` | `e.tool` is the full name; `e.agentId` set for subagents. Managed `PreToolUse` hooks run first. |
-| Rewrite a tool's input (WebSearch domains) | `next({ ...e, input: { … } })` | Managed hooks run again on the rewritten call. |
+| Rewrite a tool's input (WebSearch domains) | `next({ ...e, allowed_domains: [ … ] })` | The tool's arguments sit flat on `e`, beside `tool` (there is no `e.input`). Managed hooks run again on the rewritten call. |
 | Gate a prompt | `on('prompt.submit', h)` → `{ drop: reason }` | The reason is shown to the user. Whether the draft stays is 🔍 P0-06; `$.prompt.fill` restores it. |
 | Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Cached until `$.ui.invalidate('prompt.compose')`; the text is fixed per session, so one fetch at lock. |
 | Hide playbook skills in Claude Code | `on('skill.prompt', { skill }, h)` → `{ text }` | Input is only `{ skill, text }`: no caller, no metadata. |
@@ -484,7 +495,7 @@ existing tools' do (P1-03 relies on it).
 
 | Tool | Wraps | Returns | Task |
 | --- | --- | --- | --- |
-| `get_system_prompt(name = "default-chat")` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions. Not also served as MCP `instructions` (D-12). | P1-01 |
+| `get_system_prompt(name = "default-chat")` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions as plain text: the *Active Default Chat System Prompt* when no name is given (D-16), chat prompts only. An unknown or empty prompt is an `ERROR:` line, not `""` as in REST. Not also served as MCP `instructions` (D-12). | P1-01 |
 | `list_areas()` | new | each area, its modes (*single agent*, its profiles), its default playbook (OIM: `oim-full`) | P1-12 |
 | `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`, area | P1-06, P1-12 |
 | `get_playbook(name)` | `PromptsService` | the playbook's full text and the same metadata | P1-06 |
