@@ -1,7 +1,7 @@
 # Yvoke for Claude v1: plan
 
 > **Status:** draft v4 · 2026-10-05 (split into intent, requirements, design and this plan; all decisions
-> D-01 to D-15 taken). How work moves through these documents is in [docs/sdlc.md](../../sdlc.md).
+> D-01 to D-16 taken). How work moves through these documents is in [docs/sdlc.md](../../sdlc.md).
 > **What we are building:** one Claude plugin that brings Yvoke Desktop's capabilities into Claude, fully
 > in **Claude Code** through a **mod**, and as live playbook stubs in **Chat** and **Cowork** (D-10).
 
@@ -99,7 +99,7 @@ a cloud session.
   - Done when: `claude plugin validate .` and `claude plugin validate plugins/yvoke` pass, and the plugin
     loads with `claude --plugin-dir plugins/yvoke`.
   ([#7](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/7))
-- [ ] **P0-02** `plugin` · M — **CI.** Extend `.github/workflows/ci.yml` (added 2026-10-05 with only the docs
+- [x] **P0-02** `plugin` · M — **CI.** ([#9](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/9)) Extend `.github/workflows/ci.yml` (added 2026-10-05 with only the docs
   check) so it runs on every push and PR:
   `claude plugin validate` (marketplace and plugin), `tsc --noEmit`, `claude plugin test plugins/yvoke`.
   Run on the pinned minimum Claude Code version and on the latest release, plus a weekly scheduled run
@@ -203,13 +203,16 @@ a cloud session.
 
 **Milestone M1:** in the Code tab, a user picks a playbook, asks a question, and gets a grounded answer.
 
-- [ ] **P1-01** `server` · S — **`get_system_prompt(name = "default-chat")` MCP tool** returning the base
-  instructions, as `GET /prompts/system/{name}` does today. The server does **not** send them as MCP
+- [x] **P1-01** `server` · S — **`get_system_prompt(name = "default-chat")` MCP tool** returning the base
+  instructions: the admin's Active Default Chat System Prompt, as yvoke-web's single-agent mode uses it
+  (D-16). The server does **not** send them as MCP
   `instructions` (D-12): those would reach every session that connects, including users' coding sessions,
   and Yvoke sessions would get them twice. In Claude Code the mod adds the text (P1-07); in Chat and Cowork
   the playbook stubs fetch it (P8-01).
-  - Done when: the tool returns the `default-chat` text, and the server's `initialize` result carries no
+  - Done when: the tool returns the active default chat prompt's text, and the server's `initialize` result carries no
     base instructions.
+  - Delivered in [yvoke-web#5](https://github.com/yvoke-dev/yvoke-web/pull/5); plan in
+    [P1-01/plan.md](P1-01/plan.md) ([#6](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/6)).
 - [ ] **P1-02** `plugin` · S — **Connector configuration.** Ship the `.mcp.json` entry D-03 chose: server `yvoke`,
   the server URL setting, and the Entra client and callback port from P0-09. ⛔ P0-09
   - The URL comes from `${user_config.serverUrl}` with the production URL as its default (D-14). Chat and
@@ -238,11 +241,14 @@ a cloud session.
 - [ ] **P1-05** `plugin` · S — **Catalogue sync job.** A scheduled GitHub Action runs P1-04 and opens a PR
   when playbooks change on the server.
   - Done when: adding a test playbook on the server produces a PR within a day.
-- [ ] **P1-06** `server` · S — **`list_playbooks(area?)` and `get_playbook(name)` MCP tools** returning the
+- [x] **P1-06** `server` · S — **`list_playbooks()` and `get_playbook(name)` MCP tools** returning the
   playbook list with its metadata, and one playbook's full text and metadata ([design 5.3](design.md#53-new-mcp-tools)).
-  Needed because a mod can call MCP tools but not read MCP prompts. Required by D-11.
-  - Done when: server tests cover the list (with `tools`, `codeExecution`, `targetAgent`, `prototype`,
-    area), a known playbook, and an unknown name answered with an `ERROR:` body.
+  Needed because a mod can call MCP tools but not read MCP prompts. Required by D-11. The `area` parameter
+  and field come with P1-12, which adds the attribute.
+  - Done when: server tests cover the list (with `tools`, `codeExecution`, `targetAgent`, `prototype`),
+    a known playbook, and an unknown name answered with an `ERROR:` body.
+  - Delivered in [yvoke-web#4](https://github.com/yvoke-dev/yvoke-web/pull/4); plan in
+    [P1-06/plan.md](P1-06/plan.md) ([#8](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/8)).
 - [ ] **P1-07** `plugin` · M — **System prompt from the server.** When the session's setup locks (P1-08),
   the mod fetches the base instructions and, in single-agent mode, the playbook's text (P1-06), and serves
   them from a `prompt.compose` hook as one `scope: 'session'` section: base instructions plus the playbook

@@ -48,7 +48,9 @@ Run these before saying anything is done, and show the output. Each must pass.
 `npm run typecheck` is `node scripts/lay-types.mjs && tsc --noEmit`. Claude Code writes the mod API's type
 declarations only when it loads the mod, so the script loads it once in print mode, with no sign-in and no
 model call, and waits for `plugins/yvoke/.claude-plugin/types/` to appear. That folder is never committed.
-CI (`.github/workflows/ci.yml`) runs the docs check today; P0-02 adds the other rows.
+CI (`.github/workflows/ci.yml`) runs all five on every push and pull request, and every Monday: the plugin
+rows on Claude Code 2.1.287 (the oldest with mods) and on the latest release, with a fresh
+`CLAUDE_CONFIG_DIR`. It also fails when the `calls:` line names `$.fs`, `$.process` or `$.http`.
 
 If `claude plugin test` fails with "hooks modules are turned off", your own `~/.claude` has mods switched off
 (for example after an offline session). Start `claude` once with network access, or run the tests with a
