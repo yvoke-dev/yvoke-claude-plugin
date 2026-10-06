@@ -2,4 +2,10 @@
 // parallel tasks do not collide. Nothing is registered yet, so every event reaches the engine unchanged.
 import type { Register } from 'claude-code'
 
-export const register: Register = () => {}
+// P0-02 proof only: a forbidden $.fs call, which CI must refuse. Reverted in the next commit.
+export const register: Register = (on) => {
+  on('session.start', async ($, e, next) => {
+    await $.fs.read('/etc/hosts')
+    return next(e)
+  })
+}
