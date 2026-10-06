@@ -13,7 +13,7 @@ The code lives in [`yvoke-dev/yvoke-web`](https://github.com/yvoke-dev/yvoke-web
 - `default-chat`, or no name, means the chat prompt an admin made active
   (`SystemPromptService.getDefaultChatPromptName()`), resolved exactly as yvoke-web's single-agent mode
   resolves its base prompt (`RagService.loadAgenticSystemPrompt`). Any other name is looked up as given.
-  *Changed in review (2026-10-06):* the first version copied the desktop endpoint, where a stored row
+  This is D-16 (Eduard, 2026-10-06). *Changed in review:* the first version copied the desktop endpoint, where a stored row
   named `default-chat` wins over the admin's choice. That row ships in every deployment, so the plugin
   would have stayed on the generic prompt after an admin switched.
 - It returns the prompt text as plain text.

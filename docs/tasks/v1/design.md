@@ -274,6 +274,14 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     its one multi-agent profile. `list_areas` adds only each area's playbooks and its default playbook.
     Today there is one area (OIM); more will follow, so nothing may assume a single area.
   - Blocks: P1-12.
+- [x] **D-16** `PO` · `server` — **Which prompt are the single-agent base instructions?** yvoke-web has a
+  stored prompt named `default-chat` and, separately, the prompt an admin marks as the *Active Default
+  Chat System Prompt* on the admin page. They are usually the same; they differ once an admin picks
+  another one. The desktop's REST endpoint lets the `default-chat` row win.
+  - **Decided 2026-10-06 (Eduard): the one marked as Active Default Chat System Prompt.**
+    `get_system_prompt` with no name (or `default-chat`) returns it, as yvoke-web's own single-agent mode
+    does. Multi-agent roles get their own system prompts with the profiles (P6-01), not from this tool.
+  - Delivered by: P1-01.
 
 ## 4. Notes for implementers
 
@@ -485,7 +493,7 @@ existing tools' do (P1-03 relies on it).
 
 | Tool | Wraps | Returns | Task |
 | --- | --- | --- | --- |
-| `get_system_prompt(name = "default-chat")` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions as plain text, chat prompts only. An unknown or empty prompt is an `ERROR:` line, not `""` as in REST. Not also served as MCP `instructions` (D-12). | P1-01 |
+| `get_system_prompt(name = "default-chat")` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions as plain text: the *Active Default Chat System Prompt* when no name is given (D-16), chat prompts only. An unknown or empty prompt is an `ERROR:` line, not `""` as in REST. Not also served as MCP `instructions` (D-12). | P1-01 |
 | `list_areas()` | new | each area, its modes (*single agent*, its profiles), its default playbook (OIM: `oim-full`) | P1-12 |
 | `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`, area | P1-06, P1-12 |
 | `get_playbook(name)` | `PromptsService` | the playbook's full text and the same metadata | P1-06 |
