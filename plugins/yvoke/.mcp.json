@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "yvoke": {
+      "type": "http",
+      "url": "${user_config.serverUrl}",
+      "headers": {
+        "X-Yvoke-Dev-Mode": "${user_config.devMode}"
+      }
+    }
+  }
+}

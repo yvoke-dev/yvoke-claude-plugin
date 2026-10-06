@@ -6,10 +6,53 @@ Yvoke knowledge base, and multi-agent investigations with enforced review.
 - **Claude Code** (the Claude Desktop app's **Code** tab and the terminal): full feature set, through a mod.
 - **Cowork** and **Chat**: live playbook stubs over the Yvoke connector, with fewer guarantees.
 
-**Status:** scaffold. The plugin installs and loads, but does nothing yet.
+**Status:** scaffold. The plugin installs, loads and connects to a Yvoke server, but adds no behaviour yet.
 
-Try it from a clone: `claude --plugin-dir plugins/yvoke`, or add the clone as a local marketplace with
-`claude plugin marketplace add ./` (the `./` is needed; a bare `.` is refused) and install `yvoke@yvoke`.
+## Use it locally
+
+Run the plugin from your clone against a [yvoke-web](https://github.com/yvoke-dev/yvoke-web) on your own
+machine. Checked with Claude Code 2.1.291.
+
+1. **Start yvoke-web in mock mode.** In your yvoke-web clone, make sure `.env` has
+   `APP_SECURITY_MOCK=true` (`.env.example` already does), then run `./redeploy.sh`. The server listens
+   on `http://localhost:8080`, and its MCP endpoint is `http://localhost:8080/mcp`.
+2. **Add this clone as a marketplace**, from the clone's root folder:
+
+   ```sh
+   claude plugin marketplace add ./
+   ```
+
+   The `./` is needed: a bare `.` is refused. Claude Code then reads the plugin straight from your clone.
+3. **Install the plugin** with its two settings:
+
+   ```sh
+   claude plugin install yvoke@yvoke --config serverUrl=http://localhost:8080/mcp --config devMode=true
+   ```
+
+   - `serverUrl` is the Yvoke server to use.
+   - `devMode` on lets the plugin in without signing in. Only a yvoke-web in mock mode accepts it; any
+     other server ignores it.
+4. **Check the connection:**
+
+   ```sh
+   claude mcp list
+   ```
+
+   The line `plugin:yvoke:yvoke: http://localhost:8080/mcp (HTTP) - √ Connected` means it works. In a
+   session, `/mcp` lists the `yvoke` tools, and you can ask Claude to use `search_corpus`.
+5. **After you edit the plugin**, run `/reload-plugins` in the session, or start a new one.
+
+**Use another server.** Run `/plugin configure yvoke@yvoke` in a session (or
+`claude plugin configure yvoke@yvoke` in a terminal), set `serverUrl` to that server and turn `devMode`
+off. The plugin then uses the normal sign-in. That sign-in (Entra ID) arrives with task P1-02; until then
+only a local server in mock mode works.
+
+**Quick look without installing:** `claude --plugin-dir plugins/yvoke` loads the plugin for one session.
+Use the steps above when you need it connected to a server.
+
+**Remove it:** `claude plugin uninstall yvoke@yvoke`, then `claude plugin marketplace remove yvoke`.
+
+## Documents
 
 | Document | What it covers |
 | --- | --- |

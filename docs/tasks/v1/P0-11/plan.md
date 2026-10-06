@@ -1,6 +1,6 @@
 # P0-11 Dev environment
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
 
 A developer installs the working copy in their own Claude Code and points it at a yvoke-web running on
 their machine. Task entry: [plan.md, P0-11](../plan.md#phase-0--foundation-and-spikes).
@@ -59,7 +59,7 @@ In **yvoke-claude-plugin** (branch `claude/p0-11-dev-setup-3i393i`):
 
 | File | Change |
 | --- | --- |
-| `plugins/yvoke/.claude-plugin/plugin.json` | Add `userConfig.serverUrl`: `type: "string"`, title "Yvoke server URL", a description naming the local form `http://localhost:8080/mcp`, `required: true`. **No default yet**: the production URL is not in any repository, and nothing works in production before P1-02 (Entra sign-in) anyway. P1-02 adds the production default (D-14). Add `userConfig.devMode`: `type: "boolean"`, title "Dev mode (local yvoke-web)", default `false`, a description saying it works only against a local yvoke-web in mock mode and that off means the normal sign-in. |
+| `plugins/yvoke/.claude-plugin/plugin.json` | Add `userConfig.serverUrl`: `type: "string"`, title "Yvoke server URL", a description naming the local form `http://localhost:8080/mcp`, not `required` (see *Risks*). **No default yet**: the production URL is not in any repository, and nothing works in production before P1-02 (Entra sign-in) anyway. P1-02 adds the production default (D-14). Add `userConfig.devMode`: `type: "boolean"`, title "Dev mode (local yvoke-web)", default `false`, a description saying it works only against a local yvoke-web in mock mode and that off means the normal sign-in. |
 | `plugins/yvoke/.mcp.json` | New. Server `yvoke` (D-05), `"type": "http"`, `"url": "${user_config.serverUrl}"`, `"headers": { "X-Yvoke-Dev-Mode": "${user_config.devMode}" }`. Never an `Authorization` header. |
 | `README.md` | Replace the "Try it" line with a **Use it locally** section, step by step: start yvoke-web in mock mode (`./redeploy.sh`, `APP_SECURITY_MOCK=true`); add the clone as a marketplace (`claude plugin marketplace add <clone>/`; a bare `.` is refused); install with `--config serverUrl=http://localhost:8080/mcp --config devMode=true`; check with `claude mcp list` and `/mcp`; pick up edits with `/reload-plugins`; switch to another environment with `/plugin configure yvoke@yvoke` (new `serverUrl`, `devMode` off, normal sign-in); and the Claude Code version it was checked on. P0-03's contributor guide links to it. |
 | `docs/specs/packaging.md` | At the end (finish-task): the plugin's two settings and its one MCP server. |
@@ -103,10 +103,12 @@ In **yvoke-web** (same branch name, its own PR, linked from this one):
 
 - **Claude Code changes how settings reach `.mcp.json`.** Checked on 2.1.291; Eduard's version may differ.
   Step 6 shows it on his build, and the README names the version it was checked on.
-- **A required setting with no default.** Until P1-02, a user who installs without `--config` sees the
-  `yvoke` server fail with *"Plugin option "serverUrl" isn't set"*. The mod still loads. Acceptable: only
-  developers install the plugin before P1-02. Rejected: a fake default URL, which would fail later and
-  less clearly.
+- **A setting with no default.** Until P1-02, a user who installs without `--config` sees the `yvoke`
+  server fail with *"URL is unset or invalid — open /plugin manage and configure yvoke options"*. The mod
+  still loads. Found while building: marking `serverUrl` `required: true` stops the whole hooks module
+  loading while the value is unset (*"options do not fit plugin.json userConfig: Yvoke server URL is
+  required but not provided"*), which also failed `claude plugin test`. So it is optional. Rejected: a
+  fake default URL, which would fail later and less clearly.
 - **A public dev credential.** The header is in a public repository, so it must only ever work in mock mode,
   which already trusts any bearer token and is refused outside a dev profile. The mock-off test pins
   that the header is ignored in production.
