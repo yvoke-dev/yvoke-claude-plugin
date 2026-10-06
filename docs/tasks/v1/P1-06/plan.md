@@ -36,12 +36,16 @@ In yvoke-web:
 
 | File | Change |
 | --- | --- |
-| `src/main/java/de/palsoftware/yvoke/mcp/tools/PlaybookTools.java` (new) | One `@Component` with the two methods, each annotated `@McpTool` and `@Tool` with identical names and descriptions (the repository's parity rule). It reads through `PlaybookService` and writes JSON with the shared `ObjectMapper`. Being in `mcp.tools`, it is picked up by the existing classpath scan in `McpToolsConfig`, so no registration code changes. |
-| `src/main/java/de/palsoftware/yvoke/chat/api/model/PlaybookDto.java` | Reused as the list item, unchanged; the single-playbook answer is a small record next to the tool (`PlaybookDto` fields plus `text`), so the REST API's shape does not change. |
-| `src/test/java/de/palsoftware/yvoke/mcp/tools/PlaybookToolsTest.java` (new) | Unit tests, `PlaybookService` mocked. |
+| `src/main/java/de/palsoftware/yvoke/mcp/tools/PlaybookTools.java` (new) | One `@Component` with the two methods, each annotated `@McpTool` and `@Tool` with identical names and descriptions (the repository's parity rule). `list_playbooks` reads through `PlaybookService.listSpecializedPlaybooks`; `get_playbook` reads `PlaybookRepository.findByName` directly, because `PlaybookService.getPlaybook` is cached for 60 s. Both write JSON with the shared `ObjectMapper`. Being in `mcp.tools`, it is picked up by the existing classpath scan in `McpToolsConfig`, so no registration code changes. The single-playbook answer is a small record next to the tool (`PlaybookDto` fields plus `text`). |
+| `src/main/java/de/palsoftware/yvoke/rag/prompt/PlaybookService.java` | Takes the MCP server as an `ObjectProvider` and looks it up only when a playbook changes, which breaks the startup cycle the new tool would close (see "What differed"). |
+| `src/main/java/de/palsoftware/yvoke/mcp/prompts/PromptsService.java` | A cast on its `new PlaybookService(repository, null)` call, which became ambiguous with the new constructor. |
+| `src/test/java/de/palsoftware/yvoke/mcp/tools/PlaybookToolsTest.java` (new) | Unit tests, `PlaybookService` and `PlaybookRepository` mocked. |
 | `src/test/java/de/palsoftware/yvoke/mcp/tools/McpToolCatalogueParityTest.java` | Add `PlaybookTools.class` to its `TOOLS` list. |
-| `src/it/java/de/palsoftware/yvoke/mcp/McpServerEndpointsIT.java` | Add `list_playbooks` and `get_playbook` to the names `tools/list` must contain, and one `tools/call` of `get_playbook` over the real endpoint with a seeded playbook. Reuses the existing context (no new context, per its pitfall on the TestContext cache). |
+| `src/it/java/de/palsoftware/yvoke/mcp/McpServerEndpointsIT.java` | Add `list_playbooks` and `get_playbook` to the names `tools/list` must contain, and `tools/call`s of both over the real endpoint with a seeded playbook, before and after its row is deleted. Reuses the existing context (no new context, per its pitfall on the TestContext cache). |
+| `src/it/java/de/palsoftware/yvoke/mcp/JsonObjectsToolsIT.java` | Add both names to the documented tools that must be in the registered callback list. |
 | `spec/07_using_the_assistant_from_other_tools.md` | Add the two tools under what a connected client can do, and that they are live while the prompt list is not. |
+
+`PlaybookDto.java` is reused as the list item and does not change, so the REST API's shape stays the same.
 
 In this repository: this plan, and the P1-06 entry in `docs/tasks/v1/plan.md` (area moved to P1-12).
 `docs/specs/` does not change: it describes the plugin, and nothing in the plugin changes here.
@@ -91,6 +95,7 @@ Each step starts with a test that is seen failing, then the code that makes it p
   (needs Docker; if the cloud session has none, the pull request says so and CI runs it).
 - This repository: `node scripts/check-docs.mjs` prints `check-docs: OK (N Markdown files)`. The plugin
   rows of the verification table do not apply yet (no scaffold, and nothing in the plugin changes).
+- Delivered in [yvoke-web#4](https://github.com/yvoke-dev/yvoke-web/pull/4).
 
 ## What differed from the plan
 
@@ -109,7 +114,8 @@ Each step starts with a test that is seen failing, then the code that makes it p
 - **Integration tests in a cloud session.** The real test database image cannot be built there (its
   Debian and GitHub downloads are blocked). A local stand-in built from `paradedb/paradedb:0.24.0-pg16`,
   with its init scripts removed, runs the whole suite. CI uses the real image.
-- **Merge with P1-01** touched exactly the lists the plan named, plus the spec table.
+- **Merge with P1-01** conflicted in four files: the two lists the plan named (`McpToolCatalogueParityTest`,
+  `McpServerEndpointsIT`), plus `JsonObjectsToolsIT` and `spec/07`. Each was resolved by keeping both sides.
 
-Final run on the merge with main (yvoke-web `ca0fdd9`): 1805 unit tests and 550 integration tests pass,
+Final run on the merged head (yvoke-web `15db208`, after the review fixes): 1806 unit tests and 550 integration tests pass,
 coverage checks met; CI green on the same commit.
