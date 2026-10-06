@@ -96,8 +96,13 @@ Each step starts with a test that is seen failing, then the code that makes it p
 
 - **A startup cycle.** `PlaybookService` needs the `McpSyncServer`, which needs the tool list built from
   `PlaybookTools`. The bean failed to build, `McpToolsConfig` only logged it, and both tools were missing
-  from `tools/list`. Unit tests could not see it; the two catalogue ITs caught it in CI. Fixed with `@Lazy` on
-  the `PlaybookService` constructor argument, with a comment saying why.
+  from `tools/list`. Unit tests could not see it; the two catalogue ITs caught it in CI. First fixed with
+  `@Lazy` on the tool; after review, fixed at the root: `PlaybookService` now looks the server up through an
+  `ObjectProvider` only when a playbook changes, so no tool bean can close the cycle again.
+- **`get_playbook` reads the table directly.** `PlaybookService.getPlaybook` is cached for 60 s, so a
+  deleted or edited playbook lingered (found in review). The tool now calls `PlaybookRepository.findByName`;
+  the integration test fetches a playbook after deleting its row and expects `ERROR: … not found.`. The
+  unit tests also pin the exact JSON keys of both answers.
 - **The end-to-end test deletes the row directly.** `deletePlaybook` also pushes `prompts/list_changed`
   down the test session's open SSE stream, which nothing reads, and closing the HTTP client then hung until
   the 15 s timeout. Deleting the row with `PlaybookRepository.delete` is also the realistic out-of-band case.
