@@ -1,6 +1,6 @@
 # P0-02 CI
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
 
 Run every check in the [AGENTS.md verification table](../../../../AGENTS.md#verification) on every push and
 pull request, on the oldest Claude Code the mod supports and on the newest release, plus once a week

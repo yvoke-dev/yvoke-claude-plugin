@@ -1,11 +1,15 @@
-# CI for every push and pull request. Today it runs the docs check; P0-02 adds the plugin checks
-# (validate, type-check, tests) to this file.
+# CI for every push and pull request, and once a week: the docs check, and the plugin checks from the
+# AGENTS.md verification table on the oldest Claude Code the mod supports and on the newest release, so a
+# mod API change shows up here before a user hits it (docs/tasks/v1/P0-02/plan.md).
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: '0 5 * * 1' # Mondays 05:00 UTC, against whatever "latest" is that day
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,9 +17,51 @@ permissions:
 jobs:
   docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: node scripts/check-docs.mjs
+
+  plugin:
+    name: plugin (Claude Code ${{ matrix.claude-code }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # 2.1.287 is the oldest release with mods (design section 2). P7-07 decides the minimum we
+        # promise users and moves this pin to match.
+        claude-code: ['2.1.287', 'latest']
+    env:
+      # A fresh config, so no stale rollout state ("hooks modules are turned off") can reach the checks.
+      CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-config
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Claude Code ${{ matrix.claude-code }}
+        run: |
+          npm install -g "@anthropic-ai/claude-code@${{ matrix.claude-code }}"
+          mkdir -p "$CLAUDE_CONFIG_DIR"
+          claude --version
+      - name: Validate the marketplace
+        run: claude plugin validate --strict .
+      - name: Validate the plugin and mod
+        # The mod must not reach the file system, processes or the network itself (AGENTS.md). Validate
+        # lists those calls but does not fail on them, so this step does.
+        run: |
+          claude plugin validate --strict plugins/yvoke | tee "$RUNNER_TEMP/validate.txt"
+          if grep -E 'calls:.*\$\.(fs|process|http)\b' "$RUNNER_TEMP/validate.txt"; then
+            echo "::error::The mod calls \$.fs, \$.process or \$.http; see AGENTS.md, Verification."
+            exit 1
+          fi
+      - name: Type-check
+        run: npm run typecheck
+      - name: Test
+        run: claude plugin test plugins/yvoke
