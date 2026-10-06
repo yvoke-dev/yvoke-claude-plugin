@@ -33,22 +33,24 @@ installed from a local marketplace and a small mock MCP server that logs the hea
   header that starts the OAuth sign-in, and expects a browser session not to reach `/mcp` (SEC-13). That
   behaviour has to stay as it is.
 
-- **A header with another name works.** `"headers": { "X-Yvoke-Dev-Token": "${user_config.devToken}" }`
-  reaches the server with the setting's value, and with no `Authorization` header Claude Code still
+- **A header with another name works.** `"headers": { "X-Yvoke-Dev-Mode": "${user_config.devMode}" }`
+  reaches the server as `"true"` or `"false"` (a boolean setting is substituted as text), and with no `Authorization` header Claude Code still
   starts the OAuth sign-in when the server answers 401. So a dev token can travel next to the Entra
   sign-in, as long as it is not called `Authorization`.
 
 ## Decided
 
-Eduard, 2026-10-06: the dev token is a hard-coded string, and a switch turns dev (mock) mode on and off.
+Eduard, 2026-10-06: the plugin has a switch. Off, it connects to the server at `serverUrl` with the
+normal sign-in, whatever environment that is. On, it uses a hard-coded dev credential that only a local
+yvoke-web in mock mode accepts.
 
-- **Plugin:** a setting `devToken`, empty by default. A developer sets it to the hard-coded value
-  `yvoke-dev`, and the plugin sends it as `X-Yvoke-Dev-Token`. Empty means off: the server ignores the
-  header.
-- **yvoke-web:** the switch is the existing `app.security.mock` (`APP_SECURITY_MOCK`), which yvoke-web
-  already refuses outside the `dev`, `local` and `test` profiles. With it on, an MCP request carrying
-  `X-Yvoke-Dev-Token: yvoke-dev` is the mock MCP user yvoke-web already builds for any bearer token. With
-  it off, the header is ignored and only an Entra token works. A request with no token still answers 401
+- **Plugin:** two settings. `serverUrl` picks the environment. `devMode` (on/off, off by default) is the
+  switch: the plugin always sends `X-Yvoke-Dev-Mode: ${user_config.devMode}`, so the header reads `true`
+  only when the switch is on. Off means the normal sign-in, untouched.
+- **yvoke-web:** with its existing `app.security.mock` (`APP_SECURITY_MOCK`, refused outside the `dev`,
+  `local` and `test` profiles) on, an MCP request carrying `X-Yvoke-Dev-Mode: true` is the mock MCP user
+  yvoke-web already builds for any bearer token. With mock off, the header is ignored and only an Entra
+  token works. A request with no token still answers 401
   in both modes, so `McpSecurityGatingIT` stays as it is.
 
 ## Files that change
@@ -57,22 +59,22 @@ In **yvoke-claude-plugin** (branch `claude/p0-11-dev-setup-3i393i`):
 
 | File | Change |
 | --- | --- |
-| `plugins/yvoke/.claude-plugin/plugin.json` | Add `userConfig.serverUrl`: `type: "string"`, title "Yvoke server URL", a description naming the local form `http://localhost:8080/mcp`, `required: true`. **No default yet**: the production URL is not in any repository, and nothing works in production before P1-02 (Entra sign-in) anyway. P1-02 adds the production default (D-14). Add `userConfig.devToken`: `type: "string"`, title "Dev token (local server only)", default `""`, a description saying to set `yvoke-dev` only against a local yvoke-web in mock mode. |
-| `plugins/yvoke/.mcp.json` | New. Server `yvoke` (D-05), `"type": "http"`, `"url": "${user_config.serverUrl}"`, `"headers": { "X-Yvoke-Dev-Token": "${user_config.devToken}" }`. Never an `Authorization` header. |
-| `docs/dev-setup.md` | New, short: start yvoke-web in mock mode, add the working copy as a marketplace (`claude plugin marketplace add <clone>/`; a bare `.` is refused), install with `--config serverUrl=http://localhost:8080/mcp --config devToken=yvoke-dev`, check with `claude mcp list`, and how to change or clear the settings later. P0-03's contributor guide links to it. |
+| `plugins/yvoke/.claude-plugin/plugin.json` | Add `userConfig.serverUrl`: `type: "string"`, title "Yvoke server URL", a description naming the local form `http://localhost:8080/mcp`, `required: true`. **No default yet**: the production URL is not in any repository, and nothing works in production before P1-02 (Entra sign-in) anyway. P1-02 adds the production default (D-14). Add `userConfig.devMode`: `type: "boolean"`, title "Dev mode (local yvoke-web)", default `false`, a description saying it works only against a local yvoke-web in mock mode and that off means the normal sign-in. |
+| `plugins/yvoke/.mcp.json` | New. Server `yvoke` (D-05), `"type": "http"`, `"url": "${user_config.serverUrl}"`, `"headers": { "X-Yvoke-Dev-Mode": "${user_config.devMode}" }`. Never an `Authorization` header. |
+| `docs/dev-setup.md` | New, short: start yvoke-web in mock mode, add the working copy as a marketplace (`claude plugin marketplace add <clone>/`; a bare `.` is refused), install with `--config serverUrl=http://localhost:8080/mcp --config devMode=true`, check with `claude mcp list`, and how to switch to another environment (`/plugin configure yvoke@yvoke`: new `serverUrl`, `devMode` off). P0-03's contributor guide links to it. |
 | `README.md` | One "Local development" line linking `docs/dev-setup.md`. |
 | `docs/specs/packaging.md` | At the end (finish-task): the plugin's two settings and its one MCP server. |
-| `docs/tasks/v1/plan.md` | P0-11's sign-in bullet: the `X-Yvoke-Dev-Token` header and why not `Authorization`; P1-02's note that it adds the production default and must keep `Authorization` out of `.mcp.json`; tick P0-11. |
+| `docs/tasks/v1/plan.md` | P0-11's sign-in bullet: the `devMode` switch, the `X-Yvoke-Dev-Mode` header and why not `Authorization`; P1-02's note that it adds the production default and must keep `Authorization` out of `.mcp.json`; tick P0-11. |
 | `docs/tasks/v1/design.md` | D-14: record the decision above and the `headers.Authorization` finding. |
 
 In **yvoke-web** (same branch name, its own PR, linked from this one):
 
 | File | Change |
 | --- | --- |
-| `src/main/java/de/palsoftware/yvoke/shared/security/SecurityConfig.java` | On the `/mcp` chain, when `mockAuth` is on, a `BearerTokenResolver` that returns the request's bearer token, or else the `X-Yvoke-Dev-Token` value when it equals the hard-coded `yvoke-dev`, or else nothing (401, as today). The mock `JwtDecoder` turns the token into the mock MCP user, as today. With mock off, the default resolver is used and the header is never read. |
-| `src/it/java/de/palsoftware/yvoke/shared/security/McpSecurityGatingIT.java` | New tests in the existing mock-mode class (no new Spring context): `X-Yvoke-Dev-Token: yvoke-dev` is not 401; a wrong value is 401 with the `WWW-Authenticate` header. Existing tests unchanged. |
-| `src/it/java/de/palsoftware/yvoke/shared/security/SecurityGatingIT.java` (mock off) | New test: `X-Yvoke-Dev-Token: yvoke-dev` with mock off is 401. |
-| `spec/07_using_the_assistant_from_other_tools.md` | One line under local development: in mock mode, MCP accepts the dev token header. |
+| `src/main/java/de/palsoftware/yvoke/shared/security/SecurityConfig.java` | On the `/mcp` chain, when `mockAuth` is on, a `BearerTokenResolver` that returns the request's bearer token, or else a fixed placeholder when `X-Yvoke-Dev-Mode` is exactly `true`, or else nothing (401, as today). The mock `JwtDecoder` turns the token into the mock MCP user, as today. With mock off, the default resolver is used and the header is never read. |
+| `src/it/java/de/palsoftware/yvoke/shared/security/McpSecurityGatingIT.java` | New tests in the existing mock-mode class (no new Spring context): `X-Yvoke-Dev-Mode: true` is not 401; `false` is 401 with the `WWW-Authenticate` header. Existing tests unchanged. |
+| `src/it/java/de/palsoftware/yvoke/shared/security/SecurityGatingIT.java` (mock off) | New test: `X-Yvoke-Dev-Mode: true` with mock off is 401. |
+| `spec/07_using_the_assistant_from_other_tools.md` | One line under local development: in mock mode, MCP accepts the plugin's dev-mode header. |
 
 ## Order of work
 
@@ -85,14 +87,14 @@ In **yvoke-web** (same branch name, its own PR, linked from this one):
    existing `scaffold.test.ts` must stay green.
 4. **Check it in the cloud.** Install the working copy from a local marketplace in a throwaway
    `CLAUDE_CONFIG_DIR` against a mock MCP server that answers 401 without the dev header. Show
-   `claude mcp list` reporting `√ Connected` with `devToken=yvoke-dev`, and the OAuth sign-in starting
-   with `devToken` empty. Paste the output in the PR.
+   `claude mcp list` reporting `√ Connected` with `devMode` on, and the OAuth sign-in starting with it
+   off. Paste the output in the PR.
 5. **Documents.** `docs/dev-setup.md`, README line, plan.md and D-14 notes.
 6. **Eduard's machine** (he runs these himself; the cloud cannot reach his yvoke-web):
    1. Start yvoke-web with `./redeploy.sh` (Compose sets the `local` profile; `.env` has
       `APP_SECURITY_MOCK=true`), from the yvoke-web branch until its PR merges.
    2. `claude plugin marketplace add <path to the clone>/`, then
-      `claude plugin install yvoke@yvoke --config serverUrl=http://localhost:8080/mcp --config devToken=yvoke-dev`.
+      `claude plugin install yvoke@yvoke --config serverUrl=http://localhost:8080/mcp --config devMode=true`.
    3. `claude mcp list`: `plugin:yvoke:yvoke … √ Connected`.
    4. In a new session, `/mcp` lists the `yvoke` tools; ask *"Use search_corpus to find …"* and the answer
       cites a chunk from the local corpus.
@@ -106,7 +108,7 @@ In **yvoke-web** (same branch name, its own PR, linked from this one):
   `yvoke` server fail with *"Plugin option "serverUrl" isn't set"*. The mod still loads. Acceptable: only
   developers install the plugin before P1-02. Rejected: a fake default URL, which would fail later and
   less clearly.
-- **A public dev token.** The value is in a public repository, so it must only ever work in mock mode,
+- **A public dev credential.** The header is in a public repository, so it must only ever work in mock mode,
   which already trusts any bearer token and is refused outside a dev profile. The mock-off test pins
   that the header is ignored in production.
 - **Rejected: a `headersHelper` script** that adds `Authorization` only in dev. Plugin settings never
