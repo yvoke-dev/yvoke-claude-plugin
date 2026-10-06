@@ -18,6 +18,11 @@ and a throwaway copy of the plugin run with `claude plugin test`:
   question" test.
 - `/clear`, `/resume` and `/branch` reach a mod as `classic.SessionStart` with `source` `clear`, `resume`
   or `fork` and the new `session_id`. `session.start` fires once per process, not after any of them.
+- **The engine only follows `$` inside one file.** Passing `$` to a function imported from another file,
+  or registering a hook built by a wrapper function (`on('tool.call', yvokeOnly(h))`), stops the whole
+  module from loading. A `$.state` reference must be written as a literal, or as a `const` in the same
+  file; an imported constant is refused. Hooks defined in a `src/` module and registered from
+  `register.tsx` through `registerX(on)` are fine. (Same finding as P1-03.)
 - In tests, each `$` call the mod makes (`command.register`, `session.turns`, `session.id`, `store.get`,
   `store.set`) is answered by a hook the test registers, so all seven cases run with no real session.
 - Not checkable in the cloud, left to P0-06 on Eduard's machine: whether `/yvoke` autocompletes cleanly
@@ -55,38 +60,46 @@ which has to exist to be typed.
   - `fork` → if the flag is on, save it under the new session id, so a later `/resume` of the branch
     restores it.
   - `startup`, `compact` → nothing.
-- **For later tasks:** `src/session.ts` exports `isYvokeSession($)` and a wrapper
-  `yvokeOnly(handler)`, which calls `next(e)` and nothing else outside a Yvoke session (design 4.4).
-  P2-01, P1-08 and every later enforcing hook wrap their handlers with it, so the pass-through rule lives
-  in one place. A failed read of the flag counts as "not a Yvoke session".
+- **For later tasks:** because of the `$` rule above, there can be no shared `isYvokeSession($)` or
+  `yvokeOnly(handler)` helper. Instead every enforcing hook in a later task (P2-01, P1-08, …) opens with
+  the same two lines, written in its own file:
+
+  ```ts
+  const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
+  if (isYvoke !== true) return next(e)
+  ```
+
+  The key is checked against the `types/index.d.ts` contract, so a typo fails `tsc` and `validate`. A
+  flag that was never set reads `undefined`, which counts as "not a Yvoke session". Only `src/session.ts`
+  writes the flag. Design 4.4 gets this pattern next to "Outside a Yvoke session, call `next(e)` and
+  nothing else", in this PR.
 
 ## Files that change
 
 | File | Change |
 | --- | --- |
-| `plugins/yvoke/src/session.ts` | New. `registerSession(on)`: the `session.start`, `command.run` and `classic.SessionStart` hooks above; `isYvokeSession($)`; `yvokeOnly(handler)`. |
+| `plugins/yvoke/src/session.ts` | New. `registerSession(on)`: the `session.start`, `command.run` and `classic.SessionStart` hooks above. |
 | `plugins/yvoke/hooks/register.tsx` | One line: `registerSession(on)`. |
 | `plugins/yvoke/types/index.d.ts` | `YvokeState` gets `yvokeSession: boolean`. |
 | `plugins/yvoke/tests/session.test.ts` | New. The cases under *Proof*. |
 | `docs/specs/session.md` | New spec: what a Yvoke session is, the command, the lines above. Row in `docs/specs/README.md`. |
 | `docs/specs/packaging.md` | "registers no hooks yet" becomes a pointer to `session.md`. |
 | `docs/tasks/v1/plan.md` | Tick P1-10 with the PR link. |
-| `docs/tasks/v1/design.md` | Section 4.3, only if the build shows a row wrong (for example: a test answers `$` calls with `{ value }`). |
+| `docs/tasks/v1/design.md` | Section 4.4: the two-line Yvoke check every enforcing hook opens with. Section 4.3 too if the build shows a row wrong (for example: a test answers `$` calls with `{ value }`). |
 
 ## Order of work
 
 Each step: write the test, run it and see it fail, then write the code.
 
-1. `/yvoke` before the first question starts a Yvoke session: answer text, store entry, flag on (read
-   through `isYvokeSession` from a probe plugin in the test).
-2. A session without `/yvoke`: a hook wrapped in `yvokeOnly` calls `next(e)` with the event unchanged
-   and nothing else; the existing scaffold test still passes.
+1. `/yvoke` before the first question starts a Yvoke session: answer text and store entry. A test's `$`
+   cannot read `$.state`, so the flag is observed through behaviour: a second `/yvoke` answers "already".
+2. A session without `/yvoke`: the commands registered are `/yvoke` alone, and a tool call and a prompt
+   reach the engine unchanged (the scaffold test, extended to a prompt).
 3. `/yvoke` after the first question: the `/clear` line, flag stays off, nothing stored.
 4. `/yvoke` twice: the second answers "already", and writes nothing.
 5. `/clear` ends it; `/resume` restores Yvoke and restores plain; `/branch` keeps it and saves it under
    the new id.
-6. Failure paths: a store write that fails leaves the flag off with the failure line; a flag read that
-   fails makes `yvokeOnly` pass through.
+6. Failure path: a store write that fails leaves the flag off with the failure line.
 7. Spec, plan tick, `npm run check`.
 
 ## Risks
@@ -110,7 +123,7 @@ Each step: write the test, run it and see it fail, then write the code.
 ## Proof
 
 - `plugins/yvoke/tests/session.test.ts`: without `/yvoke`, `/yvoke` before the first question, after it,
-  twice, `/clear`, `/resume` (both ways), `/branch`, and the two failure paths. These are P1-10's
+  twice, `/clear`, `/resume` (both ways), `/branch`, and the failure path. These are P1-10's
   **Done when** cases.
 - `npm run check`: docs, both `validate --strict` runs (the `calls:` line names no `$.fs`, `$.process` or
   `$.http`), typecheck, tests.
