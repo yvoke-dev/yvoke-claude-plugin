@@ -1,6 +1,6 @@
 # P1-03 Server client
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** done
 
 **Done when** (from [plan.md](../plan.md)): tests cover not connected, timeout, error flag, `ERROR:` body
 and success.
@@ -23,7 +23,8 @@ callYvoke(io, 'get_playbook', { name }) // → { ok: true, text } | { ok: false,
    module never hard-codes the call name, and nothing waits for spike P0-04.
 2. **Not connected.** If `connect` says the server is not connected, the call fails with the engine's own
    sentence. When the reason is `auth`, it adds: "Run /mcp and sign in to yvoke."
-3. **Call with a timeout.** It races `$.mcp.call` against `$.clock.sleep`. The default is **8 seconds**,
+3. **Call with a timeout.** It races `connect` and `$.mcp.call` together against `$.clock.sleep`, and ends
+   the wait (through its `AbortSignal`) once the server has answered. The default is **8 seconds**,
    and a caller can pass its own. yvoke-desktop used 12 seconds, but here a `$.clock` wait counts against a
    hook's 10-second budget, and a hook that outruns it is skipped silently. 8 seconds leaves room for the
    rest of the hook.
@@ -48,7 +49,7 @@ It takes three small functions instead, and each caller writes them where `$` li
 const io = {
   connect: (server: string) => $.mcp.connect(server),
   call: (server: string, tool: string, args: Record<string, unknown>) => $.mcp.call(server, tool, args),
-  sleep: (ms: number) => $.clock.sleep(ms),
+  sleep: (ms: number, signal: AbortSignal) => $.clock.sleep(ms, { signal }),
 }
 ```
 
@@ -92,6 +93,10 @@ Each step starts with a test that is seen failing, then the code that makes it p
 7. **A call that rejects** (the connection drops): `Yvoke Backend: <message>`; a message already starting
    with `Yvoke Backend:` is not prefixed twice.
 8. Spec, design notes and plan.md entry; run `finish-task`.
+
+**What differed from the plan as approved:** the timeout covers `connect` as well as the call (a connect
+that never answers is the same outage), and the timer is ended through an `AbortSignal` once the server
+answers, so no wait outlives the call. Both have their own test.
 
 ## Tests run without the engine's `$`, deliberately
 

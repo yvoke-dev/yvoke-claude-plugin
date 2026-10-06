@@ -375,7 +375,7 @@ the same PR.
 | Re-prompt | `$.prompt.submit` | Queues a new turn once idle; never `await` it inside `turn.complete`. |
 | `/clear`, `/resume`, `/branch` | `classic.SessionStart` (`source`: `startup`, `resume`, `clear`, `compact`, `fork`); `session.end` (`reason`, `sessionId`) | `session.start` fires once per process, not after `/clear`. |
 | Yvoke session (D-13) | `/yvoke` via `$.command.register`; a flag in `$.state`, and in `$.store` under `$.session.id` | `$.state` does not survive `/clear`, which is what ends a Yvoke session. Restore the flag on `classic.SessionStart` with `source` `resume` or `fork`. |
-| Server calls | `$.mcp.call(server, tool, args)` | Any connected server, connectors included; `$.mcp.connect` only for the plugin's own `.mcp.json` entries. |
+| Server calls | `callYvoke(io, tool, args)` from `src/server.ts`, over `$.mcp.connect`, `$.mcp.call` and `$.clock.sleep` | Any connected server, connectors included; `$.mcp.connect` only for the plugin's own `.mcp.json` entries. The hook builds `io` from `$` itself, since `$` cannot cross an import ([spec](../../specs/server-client.md)). |
 | Preflight model call | `$.model.complete({ model, prompt, timeoutMs })` | Never rejects for provider errors; check `isAnswered`. Uses the user's quota. |
 | Session values | `$.state` (declared in `types/index.d.ts` under `PluginState.yvoke`) | Survives hot reload, not `/clear`. Module variables do not survive a reload. |
 | Persistent values | `$.store` | One JSON file per plugin, 4 MiB total, shared by all open sessions: one key per session or turn. |

@@ -222,9 +222,10 @@ a cloud session.
   - P0-11 ships `serverUrl` with no default; this task adds the production default. Keep any
     `Authorization` header out of `.mcp.json`: it turns the OAuth sign-in off (P0-11).
   - Done when: a fresh machine with the plugin installed can call `search_corpus` after one sign-in.
-- [ ] **P1-03** `plugin` · S — **One server client module** (`src/server.ts`) used by every feature:
-  - calls the plugin's own server `yvoke` by its fixed name (D-03, D-05; the exact name `$.mcp.call`
-    takes, such as `plugin:yvoke:yvoke`, comes from P0-04);
+- [x] **P1-03** `plugin` · S — **One server client module** (`src/server.ts`) used by every feature:
+  ([#13](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/13))
+  - finds the plugin's own server `yvoke` (D-03, D-05) with `$.mcp.connect`, which returns the exact name
+    `$.mcp.call` takes (such as `plugin:yvoke:yvoke`), so it does not wait for P0-04;
   - wraps `$.mcp.call` with a timeout;
   - treats a body starting with `ERROR:` as a failure even without the error flag (as yvoke-desktop's
     `McpPrompts.callGetSection` does);
