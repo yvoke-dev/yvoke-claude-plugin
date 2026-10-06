@@ -1,6 +1,6 @@
 # P1-03 Server client
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
 
 **Done when** (from [plan.md](../plan.md)): tests cover not connected, timeout, error flag, `ERROR:` body
 and success.
