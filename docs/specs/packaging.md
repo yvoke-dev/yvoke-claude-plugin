@@ -7,8 +7,8 @@
 - The plugin entry's source is the relative path `./plugins/yvoke`. When the marketplace is added from a
   local folder, Claude Code reads the plugin from that folder itself (`claude plugin list` shows
   `Read from: <clone>/plugins/yvoke`), so edits reach a session with `/reload-plugins`, without a new version.
-- The plugin carries a mod (`hooks/register.tsx`) that registers no hooks yet. Every event, tool calls
-  included, reaches Claude Code unchanged.
+- The plugin carries a mod (`hooks/register.tsx`). In a session the user did not start with `/yvoke`, every
+  event, tool calls included, reaches Claude Code unchanged: see [session.md](session.md).
 - The plugin has one MCP server, `yvoke` (HTTP), so its tools are named `mcp__plugin_yvoke_yvoke__<tool>`.
   Its address is the setting `serverUrl`.
 - Two settings (`userConfig`), set with `claude plugin install yvoke@yvoke --config KEY=VALUE` or
@@ -32,7 +32,7 @@
 | Dev-mode header on the server | yvoke-web `SecurityConfig.mcpBearerTokenResolver` (mock mode only) |
 | Hooks module list | `plugins/yvoke/hooks/hooks.json` |
 | Mod entry point | `plugins/yvoke/hooks/register.tsx` |
-| `$.state` contract (`PluginState.yvoke`, empty) | `plugins/yvoke/types/index.d.ts` |
+| `$.state` contract (`PluginState.yvoke`) | `plugins/yvoke/types/index.d.ts` |
 | Type declarations for `tsc`, laid by `npm run types` | `plugins/yvoke/.claude-plugin/types/` (not committed) |
 
 ## Tests
@@ -52,3 +52,5 @@
   oldest and newest Claude Code.
 - P0-11 ([#10](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/10)): settings `serverUrl` and
   `devMode`, the `yvoke` MCP server, and the README's "Use it locally".
+- P1-10 ([#12](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/12)): the mod's first hooks, for the
+  `/yvoke` session start.

@@ -280,7 +280,7 @@ a cloud session.
   message telling the model to use Claude Code's native `AskUserQuestion`. Yvoke Desktop intercepts that tool;
   nothing else does.
   - Done when: a test shows the deny and its message.
-- [ ] **P1-10** `plugin` · S — **Yvoke session start** (D-13). The mod's hooks run in every session that loads
+- [x] **P1-10** `plugin` · S — **Yvoke session start** (D-13) ([#12](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/12)). The mod's hooks run in every session that loads
   the plugin, in any folder. A session becomes a Yvoke session only when the user types `/yvoke`.
   - In a Yvoke session: policy, playbook gate, compute tools, preflight and UI all apply.
   - In any other session: every hook passes the event through unchanged and nothing is registered or drawn,
