@@ -1,6 +1,6 @@
 # P0-11 Dev environment
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** done
 
 A developer installs the working copy in their own Claude Code and points it at a yvoke-web running on
 their machine. Task entry: [plan.md, P0-11](../plan.md#phase-0--foundation-and-spikes).
@@ -91,7 +91,7 @@ In **yvoke-web** (same branch name, its own PR, linked from this one):
 5. **Documents.** The README section, plan.md and D-14 notes. Then follow the README section word for word in a fresh `CLAUDE_CONFIG_DIR` against the mock server, so the steps are known to work as written.
 6. **Eduard's machine** (he runs these himself; the cloud cannot reach his yvoke-web):
    1. Start yvoke-web with `./redeploy.sh` (Compose sets the `local` profile; `.env` has
-      `APP_SECURITY_MOCK=true`), from the yvoke-web branch until its PR merges.
+      `APP_SECURITY_MOCK=true`), from yvoke-web `main` (#6 merged).
    2. `claude plugin marketplace add <path to the clone>/`, then
       `claude plugin install yvoke@yvoke --config serverUrl=http://localhost:8080/mcp --config devMode=true`.
    3. `claude mcp list`: `plugin:yvoke:yvoke … √ Connected`.
@@ -128,3 +128,10 @@ In **yvoke-web** (same branch name, its own PR, linked from this one):
 - Plugin: the checks in [AGENTS.md](../../../../AGENTS.md#verification), `npm run check`, all passing.
 - Done when (Eduard's machine, step 6): `claude mcp list` shows the local server connected, and a session
   with the plugin lists its tools and answers from `search_corpus`.
+
+**Result, 2026-10-06 (Eduard's machine, Claude Code 2.1.291):** with yvoke-web `main` in mock mode, `/mcp`
+answered 401 with no header and 400 with `X-Yvoke-Dev-Mode: true`. The marketplace add and the install
+with both settings succeeded. `claude mcp list` showed
+`plugin:yvoke:yvoke: http://localhost:8080/mcp (HTTP) - ✔ Connected`. In a session, with the `claude.ai yvoke`
+connector to production disabled, `search_corpus` answered with cited chunks, and the requests showed in
+the local yvoke-web logs.

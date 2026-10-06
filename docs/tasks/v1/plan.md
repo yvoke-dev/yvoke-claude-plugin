@@ -120,11 +120,11 @@ a cloud session.
   the rules and a verification block, `CLAUDE.md` as `@AGENTS.md`, project skills `start-task` and
   `finish-task`, and a hook that blocks edits to existing tests during a bug fix.
   ([#2](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/2))
-- [ ] **P0-11** `plugin` · S — **Dev environment** (proposed 2026-10-05). A developer installs the
+- [x] **P0-11** `plugin` · S — **Dev environment** (proposed 2026-10-05). A developer installs the
   working copy in their own Claude Code and points it at a yvoke-web running on their machine.
   - Install: the repo as a local marketplace (`/plugin marketplace add <path>`), or `--plugin-dir` (P0-03).
-  - Server URL: `${user_config.serverUrl}` in `.mcp.json`, defaulting to the production URL (D-14); a
-    developer sets `http://localhost:<port>/mcp`.
+  - Server URL: `${user_config.serverUrl}` in `.mcp.json`, with no default until P1-02 adds the
+    production URL (D-14); a developer sets `http://localhost:<port>/mcp`.
   - Sign-in: a `devMode` switch in `userConfig` (off by default). The plugin always sends
     `X-Yvoke-Dev-Mode: true|false`; a local yvoke-web in mock mode (`APP_SECURITY_MOCK=true`, dev profiles
     only) accepts `true` in place of a sign-in, and any other server ignores it. Not an `Authorization`
@@ -133,6 +133,8 @@ a cloud session.
     for dev.
   - Done when: on the developer's machine, a session with the plugin lists the local server's tools and
     `search_corpus` answers from the local server. ⛔ P0-01
+  ([#10](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/10), with
+  [yvoke-web#6](https://github.com/yvoke-dev/yvoke-web/pull/6); checked on Eduard's machine 2026-10-06)
 - [ ] **P0-04** `plugin` · `server` · S — **Spike: reaching the Yvoke server from Claude Code.**
   - Can the Yvoke MCP server be used from the Code tab as a claude.ai connector, from a plugin `.mcp.json`,
     or both? How does each sign in with Entra ID? What server and tool names does each produce
