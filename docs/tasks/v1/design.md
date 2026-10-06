@@ -320,8 +320,9 @@ the same PR.
   `get_graph_neighbors`, `search_graph_entities`, `query_json_objects`, `get_json_schema`,
   `verify_citations` and `ask_clarifying_question`. `get_system_prompt` is added by P1-01
   ([yvoke-web#5](https://github.com/yvoke-dev/yvoke-web/pull/5)), and `list_playbooks` and `get_playbook`
-  by P1-06 ([yvoke-web#4](https://github.com/yvoke-dev/yvoke-web/pull/4)). `list_areas`, `list_profiles`,
-  `submit_feedback` and the sync tools do not exist yet (P1-12, P6-01, P4-01, P5-01). Server code lives in `yvoke-dev/yvoke-web`.
+  by P1-06 ([yvoke-web#4](https://github.com/yvoke-dev/yvoke-web/pull/4)), and `list_areas` with the
+  `area` filters by P1-12. `list_profiles`, `submit_feedback` and the sync tools do not exist yet (P6-01,
+  P4-01, P5-01). Server code lives in `yvoke-dev/yvoke-web`.
 - **What yvoke-desktop reads over REST, and the plugin's route for it.** The desktop calls yvoke-web's REST
   API (`/api/chat/v1`, `SyncClient.ts`) with its own Entra bearer token, and reads playbooks as MCP
   *prompts*. The mod has neither: Claude Code keeps the connector's token to itself, the only other key
@@ -505,18 +506,20 @@ existing tools' do (P1-03 relies on it).
 
 | Tool | Wraps | Returns | Task |
 | --- | --- | --- | --- |
-| `get_system_prompt(name = "default-chat")` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions as plain text: the *Active Default Chat System Prompt* when no name is given (D-16), chat prompts only. An unknown or empty prompt is an `ERROR:` line, not `""` as in REST. Not also served as MCP `instructions` (D-12). | P1-01 |
-| `list_areas()` | new | each area, its modes (*single agent*, its profiles), its default playbook (OIM: `oim-full`) | P1-12 |
-| `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | a JSON array of name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`; orchestrator and reviewer playbooks left out. Read live, so a deleted playbook leaves at once. P1-06 ships it without `area`; P1-12 adds the parameter and field. | P1-06, P1-12 |
-| `get_playbook(name)` | `PlaybookRepository.findByName`, uncached (`PlaybookService.getPlaybook` keeps a playbook for 60 s) | a JSON object with the same metadata plus `text`, the full playbook, for any playbook including orchestrator and reviewer ones. An unknown or blank name is an `ERROR:` line. | P1-06 |
+| `get_system_prompt(name?, area?)` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions as plain text, chat prompts only. A name wins; else, with an area, that area's default system prompt; else (or when the area sets none) the *Active Default Chat System Prompt* (D-16). An unknown or empty prompt, or an unknown area, is an `ERROR:` line, not `""` as in REST. Not also served as MCP `instructions` (D-12). | P1-01, P1-12 |
+| `list_areas()` | `AreaService` (new `area` package) | a JSON array sorted by name: `name`, `title`, `description`, `prototype`, `defaultSystemPrompt`, `defaultPlaybook`, `defaultProfile`, and the member names `systemPrompts` (chat prompts), `collections`, `playbooks` (as `list_playbooks`), `profiles`. A default is given only when it is one of those members, else `null`. Read live. | P1-12 |
+| `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | a JSON array of name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`, `area`; orchestrator and reviewer playbooks left out. With an area (case and spaces ignored), only its playbooks; an unknown area gives `[]`. Read live, so a deleted playbook leaves at once. | P1-06, P1-12 |
+| `get_playbook(name)` | `PlaybookRepository.findByName`, uncached (`PlaybookService.getPlaybook` keeps a playbook for 60 s) | a JSON object with the same metadata (including `area`) plus `text`, the full playbook, for any playbook including orchestrator and reviewer ones. An unknown or blank name is an `ERROR:` line. | P1-06 |
 | `list_profiles(area?)` / `get_profile(name)` | as `GET /orchestrator/profiles` | lead, reviewer and specialist playbooks, `prototype`, area | P6-01 |
 | `submit_feedback(…)` | the feedback store behind `PUT /messages/{id}/feedback` | an id. Keyed to the synced message id, as the desktop's endpoint (D-08): rating, comment, client `claude-plugin`, plugin version. After v1, with sync. | P4-01 (after v1) |
 | sync tools: create conversation, append turn, record run | `DesktopSyncService`, `DesktopOrchestratorRunService` | ids; an idempotency key per turn, which the REST API lacks today | P5-01 (after v1, D-07) |
 
-**An area is a knowledge base (D-15).** The plugin's *area* (D-11) is yvoke-web's existing multi-agent
-profile, which `DesktopSyncController` already calls a knowledge base (OIM, PingID). It is not yvoke-web's
-*knowledge area*, a content collection (*OIM Docs*, *OIM Database*) that a playbook decides. A playbook
-needs an area attribute, and an area a default playbook. Today there is one area, OIM.
+**An area groups content (D-15).** yvoke-web's `areas` table (P1-12) holds each area and its three
+defaults; every system prompt, collection, playbook and multi-agent profile belongs to exactly one area
+through a required foreign key. Renaming an area carries over to its members, and an area with members
+cannot be deleted. It is not the yvoke-web spec's *knowledge area*, which means one collection
+(*OIM Docs*, *OIM Database*). Today there is one area, OIM. An area does not yet limit which collections a
+playbook searches (P1-14).
 
 ### 5.4 Which model sees which tool (P1-13)
 

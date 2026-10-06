@@ -1,6 +1,6 @@
 # P1-12 Areas
 
-**Release:** v1 · **Size:** L · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** L · **Type:** feature · **Status:** done
 
 The code lives in [`yvoke-dev/yvoke-web`](https://github.com/yvoke-dev/yvoke-web) and follows that
 repository's rules (its `CLAUDE.md`: strict TDD, unit tests in `src/test`, integration tests `*IT.java` in
@@ -114,9 +114,9 @@ Each step starts with a test seen failing, then the code that makes it pass.
   chose one area). Rejected: a nullable column (first draft); Eduard: nothing exists outside an area.
 - **Rejected: area as a column on the profile only** (D-15's first answer, the first draft of this plan).
   It could not hold system prompts or collections.
-- **Package rules.** `area` is a new domain package. The member domains (`collection`, `rag.prompt`,
-  `chat.orchestration`) store only area names and never import `area`, so no cycle; `AreaTools` in
-  `mcp.tools` reads all of them, as other tools already read several domains.
+- **Package rules.** `area` is a new domain package that depends on no other domain. The member domains
+  (`collection`, `rag.prompt`, `chat.orchestration`) call `area.core` to check an area on save, and
+  `AreaTools` in `mcp.tools` reads all of them, so there is no cycle (`ArchitectureTest` passes).
 - **The in-app assistant sees `list_areas`** in its catalogue, as with the P1-06 tools; hiding them is
   P1-13. Its description says to call it only when a Yvoke playbook skill or the plugin says so.
 
@@ -127,3 +127,36 @@ Each step starts with a test seen failing, then the code that makes it pass.
 - `McpServerEndpointsIT` shows `list_areas` and the filters over `/mcp`.
 - yvoke-web checks, each must pass: `./mvnw test` and `./mvnw verify -Pit-tests`.
 - This repository: `npm run check`.
+- Delivered in [yvoke-web#7](https://github.com/yvoke-dev/yvoke-web/pull/7). Local runs on yvoke-web
+  `3a8793c`: `./mvnw verify -Pit-tests` ran 1860 unit tests, 347 JS tests and 567 integration tests (1
+  skipped), all passing, with the coverage checks met; `./mvnw verify -Pe2e-tests` ran 59 browser tests,
+  all passing. `npm run check` here: `check-docs: OK`, both validations passed, `lay-types: OK`, 1 pass,
+  0 fail.
+
+## What differed from the plan
+
+- **One membership rule.** What counts as an area's chat prompt, pickable playbook and profile is one set
+  of queries in `AreaRepository.findAllMembers`, mirroring `PlaybookService.listSpecializedPlaybooks`.
+  `list_areas`, `get_system_prompt(area)` and the admin page all read it, so they cannot disagree.
+  `AreaMembersIT` pins it.
+- **Defaults must be members.** A default is reported only when it is a pickable member of the same area,
+  so a default that was moved to another area, or is not a chat prompt, reads as `null` (and
+  `get_system_prompt` falls back to D-16's prompt). The admin page refuses to save such a default, so the
+  case arises only when a member is moved afterwards.
+- **A name wins over an area** in `get_system_prompt`, so an explicit prompt is never silently replaced.
+- **Member domains call `area.core`** to refuse an unknown area on save, rather than only storing names
+  (Risks updated). The foreign key would refuse it too, but with a database error instead of the area's
+  name.
+- **Collections can be moved** from a per-collection *Area* select on the collections page, besides being
+  created in an area.
+- **File import on the admin pages** happens in the browser, so the page reads `area:` (playbook
+  frontmatter) or the profile JSON's `area` and sets the *Area* select; a file without one keeps the
+  select's current choice. An unknown name is reported in an alert and leaves the select alone; the
+  server-side import (`POST` of a file) refuses it with the area's name, as planned.
+- **Spec wording.** yvoke-web's spec already used *knowledge area* for one collection. Its glossary now has
+  an *Area* row and says a knowledge area belongs to one area. Renaming *knowledge area* is left to Eduard.
+- **Browser tests in a cloud session.** The installed Chromium is older than the one Playwright for Java
+  wants; a browsers folder linking the expected name to the installed one runs the e2e tests. CI is
+  unaffected.
+- **Older tests.** Seven yvoke-web integration tests posted or saved items without an area and now pass
+  one. `IngestApiControllerIT` relied on another test seeding its KG prompt and now seeds its own.
