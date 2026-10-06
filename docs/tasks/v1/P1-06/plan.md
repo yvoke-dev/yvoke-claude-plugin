@@ -1,6 +1,6 @@
 # P1-06 `list_playbooks` and `get_playbook` MCP tools
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** done
 
 The code lives in [`yvoke-dev/yvoke-web`](https://github.com/yvoke-dev/yvoke-web) and follows that
 repository's rules (its `CLAUDE.md`: strict TDD, unit tests in `src/test`, integration tests `*IT.java` in
@@ -91,3 +91,20 @@ Each step starts with a test that is seen failing, then the code that makes it p
   (needs Docker; if the cloud session has none, the pull request says so and CI runs it).
 - This repository: `node scripts/check-docs.mjs` prints `check-docs: OK (N Markdown files)`. The plugin
   rows of the verification table do not apply yet (no scaffold, and nothing in the plugin changes).
+
+## What differed from the plan
+
+- **A startup cycle.** `PlaybookService` needs the `McpSyncServer`, which needs the tool list built from
+  `PlaybookTools`. The bean failed to build, `McpToolsConfig` only logged it, and both tools were missing
+  from `tools/list`. Unit tests could not see it; the two catalogue ITs caught it in CI. Fixed with `@Lazy` on
+  the `PlaybookService` constructor argument, with a comment saying why.
+- **The end-to-end test deletes the row directly.** `deletePlaybook` also pushes `prompts/list_changed`
+  down the test session's open SSE stream, which nothing reads, and closing the HTTP client then hung until
+  the 15 s timeout. Deleting the row with `PlaybookRepository.delete` is also the realistic out-of-band case.
+- **Integration tests in a cloud session.** The real test database image cannot be built there (its
+  Debian and GitHub downloads are blocked). A local stand-in built from `paradedb/paradedb:0.24.0-pg16`,
+  with its init scripts removed, runs the whole suite. CI uses the real image.
+- **Merge with P1-01** touched exactly the lists the plan named, plus the spec table.
+
+Final run on the merge with main (yvoke-web `ca0fdd9`): 1805 unit tests and 550 integration tests pass,
+coverage checks met; CI green on the same commit.

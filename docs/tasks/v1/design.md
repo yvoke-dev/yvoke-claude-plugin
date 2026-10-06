@@ -312,9 +312,9 @@ the same PR.
 - **The Yvoke MCP server** today exposes `search_corpus`, `get_section`, `get_toc`, `list_documents`,
   `get_graph_neighbors`, `search_graph_entities`, `query_json_objects`, `get_json_schema`,
   `verify_citations` and `ask_clarifying_question`. `get_system_prompt` is added by P1-01
-  ([yvoke-web#5](https://github.com/yvoke-dev/yvoke-web/pull/5)). `list_areas`, `list_playbooks`,
-  `get_playbook`, `list_profiles`, `submit_feedback` and the sync tools do not exist yet (P1-12, P1-06,
-  P6-01, P4-01, P5-01). Server code lives in `yvoke-dev/yvoke-web`.
+  ([yvoke-web#5](https://github.com/yvoke-dev/yvoke-web/pull/5)), and `list_playbooks` and `get_playbook`
+  by P1-06 ([yvoke-web#4](https://github.com/yvoke-dev/yvoke-web/pull/4)). `list_areas`, `list_profiles`,
+  `submit_feedback` and the sync tools do not exist yet (P1-12, P6-01, P4-01, P5-01). Server code lives in `yvoke-dev/yvoke-web`.
 - **What yvoke-desktop reads over REST, and the plugin's route for it.** The desktop calls yvoke-web's REST
   API (`/api/chat/v1`, `SyncClient.ts`) with its own Entra bearer token, and reads playbooks as MCP
   *prompts*. The mod has neither: Claude Code keeps the connector's token to itself, the only other key
@@ -497,8 +497,8 @@ existing tools' do (P1-03 relies on it).
 | --- | --- | --- | --- |
 | `get_system_prompt(name = "default-chat")` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions as plain text: the *Active Default Chat System Prompt* when no name is given (D-16), chat prompts only. An unknown or empty prompt is an `ERROR:` line, not `""` as in REST. Not also served as MCP `instructions` (D-12). | P1-01 |
 | `list_areas()` | new | each area, its modes (*single agent*, its profiles), its default playbook (OIM: `oim-full`) | P1-12 |
-| `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`, area | P1-06, P1-12 |
-| `get_playbook(name)` | `PromptsService` | the playbook's full text and the same metadata | P1-06 |
+| `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | a JSON array of name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`; orchestrator and reviewer playbooks left out. Read live, so a deleted playbook leaves at once. P1-06 ships it without `area`; P1-12 adds the parameter and field. | P1-06, P1-12 |
+| `get_playbook(name)` | `PlaybookService.getPlaybook` (as `prompts/get`) | a JSON object with the same metadata plus `text`, the full playbook, for any playbook including orchestrator and reviewer ones. An unknown or blank name is an `ERROR:` line. | P1-06 |
 | `list_profiles(area?)` / `get_profile(name)` | as `GET /orchestrator/profiles` | lead, reviewer and specialist playbooks, `prototype`, area | P6-01 |
 | `submit_feedback(…)` | the feedback store behind `PUT /messages/{id}/feedback` | an id. Keyed to the synced message id, as the desktop's endpoint (D-08): rating, comment, client `claude-plugin`, plugin version. After v1, with sync. | P4-01 (after v1) |
 | sync tools: create conversation, append turn, record run | `DesktopSyncService`, `DesktopOrchestratorRunService` | ids; an idempotency key per turn, which the REST API lacks today | P5-01 (after v1, D-07) |

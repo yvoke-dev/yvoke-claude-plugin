@@ -238,12 +238,14 @@ a cloud session.
 - [ ] **P1-05** `plugin` · S — **Catalogue sync job.** A scheduled GitHub Action runs P1-04 and opens a PR
   when playbooks change on the server.
   - Done when: adding a test playbook on the server produces a PR within a day.
-- [ ] **P1-06** `server` · S — **`list_playbooks()` and `get_playbook(name)` MCP tools** returning the
+- [x] **P1-06** `server` · S — **`list_playbooks()` and `get_playbook(name)` MCP tools** returning the
   playbook list with its metadata, and one playbook's full text and metadata ([design 5.3](design.md#53-new-mcp-tools)).
   Needed because a mod can call MCP tools but not read MCP prompts. Required by D-11. The `area` parameter
   and field come with P1-12, which adds the attribute.
   - Done when: server tests cover the list (with `tools`, `codeExecution`, `targetAgent`, `prototype`),
     a known playbook, and an unknown name answered with an `ERROR:` body.
+  - Delivered in [yvoke-web#4](https://github.com/yvoke-dev/yvoke-web/pull/4); plan in
+    [P1-06/plan.md](P1-06/plan.md) ([#8](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/8)).
 - [ ] **P1-07** `plugin` · M — **System prompt from the server.** When the session's setup locks (P1-08),
   the mod fetches the base instructions and, in single-agent mode, the playbook's text (P1-06), and serves
   them from a `prompt.compose` hook as one `scope: 'session'` section: base instructions plus the playbook
