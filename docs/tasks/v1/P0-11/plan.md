@@ -61,8 +61,7 @@ In **yvoke-claude-plugin** (branch `claude/p0-11-dev-setup-3i393i`):
 | --- | --- |
 | `plugins/yvoke/.claude-plugin/plugin.json` | Add `userConfig.serverUrl`: `type: "string"`, title "Yvoke server URL", a description naming the local form `http://localhost:8080/mcp`, `required: true`. **No default yet**: the production URL is not in any repository, and nothing works in production before P1-02 (Entra sign-in) anyway. P1-02 adds the production default (D-14). Add `userConfig.devMode`: `type: "boolean"`, title "Dev mode (local yvoke-web)", default `false`, a description saying it works only against a local yvoke-web in mock mode and that off means the normal sign-in. |
 | `plugins/yvoke/.mcp.json` | New. Server `yvoke` (D-05), `"type": "http"`, `"url": "${user_config.serverUrl}"`, `"headers": { "X-Yvoke-Dev-Mode": "${user_config.devMode}" }`. Never an `Authorization` header. |
-| `docs/dev-setup.md` | New, short: start yvoke-web in mock mode, add the working copy as a marketplace (`claude plugin marketplace add <clone>/`; a bare `.` is refused), install with `--config serverUrl=http://localhost:8080/mcp --config devMode=true`, check with `claude mcp list`, and how to switch to another environment (`/plugin configure yvoke@yvoke`: new `serverUrl`, `devMode` off). P0-03's contributor guide links to it. |
-| `README.md` | One "Local development" line linking `docs/dev-setup.md`. |
+| `README.md` | Replace the "Try it" line with a **Use it locally** section, step by step: start yvoke-web in mock mode (`./redeploy.sh`, `APP_SECURITY_MOCK=true`); add the clone as a marketplace (`claude plugin marketplace add <clone>/`; a bare `.` is refused); install with `--config serverUrl=http://localhost:8080/mcp --config devMode=true`; check with `claude mcp list` and `/mcp`; pick up edits with `/reload-plugins`; switch to another environment with `/plugin configure yvoke@yvoke` (new `serverUrl`, `devMode` off, normal sign-in); and the Claude Code version it was checked on. P0-03's contributor guide links to it. |
 | `docs/specs/packaging.md` | At the end (finish-task): the plugin's two settings and its one MCP server. |
 | `docs/tasks/v1/plan.md` | P0-11's sign-in bullet: the `devMode` switch, the `X-Yvoke-Dev-Mode` header and why not `Authorization`; P1-02's note that it adds the production default and must keep `Authorization` out of `.mcp.json`; tick P0-11. |
 | `docs/tasks/v1/design.md` | D-14: record the decision above and the `headers.Authorization` finding. |
@@ -89,7 +88,7 @@ In **yvoke-web** (same branch name, its own PR, linked from this one):
    `CLAUDE_CONFIG_DIR` against a mock MCP server that answers 401 without the dev header. Show
    `claude mcp list` reporting `√ Connected` with `devMode` on, and the OAuth sign-in starting with it
    off. Paste the output in the PR.
-5. **Documents.** `docs/dev-setup.md`, README line, plan.md and D-14 notes.
+5. **Documents.** The README section, plan.md and D-14 notes. Then follow the README section word for word in a fresh `CLAUDE_CONFIG_DIR` against the mock server, so the steps are known to work as written.
 6. **Eduard's machine** (he runs these himself; the cloud cannot reach his yvoke-web):
    1. Start yvoke-web with `./redeploy.sh` (Compose sets the `local` profile; `.env` has
       `APP_SECURITY_MOCK=true`), from the yvoke-web branch until its PR merges.
@@ -103,7 +102,7 @@ In **yvoke-web** (same branch name, its own PR, linked from this one):
 ## Risks
 
 - **Claude Code changes how settings reach `.mcp.json`.** Checked on 2.1.291; Eduard's version may differ.
-  Step 6 shows it on his build, and `docs/dev-setup.md` names the version it was checked on.
+  Step 6 shows it on his build, and the README names the version it was checked on.
 - **A required setting with no default.** Until P1-02, a user who installs without `--config` sees the
   `yvoke` server fail with *"Plugin option "serverUrl" isn't set"*. The mod still loads. Acceptable: only
   developers install the plugin before P1-02. Rejected: a fake default URL, which would fail later and
