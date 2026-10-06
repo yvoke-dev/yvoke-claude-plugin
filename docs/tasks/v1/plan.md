@@ -99,7 +99,7 @@ a cloud session.
   - Done when: `claude plugin validate .` and `claude plugin validate plugins/yvoke` pass, and the plugin
     loads with `claude --plugin-dir plugins/yvoke`.
   ([#7](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/7))
-- [ ] **P0-02** `plugin` · M — **CI.** Extend `.github/workflows/ci.yml` (added 2026-10-05 with only the docs
+- [x] **P0-02** `plugin` · M — **CI.** ([#9](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/9)) Extend `.github/workflows/ci.yml` (added 2026-10-05 with only the docs
   check) so it runs on every push and PR:
   `claude plugin validate` (marketplace and plugin), `tsc --noEmit`, `claude plugin test plugins/yvoke`.
   Run on the pinned minimum Claude Code version and on the latest release, plus a weekly scheduled run
