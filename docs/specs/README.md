@@ -4,8 +4,11 @@ What the plugin does **today**, one file per area (for example `setup.md`, `tool
 `citations.md`, `multi-agent.md`, `server-tools.md`). A spec describes merged behaviour only. The pull
 request that changes the behaviour updates the spec in the same change (see [../sdlc.md](../sdlc.md)).
 
-Nothing is built yet, so there are no specs. What v1 is meant to do is in
-[../tasks/v1/requirements.md](../tasks/v1/requirements.md).
+| Spec | What it covers |
+| --- | --- |
+| [packaging.md](packaging.md) | The marketplace, the plugin and how it is installed |
+
+What v1 is meant to do is in [../tasks/v1/requirements.md](../tasks/v1/requirements.md).
 
 Each spec has these sections:
 

@@ -89,7 +89,7 @@ The spikes de-risk everything later in the plan. Record each spike's findings in
 Spikes need the Desktop Code tab and a signed-in Claude Code, so they run on a developer's machine, not in
 a cloud session.
 
-- [ ] **P0-01** `plugin` · S — **Repository scaffold.**
+- [x] **P0-01** `plugin` · S — **Repository scaffold.**
   - `README.md`; `.gitignore`; `.claude-plugin/marketplace.json`; `plugins/yvoke/.claude-plugin/plugin.json`;
     `hooks/hooks.json`; a no-op `hooks/register.tsx`; `types/index.d.ts`; `package.json` and `tsconfig.json`
     for type-checking.
@@ -98,6 +98,7 @@ a cloud session.
     first, no secrets in logs, smallest change at the root cause).
   - Done when: `claude plugin validate .` and `claude plugin validate plugins/yvoke` pass, and the plugin
     loads with `claude --plugin-dir plugins/yvoke`.
+  ([#7](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/7))
 - [ ] **P0-02** `plugin` · M — **CI.** Extend `.github/workflows/ci.yml` (added 2026-10-05 with only the docs
   check) so it runs on every push and PR:
   `claude plugin validate` (marketplace and plugin), `tsc --noEmit`, `claude plugin test plugins/yvoke`.
