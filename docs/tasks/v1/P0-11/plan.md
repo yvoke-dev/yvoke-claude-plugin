@@ -8,8 +8,7 @@ their machine. Task entry: [plan.md, P0-11](../plan.md#phase-0--foundation-and-s
 ## What was checked first
 
 Checked in a cloud session on **Claude Code 2.1.291** on 2026-10-06, with a throwaway copy of the plugin
-installed from a local marketplace and a small mock MCP server that logs the `Authorization` header it
-receives.
+installed from a local marketplace and a small mock MCP server that logs the headers it receives.
 
 - `"url": "${user_config.serverUrl}"` in `.mcp.json` works. The value is set with
   `claude plugin install yvoke@yvoke --config serverUrl=…`, with `/plugin configure yvoke@yvoke` in a
@@ -34,29 +33,23 @@ receives.
   header that starts the OAuth sign-in, and expects a browser session not to reach `/mcp` (SEC-13). That
   behaviour has to stay as it is.
 
-So this plan **drops the dev token** and asks yvoke-web for one small, opt-in change instead (see
-*Decision*).
+- **A header with another name works.** `"headers": { "X-Yvoke-Dev-Token": "${user_config.devToken}" }`
+  reaches the server with the setting's value, and with no `Authorization` header Claude Code still
+  starts the OAuth sign-in when the server answers 401. So a dev token can travel next to the Entra
+  sign-in, as long as it is not called `Authorization`.
 
-## Decision for Eduard
+## Decided
 
-**How does the plugin sign in to a local yvoke-web?**
+Eduard, 2026-10-06: the dev token is a hard-coded string, and a switch turns dev (mock) mode on and off.
 
-1. **A dev switch on yvoke-web (recommended).** A new setting, `app.security.mock-mcp-without-token`
-   (`APP_SECURITY_MOCK_MCP_WITHOUT_TOKEN`, default `false`). When it is on, an MCP request with no bearer
-   token is treated as the same mock user yvoke-web already builds for any token in mock mode. yvoke-web
-   refuses to start with it on unless `app.security.mock=true`, which itself is refused outside the
-   `dev`, `local` and `test` profiles. `.env.example` turns it on for local Compose. Mock mode already
-   trusts any token, so accepting none trusts nothing new, and the existing mock-mode tests keep their
-   401. The plugin then ships only `serverUrl`, with no dev token anywhere.
-2. **A shell helper in the plugin.** `.mcp.json` gets a `headersHelper` script that adds
-   `Authorization: Bearer <x>` when a shell variable such as `YVOKE_DEV_USER` is set. No yvoke-web change,
-   but the script ships to every user, runs on every connection, can be switched off by an organization's
-   managed settings (which would also stop the Entra sign-in), and the dev value lives outside
-   `userConfig`.
-
-If Eduard picks 2, the yvoke-web part below is replaced by `plugins/yvoke/scripts/auth-headers.sh`, a
-check that it prints `{}` with the variable unset, and a note in `docs/dev-setup.md` on setting the
-variable (for the Desktop app, in the `env` block of `~/.claude/settings.json`).
+- **Plugin:** a setting `devToken`, empty by default. A developer sets it to the hard-coded value
+  `yvoke-dev`, and the plugin sends it as `X-Yvoke-Dev-Token`. Empty means off: the server ignores the
+  header.
+- **yvoke-web:** the switch is the existing `app.security.mock` (`APP_SECURITY_MOCK`), which yvoke-web
+  already refuses outside the `dev`, `local` and `test` profiles. With it on, an MCP request carrying
+  `X-Yvoke-Dev-Token: yvoke-dev` is the mock MCP user yvoke-web already builds for any bearer token. With
+  it off, the header is ignored and only an Entra token works. A request with no token still answers 401
+  in both modes, so `McpSecurityGatingIT` stays as it is.
 
 ## Files that change
 
@@ -64,47 +57,42 @@ In **yvoke-claude-plugin** (branch `claude/p0-11-dev-setup-3i393i`):
 
 | File | Change |
 | --- | --- |
-| `plugins/yvoke/.claude-plugin/plugin.json` | Add `userConfig.serverUrl`: `type: "string"`, title "Yvoke server URL", a description naming the local form `http://localhost:8080/mcp`, `required: true`. **No default yet**: the production URL is not in any repository, and nothing works in production before P1-02 (Entra sign-in) anyway. P1-02 adds the production default (D-14). |
-| `plugins/yvoke/.mcp.json` | New. `{ "mcpServers": { "yvoke": { "type": "http", "url": "${user_config.serverUrl}" } } }`. No headers. The server name stays `yvoke` (D-05), so tools are `mcp__plugin_yvoke_yvoke__…`. |
-| `docs/dev-setup.md` | New, short: start yvoke-web locally, add the working copy as a marketplace (`claude plugin marketplace add <clone>/`; a bare `.` is refused), install with `--config serverUrl=http://localhost:8080/mcp`, check with `claude mcp list`, and how to change the URL later. P0-03's contributor guide links to it. |
+| `plugins/yvoke/.claude-plugin/plugin.json` | Add `userConfig.serverUrl`: `type: "string"`, title "Yvoke server URL", a description naming the local form `http://localhost:8080/mcp`, `required: true`. **No default yet**: the production URL is not in any repository, and nothing works in production before P1-02 (Entra sign-in) anyway. P1-02 adds the production default (D-14). Add `userConfig.devToken`: `type: "string"`, title "Dev token (local server only)", default `""`, a description saying to set `yvoke-dev` only against a local yvoke-web in mock mode. |
+| `plugins/yvoke/.mcp.json` | New. Server `yvoke` (D-05), `"type": "http"`, `"url": "${user_config.serverUrl}"`, `"headers": { "X-Yvoke-Dev-Token": "${user_config.devToken}" }`. Never an `Authorization` header. |
+| `docs/dev-setup.md` | New, short: start yvoke-web in mock mode, add the working copy as a marketplace (`claude plugin marketplace add <clone>/`; a bare `.` is refused), install with `--config serverUrl=http://localhost:8080/mcp --config devToken=yvoke-dev`, check with `claude mcp list`, and how to change or clear the settings later. P0-03's contributor guide links to it. |
 | `README.md` | One "Local development" line linking `docs/dev-setup.md`. |
-| `docs/specs/packaging.md` | At the end (finish-task): the plugin now has one setting, `serverUrl`, and one MCP server, `yvoke`. |
-| `docs/tasks/v1/plan.md` | P0-11's sign-in bullet: no dev token (decision above); P1-02's note that it adds the production default; tick P0-11. |
-| `docs/tasks/v1/design.md` | D-14: record that the dev token was dropped and why (the `headers.Authorization` finding). |
+| `docs/specs/packaging.md` | At the end (finish-task): the plugin's two settings and its one MCP server. |
+| `docs/tasks/v1/plan.md` | P0-11's sign-in bullet: the `X-Yvoke-Dev-Token` header and why not `Authorization`; P1-02's note that it adds the production default and must keep `Authorization` out of `.mcp.json`; tick P0-11. |
+| `docs/tasks/v1/design.md` | D-14: record the decision above and the `headers.Authorization` finding. |
 
-In **yvoke-web** (same branch name, its own PR, linked from this one), only with option 1:
+In **yvoke-web** (same branch name, its own PR, linked from this one):
 
 | File | Change |
 | --- | --- |
-| `src/main/resources/application.yml` | `app.security.mock-mcp-without-token: ${APP_SECURITY_MOCK_MCP_WITHOUT_TOKEN:false}`, with a comment. |
-| `.env.example` | `APP_SECURITY_MOCK_MCP_WITHOUT_TOKEN=true` next to `APP_SECURITY_MOCK=true`, with one line on what it is for. `EnvExampleContractTest` checks the pair. |
-| `src/main/java/de/palsoftware/yvoke/shared/security/SecurityConfig.java` | Read the setting. Refuse to start when it is on and `app.security.mock` is off. On the `/mcp` chain, when it is on, use a `BearerTokenResolver` that returns the request's bearer token, or a fixed placeholder when there is none; the mock `JwtDecoder` turns either into the mock MCP user, as today. When it is off, nothing changes. |
-| `src/test/java/…/SecurityConfigMockAuthGuardTest.java` | New case: the switch on with mock off fails startup, naming the setting. |
-| `src/it/java/de/palsoftware/yvoke/shared/security/McpSecurityGatingIT.java` | Unchanged; its 401 tests keep pinning the default. |
-| A new nested class or IT with the switch on (reusing one existing mock context's annotations plus the one property, so only one context is added) | `POST /mcp` `initialize` with no `Authorization` header is not 401. |
-| `spec/07_using_the_assistant_from_other_tools.md` | One line under local development: with the switch on, MCP needs no token. |
+| `src/main/java/de/palsoftware/yvoke/shared/security/SecurityConfig.java` | On the `/mcp` chain, when `mockAuth` is on, a `BearerTokenResolver` that returns the request's bearer token, or else the `X-Yvoke-Dev-Token` value when it equals the hard-coded `yvoke-dev`, or else nothing (401, as today). The mock `JwtDecoder` turns the token into the mock MCP user, as today. With mock off, the default resolver is used and the header is never read. |
+| `src/it/java/de/palsoftware/yvoke/shared/security/McpSecurityGatingIT.java` | New tests in the existing mock-mode class (no new Spring context): `X-Yvoke-Dev-Token: yvoke-dev` is not 401; a wrong value is 401 with the `WWW-Authenticate` header. Existing tests unchanged. |
+| `src/it/java/de/palsoftware/yvoke/shared/security/SecurityGatingIT.java` (mock off) | New test: `X-Yvoke-Dev-Token: yvoke-dev` with mock off is 401. |
+| `spec/07_using_the_assistant_from_other_tools.md` | One line under local development: in mock mode, MCP accepts the dev token header. |
 
 ## Order of work
 
-1. **yvoke-web, tests first.** Add the switch-on IT (no token, not 401) and the startup-guard unit test.
-   Run them: red. Then add the setting to `application.yml` and `.env.example`.
-2. **yvoke-web, make it pass.** Add the guard and the resolver. Both new tests green, and
-   `McpSecurityGatingIT` still green. Prove the guard test pins the guard: remove the check, see it go
-   red, restore from the saved copy and `diff -q`. Run the full `./mvnw verify -Pit-tests` (the IT
-   context cache is near its limit, see yvoke-web's pitfalls), open the yvoke-web PR.
-3. **Plugin.** Add `userConfig.serverUrl` and `.mcp.json`. Run `claude plugin validate --strict .` and
+1. **yvoke-web, tests first.** Add the three IT cases. Run them: the dev-token case is red (401).
+2. **yvoke-web, make it pass.** Add the resolver. All green, existing tests unchanged. Prove the mock-off
+   test pins the gate: make the resolver read the header with mock off, see it go red, restore from the
+   saved copy and `diff -q`. Run the full `./mvnw verify -Pit-tests`, open the yvoke-web PR.
+3. **Plugin.** Add the two settings and `.mcp.json`. Run `claude plugin validate --strict .` and
    `claude plugin validate --strict plugins/yvoke`. There is no mod behaviour, so no mod test; the
    existing `scaffold.test.ts` must stay green.
 4. **Check it in the cloud.** Install the working copy from a local marketplace in a throwaway
-   `CLAUDE_CONFIG_DIR`, set `serverUrl` to a mock MCP server, and show `claude mcp list` reporting
-   `√ Connected` and the server seeing a request with no `Authorization` header. Paste the output in the PR.
+   `CLAUDE_CONFIG_DIR` against a mock MCP server that answers 401 without the dev header. Show
+   `claude mcp list` reporting `√ Connected` with `devToken=yvoke-dev`, and the OAuth sign-in starting
+   with `devToken` empty. Paste the output in the PR.
 5. **Documents.** `docs/dev-setup.md`, README line, plan.md and D-14 notes.
 6. **Eduard's machine** (he runs these himself; the cloud cannot reach his yvoke-web):
-   1. Add `APP_SECURITY_MOCK_MCP_WITHOUT_TOKEN=true` to yvoke-web's `.env` (next to
-      `APP_SECURITY_MOCK=true`) and start it with `./redeploy.sh` (Compose sets the `local` profile),
-      from the yvoke-web branch until its PR merges.
+   1. Start yvoke-web with `./redeploy.sh` (Compose sets the `local` profile; `.env` has
+      `APP_SECURITY_MOCK=true`), from the yvoke-web branch until its PR merges.
    2. `claude plugin marketplace add <path to the clone>/`, then
-      `claude plugin install yvoke@yvoke --config serverUrl=http://localhost:8080/mcp`.
+      `claude plugin install yvoke@yvoke --config serverUrl=http://localhost:8080/mcp --config devToken=yvoke-dev`.
    3. `claude mcp list`: `plugin:yvoke:yvoke … √ Connected`.
    4. In a new session, `/mcp` lists the `yvoke` tools; ask *"Use search_corpus to find …"* and the answer
       cites a chunk from the local corpus.
@@ -118,10 +106,14 @@ In **yvoke-web** (same branch name, its own PR, linked from this one), only with
   `yvoke` server fail with *"Plugin option "serverUrl" isn't set"*. The mod still loads. Acceptable: only
   developers install the plugin before P1-02. Rejected: a fake default URL, which would fail later and
   less clearly.
-- **Accepting no token.** It needs the new switch and mock mode together, and yvoke-web refuses mock mode
-  outside a dev profile, so production cannot reach it. The default stays as today, pinned by
-  `McpSecurityGatingIT`. Rejected: changing mock mode itself to accept no token, which would break those
-  tests and remove the only local way to see the OAuth start.
+- **A public dev token.** The value is in a public repository, so it must only ever work in mock mode,
+  which already trusts any bearer token and is refused outside a dev profile. The mock-off test pins
+  that the header is ignored in production.
+- **Rejected: a `headersHelper` script** that adds `Authorization` only in dev. Plugin settings never
+  reach it, it would run on every user's machine on every connection, and an organization's managed
+  settings can turn it off, which would also stop the Entra sign-in.
+- **Rejected: accepting a request with no token in mock mode.** It breaks `McpSecurityGatingIT` and
+  removes the only local way to see the OAuth start.
 - **Rejected: a second server entry such as `yvoke-dev`.** It would change every tool name (D-05) and the
   name the mod calls.
 - **Rejected: a static `Authorization` header now, sorted out in P1-02.** It turns the OAuth sign-in off,
@@ -129,8 +121,7 @@ In **yvoke-web** (same branch name, its own PR, linked from this one), only with
 
 ## Proof
 
-- yvoke-web: the switch-on IT, the startup-guard test, the unchanged `McpSecurityGatingIT`, and a green
-  `./mvnw verify -Pit-tests`.
+- yvoke-web: the three new IT cases, the unchanged existing ones, and a green `./mvnw verify -Pit-tests`.
 - Plugin: the checks in [AGENTS.md](../../../../AGENTS.md#verification), `npm run check`, all passing.
 - Done when (Eduard's machine, step 6): `claude mcp list` shows the local server connected, and a session
   with the plugin lists its tools and answers from `search_corpus`.
