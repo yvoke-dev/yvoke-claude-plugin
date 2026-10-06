@@ -11,7 +11,7 @@ test('the plugin loads and leaves a tool call unchanged', async ($, on) => {
 
   const answer = await $.tool.call({ tool: 'mcp__plugin_yvoke_yvoke__search_corpus', query: 'oim' })
 
-  expect(answer).toEqual({ result: 'deliberately wrong' })
+  expect(answer).toEqual({ result: 'from the engine' })
   expect(seen).toEqual([
     expect.objectContaining({ tool: 'mcp__plugin_yvoke_yvoke__search_corpus', query: 'oim' }),
   ])
