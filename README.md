@@ -13,7 +13,8 @@ Yvoke knowledge base, and multi-agent investigations with enforced review.
 Run the plugin from your clone against a [yvoke-web](https://github.com/yvoke-dev/yvoke-web) on your own
 machine. Checked with Claude Code 2.1.291.
 
-1. **Start yvoke-web in mock mode.** In your yvoke-web clone, make sure `.env` has
+1. **Start yvoke-web in mock mode.** Use an up-to-date `main` (the dev switch needs
+   [yvoke-web#6](https://github.com/yvoke-dev/yvoke-web/pull/6)). In your yvoke-web clone, make sure `.env` has
    `APP_SECURITY_MOCK=true` (`.env.example` already does), then run `./redeploy.sh`. The server listens
    on `http://localhost:8080`, and its MCP endpoint is `http://localhost:8080/mcp`.
 2. **Add this clone as a marketplace**, from the clone's root folder:
