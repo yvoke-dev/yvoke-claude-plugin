@@ -55,7 +55,7 @@ unless it says otherwise. `cloud` runs in a Claude cloud session (Claude Code 2.
 **Wave 1: start now, in parallel.**
 
 1. **P0-01** scaffold (`cloud`), then **P0-11** dev environment (`machine`): the working copy installed in
-   Eduard's Claude Code against his local yvoke-web, signed in with its dummy dev token. Every plugin task
+   Eduard's Claude Code against his local yvoke-web, connected through its dev-mode switch. Every plugin task
    builds on these two, and neither waits for P0-09.
 2. **P0-09** Entra client *Yvoke for Claude* (`Eduard`, Entra admin). P0-04 and P1-02 need its client ID
    and callback port.

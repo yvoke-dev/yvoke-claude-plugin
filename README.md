@@ -43,9 +43,9 @@ machine. Checked with Claude Code 2.1.291.
    session, `/mcp` lists the `yvoke` tools, and you can ask Claude to use `search_corpus`.
 5. **After you edit the plugin**, run `/reload-plugins` in the session, or start a new one.
 
-**Use another server.** Run `/plugin configure yvoke@yvoke` in a session (or
-`claude plugin configure yvoke@yvoke` in a terminal), set `serverUrl` to that server and turn `devMode`
-off. The plugin then uses the normal sign-in. That sign-in (Entra ID) arrives with task P1-02; until then
+**Use another server.** Run `/plugin configure yvoke@yvoke` in a session, set `serverUrl` to that server
+and turn `devMode` off. In a terminal, pipe the values in instead:
+`echo '{"serverUrl":"https://<server>/mcp","devMode":"false"}' | claude plugin configure yvoke@yvoke --values-stdin`. The plugin then uses the normal sign-in. That sign-in (Entra ID) arrives with task P1-02; until then
 only a local server in mock mode works.
 
 **Quick look without installing:** `claude --plugin-dir plugins/yvoke` loads the plugin for one session.

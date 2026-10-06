@@ -32,17 +32,16 @@ installed from a local marketplace and a small mock MCP server that logs the hea
   `app.security.mock=true` and expects `/mcp` with no token to answer 401 with the `WWW-Authenticate`
   header that starts the OAuth sign-in, and expects a browser session not to reach `/mcp` (SEC-13). That
   behaviour has to stay as it is.
-
 - **A header with another name works.** `"headers": { "X-Yvoke-Dev-Mode": "${user_config.devMode}" }`
   reaches the server as `"true"` or `"false"` (a boolean setting is substituted as text), and with no `Authorization` header Claude Code still
-  starts the OAuth sign-in when the server answers 401. So a dev token can travel next to the Entra
+  starts the OAuth sign-in when the server answers 401. So a dev value can travel next to the Entra
   sign-in, as long as it is not called `Authorization`.
 
 ## Decided
 
 Eduard, 2026-10-06: the plugin has a switch. Off, it connects to the server at `serverUrl` with the
-normal sign-in, whatever environment that is. On, it uses a hard-coded dev credential that only a local
-yvoke-web in mock mode accepts.
+normal sign-in, whatever environment that is. On, it sends a dev-mode header that only a local yvoke-web in
+mock mode accepts in place of a sign-in.
 
 - **Plugin:** two settings. `serverUrl` picks the environment. `devMode` (on/off, off by default) is the
   switch: the plugin always sends `X-Yvoke-Dev-Mode: ${user_config.devMode}`, so the header reads `true`
@@ -109,7 +108,7 @@ In **yvoke-web** (same branch name, its own PR, linked from this one):
   loading while the value is unset (*"options do not fit plugin.json userConfig: Yvoke server URL is
   required but not provided"*), which also failed `claude plugin test`. So it is optional. Rejected: a
   fake default URL, which would fail later and less clearly.
-- **A public dev credential.** The header is in a public repository, so it must only ever work in mock mode,
+- **A public dev switch.** The header is in a public repository, so it must only ever work in mock mode,
   which already trusts any bearer token and is refused outside a dev profile. The mock-off test pins
   that the header is ignored in production.
 - **Rejected: a `headersHelper` script** that adds `Authorization` only in dev. Plugin settings never
