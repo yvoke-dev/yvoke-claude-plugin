@@ -30,10 +30,18 @@ Open decisions, asked one at a time, with the default this plan follows until an
   three nullable defaults: `default_system_prompt`, `default_playbook`, `default_profile`. An admin page
   creates, edits and deletes areas and picks the defaults.
 - **Members.** `system_prompts`, `collections`, `playbooks` and `orchestrator_profiles` each get a
-  nullable `area` column, a foreign key to `areas(name)` (`ON UPDATE CASCADE ON DELETE SET NULL`). No area
-  means the item belongs to none. Each item's admin form gets an *Area* select. Playbook Markdown
-  (`area:` in the frontmatter) and profile JSON import and export carry it, so the yvoke-exports files can
-  hold it. Importing an item that names an unknown area is refused with a message naming the area.
+  required `area` column (`NOT NULL`), a foreign key to `areas(name)` (`ON UPDATE CASCADE ON DELETE
+  RESTRICT`): nothing exists outside an area (Eduard, 2026-10-06). Renaming an area carries over to its
+  members; an area that still has members cannot be deleted. Each item's admin form gets a required *Area*
+  select. Playbook Markdown (`area:` in the frontmatter) and profile JSON import and export carry it, so
+  the yvoke-exports files can hold it; a file without one is imported into the area picked on the import
+  form, and a file naming an unknown area is refused with that name.
+- **Existing rows.** The migration creates one area, `OIM`, and puts every existing system prompt,
+  collection, playbook and profile in it, so the columns can be `NOT NULL` from the start. An admin moves
+  anything that is not OIM's (or renames the area) afterwards.
+- **Collections created by the ingest API.** The upload and KG-process APIs create a missing collection
+  on the fly. They gain an `area` parameter, required only when the collection does not exist yet; without
+  it the request is refused with a message saying so. Existing collections are unaffected.
 - **`list_areas()`** MCP tool: a JSON array, one object per area, sorted by name: `name`, `title`,
   `description`, `prototype`, `defaultSystemPrompt`, `defaultPlaybook`, `defaultProfile`, and the names
   of its members: `systemPrompts` (chat prompts only), `collections`, `playbooks` (pickable ones, as
@@ -52,7 +60,7 @@ In yvoke-web (paths under `src/main/java/de/palsoftware/yvoke/` unless shown):
 
 | File | Change |
 | --- | --- |
-| `docker/db/migration/V10__areas.sql` (new) | `CREATE TABLE areas …`; `ADD COLUMN area VARCHAR(255) REFERENCES areas(name) ON UPDATE CASCADE ON DELETE SET NULL` on the four tables, each indexed. No backfill. |
+| `docker/db/migration/V10__areas.sql` (new) | `CREATE TABLE areas …`; `INSERT` the `OIM` area; on each of the four tables add `area`, set it to `OIM`, then `SET NOT NULL` and the foreign key (`ON UPDATE CASCADE ON DELETE RESTRICT`), each indexed. Only additions, so the previous release still runs against it. |
 | `area/core/…` (new) | `Area` record, `AreaRepository` (JdbcClient), `AreaService`. |
 | `area/web/admin/AreaAdminController.java`, `templates/admin/areas.html` (new), admin nav | The area admin page. |
 | `rag/prompt/Playbook*.java`, `SystemPrompt*.java` | Carry `area`; repository finders by area, uncached. |
@@ -75,7 +83,7 @@ Each step starts with a test seen failing, then the code that makes it pass.
 1. **Areas table.** `AreaRepositoryIT`: create, read, update, delete, list sorted. Then migration and
    `area/core`.
 2. **Member columns.** Repository ITs for the four tables: `area` round trips; finding by area ignores
-   case; deleting an area clears it on members; renaming carries over. Then the columns in each record and repository.
+   case; deleting an area with members is refused; renaming carries over. Then the columns in each record and repository.
 3. **Import and export.** Parser test: `area: OIM` in playbook frontmatter is read and written back.
    Profile JSON keeps `area`. An unknown area is refused with its name.
 4. **`list_areas`.** `AreaToolsTest`: no areas gives `[]`; one area with its members and defaults; two
@@ -91,14 +99,18 @@ Each step starts with a test seen failing, then the code that makes it pass.
 
 ## Risks
 
-- **Nothing belongs to an area after deploy.** The migration cannot know which items are OIM's, and
-  playbook and prompt data live outside the repository. An admin creates the OIM area and ticks its
-  members (admin screens, or `area:` in the yvoke-exports files then an import) before the pilot. If the
-  yvoke-exports import scripts write a fixed list of columns, they need `area` added there; those scripts
-  are outside both repositories. The area must exist before items naming it are imported.
+- **Everything lands in OIM.** The migration cannot tell which items belong to which area, so it puts all
+  of them in `OIM`. Anything else (for example a PingID profile, if one exists) is moved by an admin after
+  deploy. OIM's defaults (`oim-full` and so on) are set on the area page.
+- **The previous release during a rolling deploy** (yvoke-web pitfall: old code runs against the new
+  schema). Old code inserts rows without `area`, which a `NOT NULL` column refuses. The column therefore
+  gets `DEFAULT 'OIM'` as well, which keeps old inserts working; new code always passes the area. A later
+  release can drop the default once no old code is left.
+- **The yvoke-exports import scripts** are outside both repositories. If they write a fixed list of
+  columns, rows they insert get the `OIM` default until `area` is added there.
 - **Foreign keys.** One area per item allows a real foreign key, so renaming an area carries over to its
-  members and deleting one leaves them in no area, with no cleanup code. Rejected: a list of area names
-  per item (no foreign key possible; Eduard chose one area).
+  members, with no cleanup code. Rejected: a list of area names per item (no foreign key possible; Eduard
+  chose one area). Rejected: a nullable column (first draft); Eduard: nothing exists outside an area.
 - **Rejected: area as a column on the profile only** (D-15's first answer, the first draft of this plan).
   It could not hold system prompts or collections.
 - **Package rules.** `area` is a new domain package. The member domains (`collection`, `rag.prompt`,
