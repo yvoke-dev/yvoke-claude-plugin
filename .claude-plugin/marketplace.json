@@ -1,0 +1,17 @@
+{
+  "name": "yvoke",
+  "owner": {
+    "name": "Yvoke",
+    "url": "https://github.com/yvoke-dev"
+  },
+  "metadata": {
+    "description": "Yvoke for Claude: the Yvoke knowledge base in Claude Code, Chat and Cowork."
+  },
+  "plugins": [
+    {
+      "name": "yvoke",
+      "source": "./plugins/yvoke",
+      "description": "Playbook-scoped, cited answers from the Yvoke knowledge base, with multi-agent review."
+    }
+  ]
+}

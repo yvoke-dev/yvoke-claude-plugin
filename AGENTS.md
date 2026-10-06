@@ -38,11 +38,18 @@ Run these before saying anything is done, and show the output. Each must pass.
 | Check | Command | Healthy result |
 | --- | --- | --- |
 | Docs and links | `node scripts/check-docs.mjs` | `check-docs: OK (N Markdown files)` |
-| Marketplace manifest | `claude plugin validate .` | exits 0, no errors (from P0-01) |
-| Plugin and mod | `claude plugin validate plugins/yvoke` | exits 0; `calls:` lists no `$.fs`, `$.process` or `$.http` (from P0-01) |
-| Types | `npx tsc --noEmit` | no output, exits 0 (from P0-01) |
-| Tests | `claude plugin test plugins/yvoke` | every test passes, none skipped (from P0-01) |
+| Marketplace manifest | `claude plugin validate --strict .` | `√ Validation passed`, exits 0 |
+| Plugin and mod | `claude plugin validate --strict plugins/yvoke` | `√ Validation passed`, exits 0; the `calls:` line names no `$.fs`, `$.process` or `$.http` |
+| Types | `npm run typecheck` | `lay-types: OK (…)`, then nothing from `tsc`; exits 0 |
+| Tests | `claude plugin test plugins/yvoke` | `N pass`, `0 fail`, exits 1 on any failure |
 
-Rows marked "from P0-01" apply once the plugin scaffold exists. P0-01 fills in any missing detail, and
-CI (`.github/workflows/ci.yml`) runs the docs
-check today; P0-02 adds the other rows.
+`npm run check` runs all five in this order. Run `npm install` once first, for TypeScript.
+
+`npm run typecheck` is `node scripts/lay-types.mjs && tsc --noEmit`. Claude Code writes the mod API's type
+declarations only when it loads the mod, so the script loads it once in print mode, with no sign-in and no
+model call, and waits for `plugins/yvoke/.claude-plugin/types/` to appear. That folder is never committed.
+CI (`.github/workflows/ci.yml`) runs the docs check today; P0-02 adds the other rows.
+
+If `claude plugin test` fails with "hooks modules are turned off", your own `~/.claude` has mods switched off
+(for example after an offline session). Start `claude` once with network access, or run the tests with a
+throwaway `CLAUDE_CONFIG_DIR`. A fresh config, as in CI, is not affected.
