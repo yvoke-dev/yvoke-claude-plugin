@@ -18,8 +18,8 @@ Open decisions, asked one at a time, with the default this plan follows until an
 
 1. Can an item belong to several areas? **Decided 2026-10-06 (Eduard): no, one area per item.** A
    prompt or collection two areas need is duplicated.
-2. Does an area have one multi-agent profile or several? **Default: several are allowed**; the setup band
-   (P1-08) offers *Single agent* plus each of the area's profiles.
+2. Does an area have one multi-agent profile or several? **Decided 2026-10-06 (Eduard): several**, with
+   a default one; the setup band (P1-08) offers *Single agent* plus each of the area's profiles.
 3. Does an area restrict anything at run time (for example, a playbook only searching its area's
    collections)? **Default: no.** P1-12 groups and lists; what a playbook searches stays the playbook's
    choice.
