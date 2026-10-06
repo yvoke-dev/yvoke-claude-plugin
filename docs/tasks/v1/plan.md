@@ -301,6 +301,12 @@ a cloud session.
   `list_playbooks(area)` and `get_system_prompt(area)` filter by it. Plan: [P1-12/plan.md](P1-12/plan.md).
   - Done when: server tests cover one area, two areas, and a playbook listed under its area.
 
+- [ ] **P1-14** `server` · M — **Playbooks search only their area's collections** (decided 2026-10-06).
+  When a playbook belongs to an area, the search tools it calls reach only that area's collections, in the
+  web chat and over MCP. Not needed for M1; can follow P1-12 later. ⛔ P1-12
+  - Done when: server tests show a search from an area's playbook cannot return another area's chunks,
+    and a playbook with no area is unchanged.
+
 ### Phase 2 — Tool policy
 
 Port yvoke-desktop's `src/main/agent/policy.ts` semantics into a `tool.call` hook. Port the matching cases
