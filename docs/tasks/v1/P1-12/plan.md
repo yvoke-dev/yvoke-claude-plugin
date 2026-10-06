@@ -16,8 +16,8 @@ collection of system prompts, collections, playbooks and orchestrator profiles.*
 
 Open decisions, asked one at a time, with the default this plan follows until answered:
 
-1. Can an item belong to several areas? **Default: yes** (asked 2026-10-06). Each item holds a list of
-   area names, like the `tags` arrays yvoke-web already uses, so a shared base prompt is not copied.
+1. Can an item belong to several areas? **Decided 2026-10-06 (Eduard): no, one area per item.** A
+   prompt or collection two areas need is duplicated.
 2. Does an area have one multi-agent profile or several? **Default: several are allowed**; the setup band
    (P1-08) offers *Single agent* plus each of the area's profiles.
 3. Does an area restrict anything at run time (for example, a playbook only searching its area's
@@ -29,10 +29,11 @@ Open decisions, asked one at a time, with the default this plan follows until an
 - **An `areas` table** (domain package `area`): `name` (key), `title`, `description`, `prototype`, and
   three nullable defaults: `default_system_prompt`, `default_playbook`, `default_profile`. An admin page
   creates, edits and deletes areas and picks the defaults.
-- **Members.** `system_prompts`, `collections`, `playbooks` and `orchestrator_profiles` each get an
-  `areas TEXT[] NOT NULL DEFAULT '{}'` column. Each item's admin form gets an *Areas* multi-select.
-  Playbook Markdown and profile JSON import and export carry the list, so the yvoke-exports files can hold
-  it.
+- **Members.** `system_prompts`, `collections`, `playbooks` and `orchestrator_profiles` each get a
+  nullable `area` column, a foreign key to `areas(name)` (`ON UPDATE CASCADE ON DELETE SET NULL`). No area
+  means the item belongs to none. Each item's admin form gets an *Area* select. Playbook Markdown
+  (`area:` in the frontmatter) and profile JSON import and export carry it, so the yvoke-exports files can
+  hold it. Importing an item that names an unknown area is refused with a message naming the area.
 - **`list_areas()`** MCP tool: a JSON array, one object per area, sorted by name: `name`, `title`,
   `description`, `prototype`, `defaultSystemPrompt`, `defaultPlaybook`, `defaultProfile`, and the names
   of its members: `systemPrompts` (chat prompts only), `collections`, `playbooks` (pickable ones, as
@@ -41,8 +42,8 @@ Open decisions, asked one at a time, with the default this plan follows until an
   optional `area`: with no name, it returns the area's default system prompt (falling back to the *Active
   Default Chat System Prompt*, D-16, when the area sets none). Matching ignores case and surrounding spaces;
   an unknown area is an `ERROR:` line for `get_system_prompt` and `[]` for lists. `list_playbooks` and
-  `get_playbook` items gain an `areas` field. The profile list is P6-01's; it reads the same column.
-- The desktop's REST answers (`GET /playbooks`, `GET /orchestrator/profiles`) gain the `areas` field.
+  `get_playbook` items gain an `area` field. The profile list is P6-01's; it reads the same column.
+- The desktop's REST answers (`GET /playbooks`, `GET /orchestrator/profiles`) gain the `area` field.
   Adding a field does not break the desktop.
 
 ## Files that change
@@ -51,15 +52,15 @@ In yvoke-web (paths under `src/main/java/de/palsoftware/yvoke/` unless shown):
 
 | File | Change |
 | --- | --- |
-| `docker/db/migration/V10__areas.sql` (new) | `CREATE TABLE areas …`; `ADD COLUMN areas TEXT[] NOT NULL DEFAULT '{}'` on the four tables, with GIN indexes. No backfill. |
+| `docker/db/migration/V10__areas.sql` (new) | `CREATE TABLE areas …`; `ADD COLUMN area VARCHAR(255) REFERENCES areas(name) ON UPDATE CASCADE ON DELETE SET NULL` on the four tables, each indexed. No backfill. |
 | `area/core/…` (new) | `Area` record, `AreaRepository` (JdbcClient), `AreaService`. |
 | `area/web/admin/AreaAdminController.java`, `templates/admin/areas.html` (new), admin nav | The area admin page. |
-| `rag/prompt/Playbook*.java`, `SystemPrompt*.java` | Carry `areas`; repository finders by area, uncached. |
-| `collection/core/model/Collection.java`, `CollectionRepository.java` | Carry `areas`. |
-| `chat/orchestration/OrchestratorProfile*.java` | Carry `areas`. |
-| `chat/api/model/PlaybookDto.java`, `OrchestratorProfileDto.java` | Add `areas`. |
+| `rag/prompt/Playbook*.java`, `SystemPrompt*.java` | Carry `area`; repository finders by area, uncached. |
+| `collection/core/model/Collection.java`, `CollectionRepository.java` | Carry `area`. |
+| `chat/orchestration/OrchestratorProfile*.java` | Carry `area`. |
+| `chat/api/model/PlaybookDto.java`, `OrchestratorProfileDto.java` | Add `area`. |
 | `mcp/tools/AreaTools.java` (new), `PlaybookTools.java`, `GetSystemPromptTool.java` | `list_areas`; the `area` parameters. `@McpTool` and `@Tool` kept identical. |
-| The four existing admin controllers and templates | *Areas* multi-select. |
+| The four existing admin controllers and templates | *Area* select. |
 | Tests | Unit tests for each of the above; repository ITs for the new columns; `McpToolCatalogueParityTest`; `McpServerEndpointsIT` and `JsonObjectsToolsIT` for the new tool and parameters, in their existing contexts. |
 | `spec/07_using_the_assistant_from_other_tools.md`, `spec/04_…` (curating content) | Areas, the filters, the admin page. |
 
@@ -73,14 +74,14 @@ Each step starts with a test seen failing, then the code that makes it pass.
 
 1. **Areas table.** `AreaRepositoryIT`: create, read, update, delete, list sorted. Then migration and
    `area/core`.
-2. **Member columns.** Repository ITs for the four tables: `areas` round trips; finding by area ignores
-   case. Then the columns in each record and repository.
-3. **Import and export.** Parser test: `areas: [OIM]` in playbook frontmatter is read and written back
-   (and a single `area: OIM` is read too). Profile JSON keeps `areas`.
+2. **Member columns.** Repository ITs for the four tables: `area` round trips; finding by area ignores
+   case; deleting an area clears it on members; renaming carries over. Then the columns in each record and repository.
+3. **Import and export.** Parser test: `area: OIM` in playbook frontmatter is read and written back.
+   Profile JSON keeps `area`. An unknown area is refused with its name.
 4. **`list_areas`.** `AreaToolsTest`: no areas gives `[]`; one area with its members and defaults; two
    areas sharing one system prompt, each listing only its own playbooks; an unset default is `null`; a
    failure gives the generic `ERROR:` message.
-5. **Filters.** `PlaybookToolsTest` (area filter, `areas` field, unknown area `[]`) and
+5. **Filters.** `PlaybookToolsTest` (area filter, `area` field, unknown area `[]`) and
    `GetSystemPromptToolTest` (area default, fallback to D-16's prompt, unknown area `ERROR:`).
 6. **Admin.** Controller tests: posted areas and defaults reach the saved rows (the pitfall about form
    fields no controller binds). Then the forms and the area page.
@@ -92,14 +93,12 @@ Each step starts with a test seen failing, then the code that makes it pass.
 
 - **Nothing belongs to an area after deploy.** The migration cannot know which items are OIM's, and
   playbook and prompt data live outside the repository. An admin creates the OIM area and ticks its
-  members (admin screens, or `areas:` in the yvoke-exports files then an import) before the pilot. If the
-  yvoke-exports import scripts write a fixed list of columns, they need `areas` added there; those scripts
-  are outside both repositories.
-- **Lists of names, not foreign keys.** A `TEXT[]` cannot carry a foreign key, so deleting or renaming an
-  area leaves its name on members. The area service removes the name from all four tables in the same
-  transaction when an area is deleted or renamed. A member naming an unknown area shows under no area.
-  Rejected alternative: four join tables with foreign keys. Stricter, but four more tables and every
-  import path rewritten, for a list an admin edits by hand.
+  members (admin screens, or `area:` in the yvoke-exports files then an import) before the pilot. If the
+  yvoke-exports import scripts write a fixed list of columns, they need `area` added there; those scripts
+  are outside both repositories. The area must exist before items naming it are imported.
+- **Foreign keys.** One area per item allows a real foreign key, so renaming an area carries over to its
+  members and deleting one leaves them in no area, with no cleanup code. Rejected: a list of area names
+  per item (no foreign key possible; Eduard chose one area).
 - **Rejected: area as a column on the profile only** (D-15's first answer, the first draft of this plan).
   It could not hold system prompts or collections.
 - **Package rules.** `area` is a new domain package. The member domains (`collection`, `rag.prompt`,
