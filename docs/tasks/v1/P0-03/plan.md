@@ -1,6 +1,6 @@
 # P0-03 Contributor guide
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
 
 A developer who has never worked on the plugin gets from a clean machine to a mod that hot-reloads in
 their own Claude Code, in the terminal and in the Desktop app's Code tab, by following one page:
