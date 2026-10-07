@@ -56,6 +56,20 @@ the answer is parsed"):
    span (a backtick run closed by a run of the same length), or inside a real link `[text](url)` (the
    label and the url) is rewritten.
 
+### What is copied from yvoke-desktop
+
+- **Copied as is:** the patterns (`UUID_HEX`, `CITE_ITEM`, `CITE_GROUP`, `NUMBERED_GROUP`) and the
+  per-bracket logic of `splitText`: splitting a group on commas, the kind from the prefix, the 8-character
+  label. This is most of `citationRehype.ts`.
+- **Replaced:** the tree walk (`walk`, `OPAQUE`), which needs react-markdown's parsed tree, by the scanner
+  below; and the References rule (`REF_DEF_BLOCK`), which numbers no longer need.
+- **Tests:** the desktop has 29 citation tests in `tests/components/Markdown.test.tsx`. Every one is
+  ported with the same input. They render React and click buttons there, so each assertion is rewritten
+  against the returned pieces. The 7 about `[N]` superscripts and References lists keep their inputs and
+  now check that the numbers stay text and that the citations next to them are still found. The scanner
+  gets tests of its own on top (tildes, longer fences, unclosed fences, double backticks). The lookup and
+  pane tests (`citationLookup`, `CitationModal`, `sectionView`, 31 more) belong to P3-03.
+
 ### Why a scanner and not a Markdown parser
 
 The desktop works on the parsed tree (rehype), which is what made code and links safe there. The mod has no
