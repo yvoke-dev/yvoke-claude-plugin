@@ -2,7 +2,9 @@
 // parallel tasks do not collide.
 import type { Register } from 'claude-code'
 import { registerSession } from '../src/session'
+import { registerSystemPrompt } from '../src/system-prompt'
 
 export const register: Register = (on) => {
   registerSession(on)
+  registerSystemPrompt(on)
 }

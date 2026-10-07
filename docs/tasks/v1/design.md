@@ -362,7 +362,7 @@ the same PR.
   answer to a `$` call that returns a value is `{ value }` (`on('session.turns', () => ({ value: 0 }))`).
   A test's own `$` has no `$.state` or `$.store`, so observe them through behaviour or a stubbed store.
   Stub the Yvoke server by hooking `mcp.call` in the test:
-  `on('mcp.call', () => ({ content: [{ type: 'text', text: '…' }], isError: false }))`. UI tests mount on a
+  `on('mcp.call', () => ({ value: { content: [{ type: 'text', text: '…' }], isError: false } }))` (like every `$` call, as `{ value }`; checked in P1-07). A test hook is cut at 10 s like a plugin's, so a plugin hook that overruns its *own* budget cannot be staged; test the `.catch` with a throw. UI tests mount on a
   surface the test names. Loop every UI test over `['terminal', 'desktop'] as const`.
 
 ### 4.3 Plan concept → mod API
@@ -372,7 +372,7 @@ the same PR.
 | Deny a tool | `on('tool.call', h)` → `{ deny: reason }` | `e.tool` is the full name; `e.agentId` set for subagents. Managed `PreToolUse` hooks run first. |
 | Rewrite a tool's input (WebSearch domains) | `next({ ...e, allowed_domains: [ … ] })` | The tool's arguments sit flat on `e`, beside `tool` (there is no `e.input`). Managed hooks run again on the rewritten call. |
 | Gate a prompt | `on('prompt.submit', h)` → `{ drop: reason }` | The reason is shown to the user. Whether the draft stays is 🔍 P0-06; `$.prompt.fill` restores it. |
-| Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Cached until `$.ui.invalidate('prompt.compose')`; the text is fixed per session, so one fetch at lock. |
+| Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Not cached: it fires for every request (2.1.293 cannot invalidate it), so the hook only reads `$.state`; the text is fetched once per session id in `prompt.submit` (P1-07). |
 | Hide playbook skills in Claude Code | `on('skill.prompt', { skill }, h)` → `{ text }` | Input is only `{ skill, text }`: no caller, no metadata. |
 | Session setup band | `ui.render` on `{ component: 'AbovePrompt' }` with `Select`s from `$.ui.resolve(e)` | `mobile` has no `Select`: show the read-only line there. |
 | Mod commands | `$.command.register({ name, description })` in `session.start`, answered by `command.run` | No `:` in names. Register last or in `try`/`catch`. |

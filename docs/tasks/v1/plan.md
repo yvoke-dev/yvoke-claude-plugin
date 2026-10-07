@@ -253,7 +253,7 @@ a cloud session.
     a known playbook, and an unknown name answered with an `ERROR:` body.
   - Delivered in [yvoke-web#4](https://github.com/yvoke-dev/yvoke-web/pull/4); plan in
     [P1-06/plan.md](P1-06/plan.md) ([#8](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/8)).
-- [ ] **P1-07** `plugin` · M — **System prompt from the server.** When the session's setup locks (P1-08),
+- [x] **P1-07** `plugin` · M — **System prompt from the server.** When the session's setup locks (P1-08),
   the mod fetches the base instructions and, in single-agent mode, the playbook's text (P1-06), and serves
   them from a `prompt.compose` hook as one `scope: 'session'` section: base instructions plus the playbook
   text, **base instructions first and the playbook after them** (decided 2026-10-05, as in yvoke-desktop:
@@ -261,6 +261,8 @@ a cloud session.
   `Yvoke Backend:` message and keeps the setup unlocked. There is deliberately no cached fallback.
   ⛔ P1-01, P1-06
   - Done when: tests cover success, server down, unknown playbook, and a hook failure (fails closed).
+  - Delivered in [#17](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/17); plan in
+    [P1-07/plan.md](P1-07/plan.md). Until P1-08, the setup is OIM, single agent, the area's default playbook.
 - [ ] **P1-08** `plugin` · M — **Session setup: area, mode, playbook** (D-11).
   - In a new Yvoke session a band above the prompt (`ui.render` on `AbovePrompt`) shows three `Select`s:
     **area** (default OIM), **mode** (*Single agent* plus each of the area's multi-agent profiles, D-15;
