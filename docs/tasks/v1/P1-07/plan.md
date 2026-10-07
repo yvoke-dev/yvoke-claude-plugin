@@ -1,6 +1,6 @@
 # P1-07 System prompt from the server
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** done
 
 **Done when** (from [plan.md](../plan.md#phase-1--knowledge-base-base-instructions-and-playbooks-mvp)):
 tests cover success, server down, unknown playbook, and a hook failure (fails closed).
@@ -54,8 +54,8 @@ profiles (P6-01).
   - `registerSystemPrompt(on)`: the hooks, one line in `hooks/register.tsx`.
 - **`prompt.submit`** (enforcing, so it opens with the two-line Yvoke check, rule 5):
   - If this session's instructions are already loaded, `next(e)`.
-  - Else load them. On success write `$.state` `yvoke.instructions` = `{ sessionId, text }`, call
-    `$.ui.invalidate('prompt.compose')`, then `next(e)`. On failure answer `{ drop: error }`.
+  - Else load them. On success write `$.state` `yvoke.instructions` = `{ sessionId, text }`, then
+    `next(e)`. On failure answer `{ drop: error }`.
   - `.catch` → `{ drop: 'Yvoke Backend: the instructions could not be loaded, so the question was not sent.' }`
     (requirements 1: fails closed).
 - **`prompt.compose`**: `next(e)`, then, in a Yvoke session whose `yvoke.instructions.sessionId` is the
@@ -68,8 +68,9 @@ profiles (P6-01).
   question, without a `SessionStart` hook having to clear anything. On `/resume` that means one fresh
   fetch (live, as requirements 1 wants), not a copy in `$.store`: playbooks can be large and the store is
   4 MiB shared by all sessions.
-- **`classic.SessionStart`**: only `$.ui.invalidate('prompt.compose')`, so a cached prompt from the
-  previous session is never reused after `/clear` or `/resume`. It returns `next(e)` and gates nothing.
+- **No `classic.SessionStart` hook and no invalidation** (changed while building). On 2.1.293
+  `prompt.compose` is not a cached event (`$.ui.invalidate` does not take it): it fires for every request,
+  so the hook only reads `$.state` and the session id. Design 4.3 said otherwise and is fixed.
 - **Time budget.** A hook has 10 s and a `$.clock` wait counts (design 4.4). Two rounds of 8 s could
   outrun it, so the second call gets what is left: `next.budget.remainingMs` minus a 1.5 s margin, at most
   8 s. Below 1 s left, it fails at once with a timeout message instead of being skipped.
@@ -84,11 +85,12 @@ profiles (P6-01).
 | `plugins/yvoke/src/system-prompt.ts` | new: `loadInstructions` and the three hooks |
 | `plugins/yvoke/hooks/register.tsx` | one line: `registerSystemPrompt(on)` |
 | `plugins/yvoke/types/index.d.ts` | `instructions` and `setup` keys |
-| `plugins/yvoke/tests/system-prompt.test.ts` | new |
+| `plugins/yvoke/tests/system-prompt-load.test.ts` | new: `loadInstructions` with a fake server |
+| `plugins/yvoke/tests/system-prompt.test.ts` | new: the hooks through the engine |
 | `docs/specs/system-prompt.md`, `docs/specs/README.md` | new spec and its index line |
 | `docs/specs/session.md` | one line: the system prompt now applies in a Yvoke session |
 | `docs/tasks/v1/plan.md` | tick P1-07, link this plan |
-| `docs/tasks/v1/design.md` | 4.3 row: the session-id key and the second-call budget, if building shows more |
+| `docs/tasks/v1/design.md` | 4.3 row (`prompt.compose` is not cached); 4.2 (test answers to `$.mcp.call` are `{ value }`, overrun cannot be staged) |
 
 Shared with threads running now: `hooks/register.tsx` and `types/index.d.ts` each get one line from
 several tasks (P1-09, P3-01, P6-03, P2-05). Those merge without real conflicts; whoever merges second
@@ -110,16 +112,17 @@ Each step starts with a test, seen failing first.
    again; a new session id loads again.
 5. `prompt.compose` hook: section appended last as `session` in a loaded Yvoke session; nothing added in a
    plain session or for another session id.
-6. Fail closed: a throw and a timeout in `prompt.submit` drop the question; a throw in `prompt.compose`
-   answers the refusal section.
+6. Fail closed: a throw in `prompt.submit` drops the question; a throw in `prompt.compose` answers the
+   refusal section. A plugin hook that overruns its own budget cannot be staged in the test kit (it cuts
+   the waits beneath the plugin at 10 s first), so the timeout path is shown as a server that hangs past
+   every budget and still never lets the question through.
 7. Register the line, write the spec, run the checks.
 
 ## Risks
 
-- **`prompt.compose` caching.** The declarations say it is cached until invalidated. The plan
-  invalidates after a load and on every `SessionStart`. Whether the engine re-renders before the very
-  turn the question starts is not checkable in the cloud; P0-06 checks it on Eduard's machine. If it does
-  not, the first answer runs without the section, so the test plan for P0-06 gets that case.
+- **First answer.** The section is in `$.state` before `next(e)` lets the question in, and
+  `prompt.compose` is not cached, so the first answer should see it. Not checkable in the cloud; P0-06
+  checks it on Eduard's machine.
 - **Subagents.** If `prompt.compose` also renders subagent prompts, they would get the playbook too. The
   input has no agent id to tell them apart. In single-agent mode P2-01 denies delegation, so this is left
   to P6.
@@ -136,7 +139,9 @@ Each step starts with a test, seen failing first.
 
 ## Proof
 
-- `plugins/yvoke/tests/system-prompt.test.ts`: success, server down, unknown playbook, hook throw and
-  timeout (fails closed), plain sessions untouched, new session reloads.
+- `plugins/yvoke/tests/system-prompt-load.test.ts` and `system-prompt.test.ts`: success, server down,
+  unknown playbook, a hook throw in each hook and a hanging server (fails closed), plain sessions
+  untouched, new session reloads. Each hook test was seen failing against a mutation of the code it pins
+  (catch removed, session-id check removed, order swapped, Yvoke check removed).
 - `npm run check`: docs, both `validate --strict` runs (the `calls:` line names no `$.fs`, `$.process`
   or `$.http`), types, and `claude plugin test plugins/yvoke` (N pass, 0 fail).

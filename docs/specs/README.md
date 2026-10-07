@@ -9,6 +9,7 @@ request that changes the behaviour updates the spec in the same change (see [../
 | [packaging.md](packaging.md) | The marketplace, the plugin and how it is installed |
 | [server-client.md](server-client.md) | How the mod calls the Yvoke server and reports its failures |
 | [session.md](session.md) | What makes a session a Yvoke session: `/yvoke`, `/clear`, `/resume`, `/branch` |
+| [system-prompt.md](system-prompt.md) | The base instructions and playbook a Yvoke session's system prompt carries |
 
 What v1 is meant to do is in [../tasks/v1/requirements.md](../tasks/v1/requirements.md).
 
