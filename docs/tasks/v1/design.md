@@ -289,6 +289,12 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     `get_system_prompt` with no name (or `default-chat`) returns it, as yvoke-web's own single-agent mode
     does. Multi-agent roles get their own system prompts with the profiles (P6-01), not from this tool.
   - Delivered by: P1-01.
+- [x] **D-17** `PO` · `plugin` · `server` — **Where do the reviewer's tools come from?** yvoke-desktop and
+  yvoke-web both hard-code `verify_citations` for the reviewer, so it cannot be switched off.
+  - **Decided 2026-10-07 (Eduard): from the reviewer playbook's `tools` list**, the same field specialists'
+    tools come from, in both the plugin and yvoke-web. An empty list means the reviewer has **no** tools,
+    not a default. Before this ships, the reviewer playbook in the exports repo lists `verify_citations`.
+  - Delivered by: P6-03.
 
 ## 4. Notes for implementers
 
