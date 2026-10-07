@@ -49,7 +49,8 @@ and turn `devMode` off. In a terminal, pipe the values in instead:
 only a local server in mock mode works.
 
 **Quick look without installing:** `claude --plugin-dir plugins/yvoke` loads the plugin for one session.
-Use the steps above when you need it connected to a server.
+Use the steps above when you need it connected to a server. To work on the mod with reload-on-save, see
+[docs/contributing.md](docs/contributing.md).
 
 **Remove it:** `claude plugin uninstall yvoke@yvoke`, then `claude plugin marketplace remove yvoke`.
 
@@ -57,6 +58,7 @@ Use the steps above when you need it connected to a server.
 
 | Document | What it covers |
 | --- | --- |
+| [docs/contributing.md](docs/contributing.md) | Running the mod while you work on it: reload, types, debug log |
 | [docs/sdlc.md](docs/sdlc.md) | How we build this: intent, spec, task plan, tests first, pull request |
 | [docs/tasks/v1/intent.md](docs/tasks/v1/intent.md) | v1: why, for whom, use cases, constraints, open questions |
 | [docs/tasks/v1/requirements.md](docs/tasks/v1/requirements.md) | v1: what the plugin must do, per surface |

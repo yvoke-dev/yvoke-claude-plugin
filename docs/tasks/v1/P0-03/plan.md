@@ -25,6 +25,24 @@ place that owns each one, so nothing is written twice.
 | How a change is made: start-task, plan approval, tests first, finish-task | Two lines | [docs/sdlc.md](../../../sdlc.md), the skills |
 | Mod rules that bite (`$` across files, no wrappers, `.catch` on enforcing hooks) | One line | [design 4.4](../design.md#44-rules-that-are-easy-to-get-wrong) |
 
+## What was checked (step 1)
+
+On Claude Code 2.1.293 in a cloud session, 2026-10-07, from a fresh clone and a fresh `CLAUDE_CONFIG_DIR`,
+running an interactive session under `tmux`:
+
+- `npm install` and `npm run check` pass (33 tests).
+- `claude --plugin-dir plugins/yvoke` loads the mod only once the folder `claude` starts in is trusted
+  (`hooks modules not loaded until workspace trust is accepted`); `/yvoke` answers.
+- Saving `register.tsx` reloads it in about 12 ms and prints `yvoke: reloaded (…)` in the transcript.
+  A file that does not parse prints `reload failed, the previous version stays loaded` and keeps the old
+  version.
+- `CLAUDE_CODE_PLUGIN_DIRS` in the user settings' `env` block loads the mod without `--plugin-dir`, and
+  in the terminal it reloads on save with or without `CLAUDE_CODE_PLUGIN_DIR_WATCH`. In the Claude Code
+  source the watch defaults to on except in some entry points, which is why the Desktop app needs the
+  setting (inferred, confirmed in step 4).
+- A hook that throws is logged as `hook failed closed: yvoke: errorKind=Error errorChars=4 (…)`: kind
+  and length only, never the message.
+
 ## Files that change
 
 | File | Change |

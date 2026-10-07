@@ -424,14 +424,8 @@ the same PR.
 
 ### 4.5 Development loop
 
-- Terminal: `claude --plugin-dir plugins/yvoke --debug`. Saving a file hot-reloads the module (`register`
-  runs again; `$.state` and `$.store` stay).
-- Desktop Code tab: set `CLAUDE_CODE_PLUGIN_DIRS` (absolute path) and `CLAUDE_CODE_PLUGIN_DIR_WATCH=1` in the
-  `env` block of `~/.claude/settings.json` (not a project's settings), then start a new session.
-- A hook that failed or a tree that did not validate shows as one dim line in the transcript while
-  hot-reloading (`yvoke: ui.render (<Component>) refused: …`), and always in the `--debug` log.
-- Mods do not load in a folder the user has not trusted, in WSL sessions in the Desktop app, or under
-  `--safe-mode`. Nothing is drawn in VS Code, `-p` or cloud sessions.
+How to run the mod while you work on it (terminal, Desktop Code tab, hot reload, types, the debug log,
+and why a mod may not show up) is in [docs/contributing.md](../../contributing.md).
 
 ### 4.6 Porting from yvoke-desktop: what does not carry over by itself
 
