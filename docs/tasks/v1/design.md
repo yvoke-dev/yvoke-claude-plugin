@@ -526,7 +526,7 @@ playbook searches (P1-14).
 yvoke-web's spec says AI clients and the in-app assistant share one tool set, so a new tool is offered to
 the web's own assistant and to every connected client, including the model in Claude Code and Chat.
 `submit_feedback` and the sync tools are meant for the mod, not for any model. `get_system_prompt`,
-`list_playbooks` and `get_playbook` are called by the mod in Claude Code and by the model in Chat and Cowork,
+`list_areas`, `list_playbooks` and `get_playbook` are called by the mod in Claude Code and by the model in Chat and Cowork,
 when a playbook stub tells it to (D-04, D-12, P8-01).
 
 - Recommended: keep them on the same `/mcp` server (one sign-in) and leave them out of the in-app

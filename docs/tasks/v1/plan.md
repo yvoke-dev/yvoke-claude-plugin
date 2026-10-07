@@ -60,7 +60,8 @@ unless it says otherwise. `cloud` runs in a Claude cloud session (Claude Code 2.
 2. **P0-09** Entra client *Yvoke for Claude* (`Eduard`, Entra admin). P0-04 and P1-02 need its client ID
    and callback port.
 3. **P1-01** and **P1-06** server tools in yvoke-web (`cloud`, in the yvoke-web repository). **P1-12**
-   follows (D-15: an area is a knowledge base).
+   follows (D-15: an area groups system prompts, collections, playbooks and profiles). **P1-14**, limiting
+   a playbook's searches to its own area's collections, can follow P1-12 any time; M1 does not need it.
 4. Spikes **P0-04** to **P0-07** (`machine`), in one session on Eduard's computer, in that order. P0-04
    waits for P0-09. **P0-08** needs a claude.ai organization where a test plugin can be installed.
 
@@ -261,8 +262,9 @@ a cloud session.
   - Done when: tests cover success, server down, unknown playbook, and a hook failure (fails closed).
 - [ ] **P1-08** `plugin` · M — **Session setup: area, mode, playbook** (D-11).
   - In a new Yvoke session a band above the prompt (`ui.render` on `AbovePrompt`) shows three `Select`s:
-    **area** (default OIM), **mode** (*Single agent* plus the area's multi-agent profile, D-15)
-    and, for single agent, **playbook** (default `oim-full`). Lists come live from the server (P1-12);
+    **area** (default OIM), **mode** (*Single agent* plus each of the area's multi-agent profiles, D-15;
+    default the area's default profile, else *Single agent*) and, for single agent, **playbook** (default
+    the area's default playbook; `oim-full` for OIM). Lists and defaults come live from `list_areas` (P1-12);
     prototypes are hidden unless enabled. Until Phase 6 is built, the mode list offers only *Single agent*.
   - The selection **locks when the first question is sent**: the user can accept the defaults by just
     typing. From then on the band shows a read-only line (*OIM · Single agent · oim-full*), and the status
@@ -292,7 +294,7 @@ a cloud session.
     `/yvoke` twice, `/clear`, `/resume`, and `/branch`.
 - P1-11 was never assigned.
 - [ ] **P1-13** `server` · S — **Keep plugin-control tools away from models that should not call them**
-  ([design 5.4](design.md#54-which-model-sees-which-tool-p1-13)). `get_system_prompt`, `list_playbooks`, `get_playbook`, `submit_feedback` and the sync tools are for
+  ([design 5.4](design.md#54-which-model-sees-which-tool-p1-13)). `get_system_prompt`, `list_areas`, `list_playbooks`, `get_playbook`, `submit_feedback` and the sync tools are for
   Claude clients, not for the web's in-app assistant, which today shares one tool set with every MCP client.
 - [x] **P1-12** `server` · L — **Areas** (D-15). An area is a collection of system prompts, collections,
   playbooks and orchestrator profiles, with a default for each of the first, third and fourth. yvoke-web
