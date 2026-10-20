@@ -246,7 +246,7 @@ a cloud session.
     killed at that limit and that the whole call fits the hook's 10-second budget;
   - output: the 32,000-character cap and how stdout, the final value and errors come back.
   - **Pass or fail, not a report.** The route passes only if, on every system and version in the matrix
-    where the tool would be offered, the sandbox blocks **all four** escapes (`process.env` secrets, files
+    where the tool can run, the sandbox blocks **all four** escapes (`process.env` secrets, files
     outside the scratch folder, `child_process`, network) and the wrapped call runs with
     `dangerouslyDisableSandbox` unset. Any one escape that gets through fails the spike, and P2-05 is
     struck through (D-19: v1 then has no compute tool).
@@ -439,8 +439,8 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   - **Sandbox required.** A registered tool cannot be withdrawn (P2-05's earlier plan, #19), so the check
     is made on every call: with Claude Code's sandbox off, or unsupported as on native Windows, the call
     is refused with a message saying why, and nothing runs.
-  - **Playbook opt-out, also per call.** The tool is registered at session start, before the playbook is
-    known, so it cannot be withheld later either: while the active playbook declares
+  - **Playbook opt-out, also per call.** The tool is registered when `/yvoke` starts the Yvoke session (and
+    again when `/resume` or `/branch` restores one, P1-10), before the playbook is known, so it cannot be withheld later either: while the active playbook declares
     `codeExecution: false`, every call is refused with a message saying so, and nothing runs. (A specialist
     agent type in P6-02 simply leaves the tool out of its list.)
   - Port only the result and limit

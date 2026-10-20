@@ -412,7 +412,7 @@ the same PR.
 | Hide playbook skills in Claude Code | `on('skill.prompt', { skill }, h)` → `{ text }` | Input is only `{ skill, text }`: no caller, no metadata. |
 | Session setup band | `ui.render` on `{ component: 'AbovePrompt' }` with `Select`s from `$.ui.resolve(e)` | `mobile` has no `Select`: show the read-only line there. |
 | Mod commands | `$.command.register({ name, description })` in `session.start`, answered by `command.run` | No `:` in names. Register last or in `try`/`catch`. |
-| Compute tools | `$.tool.register(…)` + `tool.call` on `mcp__yvoke__<name>` | Register in `session.start` (awaited) so they are listed on turn one. |
+| Compute tools | `$.tool.register(…)` + `tool.call` on `mcp__yvoke__<name>` | Register when `/yvoke` starts the Yvoke session, and again when `/resume` or `/branch` restores one (P1-10), so they are listed on the first question and never outside a Yvoke session. A registered tool cannot be withdrawn, so per-session conditions (sandbox off, `codeExecution: false`) refuse each call instead (P2-05). |
 | Subagents | `$.agent.register` (`yvoke:<name>`), `$.agent.spawn`, `agent.spawn` (`{ deny }`, `parentAgentId`), `agent.offer` (`{ isOffered: false }`) | |
 | End of turn | `turn.complete`: `answer`, `reason`, `isAborted`, `agentId`, `usage` | Returning `{ text }` shows a line *under* the answer; the record never changes. |
 | Re-prompt | `$.prompt.submit` | Queues a new turn once idle; never `await` it inside `turn.complete`. |
