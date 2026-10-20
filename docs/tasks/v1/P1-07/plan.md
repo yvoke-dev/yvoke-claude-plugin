@@ -27,9 +27,9 @@ Claude Code's own sections stay; the Yvoke section is added after them, as desig
 
 **Changed on 2026-10-20 (yvoke-web and yvoke-desktop 1.3.0, see the v1 plan check).** A playbook can name
 its own system prompt (`systemPrompt` in `get_playbook`). As the release plan's P1-07 entry now says
-(Eduard's review of #20), the base prompt is chosen from data before any call: the playbook's prompt when
-`list_areas` lists it in the area's `systemPrompts`, else the area's `defaultSystemPrompt`, else the active
-default (no name). Then exactly one `get_system_prompt` call; any failure of it, an `ERROR:` body included,
+(Eduard's reviews of #20), the base prompt is chosen from data before any call: the playbook's prompt when
+any area in `list_areas` lists it in its `systemPrompts` (prompt names are global on the server), else the
+session area's `defaultSystemPrompt`, else the active default (no name). Then exactly one `get_system_prompt` call; any failure of it, an `ERROR:` body included,
 drops the question. Base and playbook are joined with `\n\n---\n\n` instead of a blank line. So the order is
 `list_areas` (with `get_playbook` when the setup names one), `get_playbook`, then `get_system_prompt`.
 

@@ -6,9 +6,10 @@
   server before it is sent: the base instructions and, in single-agent mode, the playbook's text
   (`get_playbook`).
 - The base instructions are chosen from data before any `get_system_prompt` call, as in yvoke-web and
-  yvoke-desktop 1.3.0: the system prompt the playbook names (its `systemPrompt`) when `list_areas` lists it
-  among the area's `systemPrompts`; else the area's `defaultSystemPrompt`; else the active default (D-16,
-  `get_system_prompt` with no name). A prompt the area does not list falls back silently. Then the mod makes
+  yvoke-desktop 1.3.0: the system prompt the playbook names (its `systemPrompt`) when any area in
+  `list_areas` lists it among its `systemPrompts` (the server looks prompt names up globally, not within the
+  area); else the session area's `defaultSystemPrompt`; else the active default (D-16, `get_system_prompt`
+  with no name). A prompt no area lists falls back silently. Then the mod makes
   exactly one `get_system_prompt` call. If that call fails, an `ERROR:` body included, the question is
   dropped: the server client cannot tell a missing prompt from a broken server, so there is no second try.
 - From then on every system prompt of that session ends with one section, `yvoke:instructions`
@@ -52,7 +53,8 @@ For P1-08: the setup is locked exactly when `yvoke.instructions.sessionId` is th
 ## Tests
 
 - `plugins/yvoke/tests/system-prompt-load.test.ts`: the calls and their order, base first, the `---` join,
-  which base prompt (listed, unlisted, no area default) and the dropped `ERROR:`, a setup with and without a playbook, multi-agent, server down, unknown playbook, a missing area or default playbook,
+  which base prompt (listed by its own area, only by another area, by none, no area default) and the
+  dropped `ERROR:`, a setup with and without a playbook, multi-agent, server down, unknown playbook, a missing area or default playbook,
   unreadable answers, empty texts, and the time budget per round.
 - `plugins/yvoke/tests/system-prompt.test.ts`, through the engine: a plain session, first question,
   later questions, server down then back, no playbook text, a server that does not answer, a new session

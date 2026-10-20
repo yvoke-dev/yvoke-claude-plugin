@@ -49,8 +49,9 @@ const unreadable = (tool: string) => fail(`${tool} gave an answer the plugin can
  * Loads the base instructions and, in single-agent mode, the playbook text, joined by SEPARATOR.
  *
  * Which base instructions is decided from data before any `get_system_prompt` call, as yvoke-web and
- * yvoke-desktop 1.3.0 do: the playbook's own `systemPrompt` when the area lists it among its
- * `systemPrompts`, else the area's `defaultSystemPrompt`, else the active default (no name, D-16). Then
+ * yvoke-desktop 1.3.0 do: the playbook's own `systemPrompt` when any area lists it among its
+ * `systemPrompts` (the server looks a prompt name up globally), else the session area's
+ * `defaultSystemPrompt`, else the active default (no name, D-16). Then
  * exactly one `get_system_prompt` call; if it fails, an `ERROR:` body included, the question is dropped,
  * since the server client cannot tell a missing prompt from a broken server.
  *
@@ -108,13 +109,14 @@ export const loadInstructions = async (
   if (!parsed.ok) return parsed
 
   const own = parsed.systemPrompt
-  const base = await basePrompt(own && entry.area.systemPrompts.includes(own) ? own : entry.area.defaultSystemPrompt)
+  const base = await basePrompt(own && entry.allPrompts.includes(own) ? own : entry.area.defaultSystemPrompt)
   if (!base.ok) return base
   return { ok: true, text: `${base.text}${SEPARATOR}${parsed.text}` }
 }
 
-type Area = { defaultPlaybook: string | null; defaultSystemPrompt: string | null; systemPrompts: string[] }
-type AreaFound = { ok: true; area: Area } | { ok: false; error: string }
+type Area = { defaultPlaybook: string | null; defaultSystemPrompt: string | null }
+/** The session's area, and every system prompt name any area lists. */
+type AreaFound = { ok: true; area: Area; allPrompts: string[] } | { ok: false; error: string }
 
 const findArea = (json: string, area: string): AreaFound => {
   const parsed = parse(json)
@@ -123,11 +125,10 @@ const findArea = (json: string, area: string): AreaFound => {
   if (!entry) return fail(`area '${area}' does not exist.`)
   return {
     ok: true,
-    area: {
-      defaultPlaybook: nameOf(entry.defaultPlaybook),
-      defaultSystemPrompt: nameOf(entry.defaultSystemPrompt),
-      systemPrompts: Array.isArray(entry.systemPrompts) ? entry.systemPrompts.filter((n): n is string => typeof n === 'string') : [],
-    },
+    area: { defaultPlaybook: nameOf(entry.defaultPlaybook), defaultSystemPrompt: nameOf(entry.defaultSystemPrompt) },
+    allPrompts: parsed.flatMap((a) =>
+      Array.isArray(a.systemPrompts) ? a.systemPrompts.filter((n): n is string => typeof n === 'string') : [],
+    ),
   }
 }
 

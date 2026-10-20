@@ -95,15 +95,22 @@ describe('which base instructions (decided from list_areas before any get_system
   const prompts = (s: ReturnType<typeof server>) =>
     s.calls.filter((c) => c.tool === 'get_system_prompt').map((c) => c.args)
 
-  test("the playbook's own prompt, when the area lists it", async () => {
+  test("the playbook's own prompt, when its own area lists it", async () => {
     const s = owning('oim-strict')
 
     expect(await loadInstructions(s.io, null, plenty)).toEqual({ ok: true, text: `BASE oim-strict${SEPARATOR}PLAYBOOK` })
     expect(prompts(s)).toEqual([{ name: 'oim-strict' }])
   })
 
-  test("a prompt the area does not list falls back to the area's default, without asking for it", async () => {
+  test('a prompt only another area lists is still used (the server looks prompts up globally)', async () => {
     const s = owning('ping-strict')
+
+    expect(await loadInstructions(s.io, null, plenty)).toEqual({ ok: true, text: `BASE ping-strict${SEPARATOR}PLAYBOOK` })
+    expect(prompts(s)).toEqual([{ name: 'ping-strict' }])
+  })
+
+  test("a prompt no area lists falls back to the area's default, without asking for it", async () => {
+    const s = owning('nowhere')
 
     expect(await loadInstructions(s.io, null, plenty)).toEqual({ ok: true, text: `BASE oim-base${SEPARATOR}PLAYBOOK` })
     expect(prompts(s)).toEqual([{ name: 'oim-base' }])
