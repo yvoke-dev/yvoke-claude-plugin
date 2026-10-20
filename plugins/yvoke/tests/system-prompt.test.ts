@@ -91,7 +91,7 @@ test('the first question loads the instructions, then the question is sent with 
   expect(await compose($)).toEqual(CORE)
   expect(await ask($, 'how do I reset a password?')).toEqual({ text: 'how do I reset a password?' })
 
-  expect(w.server.calls).toEqual(['list_areas', 'get_system_prompt', 'get_playbook'])
+  expect(w.server.calls).toEqual(['list_areas', 'get_playbook', 'get_system_prompt'])
   expect(w.entered).toEqual(['how do I reset a password?'])
   expect(await compose($)).toEqual([...CORE, OURS])
 })

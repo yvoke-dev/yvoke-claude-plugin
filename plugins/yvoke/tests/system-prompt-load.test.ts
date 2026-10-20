@@ -9,8 +9,8 @@ import { loadInstructions, DEFAULT_SETUP, MARGIN_MS, SEPARATOR } from '../src/sy
 const text = (body: string, isError = false): McpToolResult => ({ content: [{ type: 'text', text: body }], isError })
 
 const AREAS = JSON.stringify([
-  { name: 'PingID', defaultPlaybook: 'ping-full', defaultSystemPrompt: null },
-  { name: 'OIM', defaultPlaybook: 'oim-full', defaultSystemPrompt: 'oim-base' },
+  { name: 'PingID', defaultPlaybook: 'ping-full', defaultSystemPrompt: null, systemPrompts: ['ping-strict'] },
+  { name: 'OIM', defaultPlaybook: 'oim-full', defaultSystemPrompt: 'oim-base', systemPrompts: ['oim-base', 'oim-strict'] },
 ])
 const playbook = (name: string, body: string, systemPrompt: string | null = null) =>
   JSON.stringify({ name, title: name, area: 'OIM', systemPrompt, version: 1, text: body })
@@ -22,7 +22,7 @@ const server = (answers: Answers = {}) => {
   const sleeps: number[] = []
   const defaults: Answers = {
     list_areas: async () => text(AREAS),
-    get_system_prompt: async () => text('BASE INSTRUCTIONS'),
+    get_system_prompt: async (args) => text(`BASE ${args.name === undefined ? 'active' : String(args.name)}`),
     get_playbook: async (args) => text(playbook(String(args.name), `PLAYBOOK ${String(args.name)}`)),
   }
   const io: ServerIo = {
@@ -43,30 +43,31 @@ const server = (answers: Answers = {}) => {
 const plenty = () => 10_000
 
 describe('success', () => {
-  test('no setup: the default area, its default playbook, base instructions first', async () => {
+  test("no setup: the default area, its default playbook, the area's default prompt first", async () => {
     const s = server()
 
     const answer = await loadInstructions(s.io, null, plenty)
 
-    expect(answer).toEqual({ ok: true, text: `BASE INSTRUCTIONS${SEPARATOR}PLAYBOOK oim-full` })
+    expect(answer).toEqual({ ok: true, text: `BASE oim-base${SEPARATOR}PLAYBOOK oim-full` })
     expect(DEFAULT_SETUP).toEqual({ area: 'OIM', mode: 'single', playbook: null })
     expect(SEPARATOR).toBe('\n\n---\n\n')
     expect(s.calls).toEqual([
       { tool: 'list_areas', args: {} },
-      { tool: 'get_system_prompt', args: { area: 'OIM' } },
       { tool: 'get_playbook', args: { name: 'oim-full' } },
+      { tool: 'get_system_prompt', args: { name: 'oim-base' } },
     ])
   })
 
-  test('a setup naming its playbook skips list_areas and asks for both at once', async () => {
+  test('a setup naming its playbook asks for the areas and the playbook at once', async () => {
     const s = server()
 
-    const answer = await loadInstructions(s.io, { area: 'PingID', mode: 'single', playbook: 'ping-lite' }, plenty)
+    const answer = await loadInstructions(s.io, { area: 'OIM', mode: 'single', playbook: 'oim-lite' }, plenty)
 
-    expect(answer).toEqual({ ok: true, text: `BASE INSTRUCTIONS${SEPARATOR}PLAYBOOK ping-lite` })
+    expect(answer).toEqual({ ok: true, text: `BASE oim-base${SEPARATOR}PLAYBOOK oim-lite` })
     expect(s.calls).toEqual([
-      { tool: 'get_system_prompt', args: { area: 'PingID' } },
-      { tool: 'get_playbook', args: { name: 'ping-lite' } },
+      { tool: 'list_areas', args: {} },
+      { tool: 'get_playbook', args: { name: 'oim-lite' } },
+      { tool: 'get_system_prompt', args: { name: 'oim-base' } },
     ])
   })
 
@@ -75,16 +76,58 @@ describe('success', () => {
 
     const answer = await loadInstructions(s.io, { area: 'PingID', mode: 'single', playbook: null }, plenty)
 
-    expect(answer).toEqual({ ok: true, text: `BASE INSTRUCTIONS${SEPARATOR}PLAYBOOK ping-full` })
+    expect(answer).toEqual({ ok: true, text: `BASE active${SEPARATOR}PLAYBOOK ping-full` })
   })
 
-  test('multi-agent mode: only the base instructions, no playbook', async () => {
+  test("multi-agent mode: only the area's base instructions, no playbook", async () => {
     const s = server()
 
     const answer = await loadInstructions(s.io, { area: 'OIM', mode: 'oim-team', playbook: 'oim-full' }, plenty)
 
-    expect(answer).toEqual({ ok: true, text: 'BASE INSTRUCTIONS' })
-    expect(s.calls.map((c) => c.tool)).toEqual(['get_system_prompt'])
+    expect(answer).toEqual({ ok: true, text: 'BASE oim-base' })
+    expect(s.calls.map((c) => c.tool)).toEqual(['list_areas', 'get_system_prompt'])
+  })
+})
+
+describe('which base instructions (decided from list_areas before any get_system_prompt call)', () => {
+  const owning = (systemPrompt: string | null) =>
+    server({ get_playbook: async (args) => text(playbook(String(args.name), 'PLAYBOOK', systemPrompt)) })
+  const prompts = (s: ReturnType<typeof server>) =>
+    s.calls.filter((c) => c.tool === 'get_system_prompt').map((c) => c.args)
+
+  test("the playbook's own prompt, when the area lists it", async () => {
+    const s = owning('oim-strict')
+
+    expect(await loadInstructions(s.io, null, plenty)).toEqual({ ok: true, text: `BASE oim-strict${SEPARATOR}PLAYBOOK` })
+    expect(prompts(s)).toEqual([{ name: 'oim-strict' }])
+  })
+
+  test("a prompt the area does not list falls back to the area's default, without asking for it", async () => {
+    const s = owning('ping-strict')
+
+    expect(await loadInstructions(s.io, null, plenty)).toEqual({ ok: true, text: `BASE oim-base${SEPARATOR}PLAYBOOK` })
+    expect(prompts(s)).toEqual([{ name: 'oim-base' }])
+  })
+
+  test('no own prompt and no area default: the active default, asked for with no name', async () => {
+    const s = owning(null)
+
+    const answer = await loadInstructions(s.io, { area: 'PingID', mode: 'single', playbook: 'ping-lite' }, plenty)
+
+    expect(answer).toEqual({ ok: true, text: `BASE active${SEPARATOR}PLAYBOOK` })
+    expect(prompts(s)).toEqual([{}])
+  })
+
+  test('an ERROR: from get_system_prompt drops the question; there is no second call', async () => {
+    const s = server({
+      get_playbook: async (args) => text(playbook(String(args.name), 'PLAYBOOK', 'oim-strict')),
+      get_system_prompt: async () => text("ERROR: system prompt 'oim-strict' does not exist."),
+    })
+
+    const answer = await loadInstructions(s.io, null, plenty)
+
+    expect(answer).toEqual({ ok: false, error: "Yvoke Backend: ERROR: system prompt 'oim-strict' does not exist." })
+    expect(prompts(s)).toEqual([{ name: 'oim-strict' }])
   })
 })
 
@@ -104,14 +147,7 @@ describe('failures', () => {
     const answer = await loadInstructions(s.io, { area: 'OIM', mode: 'single', playbook: 'oim-ful' }, plenty)
 
     expect(answer).toEqual({ ok: false, error: "Yvoke Backend: ERROR: playbook 'oim-ful' not found." })
-  })
-
-  test('get_system_prompt fails even when the playbook loads', async () => {
-    const s = server({ get_system_prompt: async () => text("ERROR: area 'OIM' does not exist.") })
-
-    const answer = await loadInstructions(s.io, null, plenty)
-
-    expect(answer).toEqual({ ok: false, error: "Yvoke Backend: ERROR: area 'OIM' does not exist." })
+    expect(s.calls.map((c) => c.tool)).not.toContain('get_system_prompt')
   })
 
   test('list_areas fails', async () => {
@@ -123,7 +159,7 @@ describe('failures', () => {
   test('the area is not in list_areas', async () => {
     const s = server()
 
-    const answer = await loadInstructions(s.io, { area: 'SAP', mode: 'single', playbook: null }, plenty)
+    const answer = await loadInstructions(s.io, { area: 'SAP', mode: 'single', playbook: 'sap-full' }, plenty)
 
     expect(answer).toEqual({ ok: false, error: "Yvoke Backend: area 'SAP' does not exist." })
   })
@@ -167,71 +203,9 @@ describe('failures', () => {
   })
 })
 
-describe("the playbook's own system prompt (yvoke-web 1.3.0)", () => {
-  const named = (prompts: Record<string, McpToolResult>) =>
-    server({
-      get_playbook: async (args) => text(playbook(String(args.name), 'PLAYBOOK', 'oim-strict')),
-      get_system_prompt: async (args) =>
-        args.name === undefined ? text('AREA BASE') : (prompts[String(args.name)] ?? text('ERROR: none')),
-    })
-
-  test('a playbook that names a system prompt gets that one, asked for after the playbook', async () => {
-    const s = named({ 'oim-strict': text('STRICT BASE') })
-
-    const answer = await loadInstructions(s.io, null, plenty)
-
-    expect(answer).toEqual({ ok: true, text: `STRICT BASE${SEPARATOR}PLAYBOOK` })
-    expect(s.calls).toEqual([
-      { tool: 'list_areas', args: {} },
-      { tool: 'get_system_prompt', args: { area: 'OIM' } },
-      { tool: 'get_playbook', args: { name: 'oim-full' } },
-      { tool: 'get_system_prompt', args: { name: 'oim-strict' } },
-    ])
-  })
-
-  test('a named prompt the server does not know falls back to the area prompt', async () => {
-    const s = named({ 'oim-strict': text("ERROR: system prompt 'oim-strict' does not exist.") })
-
-    expect(await loadInstructions(s.io, null, plenty)).toEqual({ ok: true, text: `AREA BASE${SEPARATOR}PLAYBOOK` })
-  })
-
-  test('an empty named prompt falls back to the area prompt', async () => {
-    const s = named({ 'oim-strict': text('   ') })
-
-    expect(await loadInstructions(s.io, null, plenty)).toEqual({ ok: true, text: `AREA BASE${SEPARATOR}PLAYBOOK` })
-  })
-
-  test('the named prompt is used even when the area prompt failed', async () => {
-    const s = named({ 'oim-strict': text('STRICT BASE') })
-    const answers = s.io.call
-    s.io.call = (srv, tool, args) =>
-      tool === 'get_system_prompt' && args.area !== undefined ? Promise.resolve(text('boom', true)) : answers(srv, tool, args)
-
-    expect(await loadInstructions(s.io, null, plenty)).toEqual({ ok: true, text: `STRICT BASE${SEPARATOR}PLAYBOOK` })
-  })
-
-  test('no named prompt and no area prompt drops the question', async () => {
-    const s = named({})
-    const answers = s.io.call
-    s.io.call = (srv, tool, args) =>
-      tool === 'get_system_prompt' ? Promise.resolve(text('ERROR: no prompt')) : answers(srv, tool, args)
-
-    expect(await loadInstructions(s.io, null, plenty)).toEqual({ ok: false, error: 'Yvoke Backend: ERROR: no prompt' })
-  })
-
-  test('a named prompt the server did not answer is a failure, not a fallback', async () => {
-    const s = named({})
-    const answers = s.io.call
-    s.io.call = (srv, tool, args) =>
-      args.name === 'oim-strict' ? Promise.reject(new Error('connection reset')) : answers(srv, tool, args)
-
-    expect(await loadInstructions(s.io, null, plenty)).toEqual({ ok: false, error: 'Yvoke Backend: connection reset' })
-  })
-})
-
 describe('time budget', () => {
   test('each round waits at most 8 s, or what the hook has left less the margin', async () => {
-    const left = [10_000, 3_000]
+    const left = [10_000, 10_000, 3_000]
     const s = server()
 
     await loadInstructions(s.io, null, () => left.shift() ?? 0)

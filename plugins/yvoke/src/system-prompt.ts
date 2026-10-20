@@ -47,10 +47,13 @@ const unreadable = (tool: string) => fail(`${tool} gave an answer the plugin can
 
 /**
  * Loads the base instructions and, in single-agent mode, the playbook text, joined by SEPARATOR.
- * The base instructions are the playbook's own `systemPrompt` when it names one the server has (yvoke-web
- * 1.3.0), else the area's default, else the active default; `get_system_prompt({ area })` answers the last
- * two, so it is asked for alongside the playbook and used when the playbook's prompt is unset, unknown or
- * empty, as web chat does. A playbook prompt the server did not answer at all is a failure, not a fallback.
+ *
+ * Which base instructions is decided from data before any `get_system_prompt` call, as yvoke-web and
+ * yvoke-desktop 1.3.0 do: the playbook's own `systemPrompt` when the area lists it among its
+ * `systemPrompts`, else the area's `defaultSystemPrompt`, else the active default (no name, D-16). Then
+ * exactly one `get_system_prompt` call; if it fails, an `ERROR:` body included, the question is dropped,
+ * since the server client cannot tell a missing prompt from a broken server.
+ *
  * `remainingMs` reads what the calling hook has left; each round of calls waits at most that less
  * MARGIN_MS, and at most the server client's own 8 s.
  */
@@ -67,51 +70,68 @@ export const loadInstructions = async (
   }
   const call = (tool: string, args: Record<string, unknown>) => (timeoutMs: number) =>
     callYvoke(io, tool, args, { timeoutMs })
-
-  if (mode !== SINGLE_AGENT) {
-    const base = await round(call('get_system_prompt', { area }))
+  const basePrompt = async (name: string | null) => {
+    const base = await round(call('get_system_prompt', name ? { name } : {}))
     return base.ok ? baseText(base.text) : base
   }
 
-  let areaBase: ServerAnswer
+  if (mode !== SINGLE_AGENT) {
+    const areas = await round(call('list_areas', {}))
+    if (!areas.ok) return areas
+    const entry = findArea(areas.text, area)
+    return entry.ok ? basePrompt(entry.area.defaultSystemPrompt) : entry
+  }
+
+  let entry: AreaFound
   let pb: ServerAnswer
   let name: string
   if (playbook) {
-    const both = await round((t) =>
-      Promise.all([call('get_system_prompt', { area })(t), call('get_playbook', { name: playbook })(t)]),
-    )
+    const both = await round((t) => Promise.all([call('list_areas', {})(t), call('get_playbook', { name: playbook })(t)]))
     if (!Array.isArray(both)) return both
-    ;[areaBase, pb] = both
+    const [areas, answer] = both
+    if (!areas.ok) return areas
+    entry = findArea(areas.text, area)
+    pb = answer
     name = playbook
   } else {
-    const first = await round((t) => Promise.all([call('list_areas', {})(t), call('get_system_prompt', { area })(t)]))
-    if (!Array.isArray(first)) return first
-    const [areas, base] = first
+    const areas = await round(call('list_areas', {}))
     if (!areas.ok) return areas
-    const found = defaultPlaybook(areas.text, area)
-    if (!found.ok) return found
-    areaBase = base
-    name = found.text
+    entry = findArea(areas.text, area)
+    if (!entry.ok) return entry
+    if (!entry.area.defaultPlaybook) return fail(`area '${area}' has no default playbook.`)
+    name = entry.area.defaultPlaybook
     pb = await round(call('get_playbook', { name }))
   }
-
+  if (!entry.ok) return entry
   if (!pb.ok) return pb
   const parsed = playbookText(pb.text, name)
   if (!parsed.ok) return parsed
 
-  let base = areaBase.ok ? baseText(areaBase.text) : areaBase
-  if (parsed.systemPrompt) {
-    const own = await round(call('get_system_prompt', { name: parsed.systemPrompt }))
-    if (own.ok && own.text.trim()) base = { ok: true, text: own.text.trim() }
-    else if (!own.ok && !SERVER_SAID_NO.test(own.error)) return own
-  }
+  const own = parsed.systemPrompt
+  const base = await basePrompt(own && entry.area.systemPrompts.includes(own) ? own : entry.area.defaultSystemPrompt)
   if (!base.ok) return base
   return { ok: true, text: `${base.text}${SEPARATOR}${parsed.text}` }
 }
 
-// The server answered, but has no such prompt: fall back, as web chat does. Anything else (not connected,
-// timed out, a transport error) is a failure.
-const SERVER_SAID_NO = /^Yvoke Backend:\s*(ERROR|Error):/
+type Area = { defaultPlaybook: string | null; defaultSystemPrompt: string | null; systemPrompts: string[] }
+type AreaFound = { ok: true; area: Area } | { ok: false; error: string }
+
+const findArea = (json: string, area: string): AreaFound => {
+  const parsed = parse(json)
+  if (!Array.isArray(parsed) || !parsed.every(isRecord)) return unreadable('list_areas')
+  const entry = parsed.find((a) => a.name === area)
+  if (!entry) return fail(`area '${area}' does not exist.`)
+  return {
+    ok: true,
+    area: {
+      defaultPlaybook: nameOf(entry.defaultPlaybook),
+      defaultSystemPrompt: nameOf(entry.defaultSystemPrompt),
+      systemPrompts: Array.isArray(entry.systemPrompts) ? entry.systemPrompts.filter((n): n is string => typeof n === 'string') : [],
+    },
+  }
+}
+
+const nameOf = (value: unknown): string | null => (typeof value === 'string' && value.trim() ? value.trim() : null)
 
 const baseText = (text: string): ServerAnswer =>
   text.trim() ? { ok: true, text: text.trim() } : fail('get_system_prompt gave no instructions.')
@@ -123,17 +143,7 @@ const playbookText = (json: string, name: string): PlaybookText => {
   if (!isRecord(parsed) || typeof parsed.text !== 'string') return unreadable('get_playbook')
   const text = parsed.text.trim()
   if (!text) return fail(`playbook '${name}' has no text.`)
-  const own = typeof parsed.systemPrompt === 'string' ? parsed.systemPrompt.trim() : ''
-  return { ok: true, text, systemPrompt: own || null }
-}
-
-const defaultPlaybook = (json: string, area: string): ServerAnswer => {
-  const parsed = parse(json)
-  if (!Array.isArray(parsed) || !parsed.every(isRecord)) return unreadable('list_areas')
-  const entry = parsed.find((a) => a.name === area)
-  if (!entry) return fail(`area '${area}' does not exist.`)
-  const name = entry.defaultPlaybook
-  return typeof name === 'string' && name.trim() ? { ok: true, text: name.trim() } : fail(`area '${area}' has no default playbook.`)
+  return { ok: true, text, systemPrompt: nameOf(parsed.systemPrompt) }
 }
 
 const parse = (json: string): unknown => {

@@ -5,10 +5,12 @@
 - In a Yvoke session ([session.md](session.md)), the first question loads the instructions from the Yvoke
   server before it is sent: the base instructions and, in single-agent mode, the playbook's text
   (`get_playbook`).
-- The base instructions are, as in yvoke-web's chat: the system prompt the playbook names (its
-  `systemPrompt`, yvoke-web 1.3.0), else the area's default prompt, else the active default (D-16). A named
-  prompt the server does not know, or one that is empty, falls back to the next one. A named prompt the
-  server did not answer at all (not connected, timed out) drops the question instead.
+- The base instructions are chosen from data before any `get_system_prompt` call, as in yvoke-web and
+  yvoke-desktop 1.3.0: the system prompt the playbook names (its `systemPrompt`) when `list_areas` lists it
+  among the area's `systemPrompts`; else the area's `defaultSystemPrompt`; else the active default (D-16,
+  `get_system_prompt` with no name). A prompt the area does not list falls back silently. Then the mod makes
+  exactly one `get_system_prompt` call. If that call fails, an `ERROR:` body included, the question is
+  dropped: the server client cannot tell a missing prompt from a broken server, so there is no second try.
 - From then on every system prompt of that session ends with one section, `yvoke:instructions`
   (`scope: 'session'`): the base instructions, a `---` line between blank lines (`\n\n---\n\n`, as web
   chat joins them), then the playbook text. Claude Code's own
@@ -29,12 +31,9 @@
 
 | Load step | Calls | Time |
 | --- | --- | --- |
-| Setup names its playbook | `get_system_prompt(area)` and `get_playbook` together | one round |
-| Setup has no playbook (today) | `list_areas` and `get_system_prompt(area)` together, then `get_playbook` | two rounds |
-| The playbook names a system prompt | then `get_system_prompt(name)` | one more round |
-
-The area's prompt is asked for alongside the playbook even when the playbook names its own, so the fallback
-needs no extra round.
+| Setup names its playbook | `list_areas` and `get_playbook` together, then `get_system_prompt` | two rounds |
+| Setup has no playbook (today) | `list_areas`, then `get_playbook` (the area's default), then `get_system_prompt` | three rounds |
+| Multi-agent mode | `list_areas`, then `get_system_prompt` | two rounds |
 
 Each round waits at most 8 s (the server client's limit) or what the hook has left less 1.5 s, whichever is
 smaller. With under 1 s left, it fails at once and asks to send the question again.
@@ -46,14 +45,14 @@ smaller. With under 1 s left, it fails at once and asks to send the question aga
 | `prompt.submit` hook (loads, or drops the question) and `prompt.compose` hook (adds the section) | `plugins/yvoke/src/system-prompt.ts` |
 | `$.state` `yvoke.instructions` = `{ sessionId, text }`, written only by `system-prompt.ts` | contract in `plugins/yvoke/types/index.d.ts` |
 | `$.state` `yvoke.setup` = `{ area, mode, playbook }` (playbook null = the area's default), read here, written by P1-08 | same |
-| Server tools `list_areas`, `get_system_prompt(area)`, `get_system_prompt(name)`, `get_playbook(name)` (its `systemPrompt` and `text`) | through `callYvoke` ([server-client.md](server-client.md)) |
+| Server tools `list_areas` (`defaultPlaybook`, `defaultSystemPrompt`, `systemPrompts`), `get_playbook(name)` (`systemPrompt`, `text`), `get_system_prompt(name?)` | through `callYvoke` ([server-client.md](server-client.md)) |
 
 For P1-08: the setup is locked exactly when `yvoke.instructions.sessionId` is the current session id.
 
 ## Tests
 
 - `plugins/yvoke/tests/system-prompt-load.test.ts`: the calls and their order, base first, the `---` join,
-  the playbook's own prompt and each fallback, a setup with and without a playbook, multi-agent, server down, unknown playbook, a missing area or default playbook,
+  which base prompt (listed, unlisted, no area default) and the dropped `ERROR:`, a setup with and without a playbook, multi-agent, server down, unknown playbook, a missing area or default playbook,
   unreadable answers, empty texts, and the time budget per round.
 - `plugins/yvoke/tests/system-prompt.test.ts`, through the engine: a plain session, first question,
   later questions, server down then back, no playbook text, a server that does not answer, a new session
