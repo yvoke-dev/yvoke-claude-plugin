@@ -20,6 +20,12 @@
       "title": "Dev mode (local yvoke-web only)",
       "description": "On: connect without signing in, to a local yvoke-web running in mock mode. Off: the normal sign-in, for any other server.",
       "default": false
+    },
+    "showPrototypes": {
+      "type": "boolean",
+      "title": "Show prototype areas and playbooks",
+      "description": "On: the Yvoke setup band also offers areas and playbooks the server marks as prototypes.",
+      "default": false
     }
   }
 }

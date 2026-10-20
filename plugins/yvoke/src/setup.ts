@@ -4,6 +4,8 @@
 //
 // This part holds the rules, with no `$` in it (a function from another file cannot take `$`), so they can
 // be tested without the engine.
+import type { ElementConstructor, On, PluginOptions, RenderElement, SelectProps } from 'claude-code'
+import { callYvoke, type ServerIo } from './server'
 
 /** Multi-agent mode is offered once Phase 6 is built. Until then only single agent runs. */
 export const MULTI_AGENT_READY = false
@@ -101,7 +103,8 @@ export const defaults = (catalogue: Catalogue, areaName?: string): Setup => {
   const area =
     (areaName === undefined ? undefined : areaOf(catalogue, areaName)) ??
     areaOf(catalogue, DEFAULT_AREA) ??
-    catalogue.areas[0]
+    // toCatalogue never gives a catalogue with no areas.
+    catalogue.areas[0]!
   const playbook = area.playbooks.find((p) => p.name === area.defaultPlaybook) ?? null
   return {
     area: area.name,
@@ -162,4 +165,283 @@ export const movedOn = (setup: Setup, catalogue: Catalogue): { setup: Setup; fro
   const current = areaOf(catalogue, setup.area)?.playbooks.find((p) => p.name === setup.playbook)
   if (!current || current.version === setup.version) return null
   return { setup: { ...setup, version: current.version }, from: setup.version, to: current.version }
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// The hooks. Every $.state key is written inline (the engine refuses a reference imported from another
+// file), and every enforcing hook opens with the Yvoke check (design 4.4).
+
+export const LOADING = 'Loading the Yvoke setup…'
+export const DROP_FAILED = 'Yvoke Backend: the session could not be set up, so the question was not sent.'
+export const SKILL_POINTER =
+  'This Yvoke playbook is not started this way in Claude Code. Tell the user, in one sentence, that the ' +
+  'playbook is chosen in the Yvoke setup band above the prompt before the first question, and do nothing else.'
+
+/** The `$.store` key holding one session's setup, next to P1-10's `session:<id>`. */
+export const setupKey = (sessionId: string) => `setup:${sessionId}`
+
+export type CatalogueState = { ok: true; catalogue: Catalogue } | { ok: false; error: string }
+
+const isSetup = (x: unknown): x is Setup => {
+  if (typeof x !== 'object' || x === null) return false
+  const s = x as Record<string, unknown>
+  const nullOr = (v: unknown, t: string) => v === null || typeof v === t
+  return (
+    typeof s.area === 'string' &&
+    (s.mode === 'single' || s.mode === 'multi') &&
+    nullOr(s.playbook, 'string') &&
+    nullOr(s.version, 'number') &&
+    nullOr(s.profile, 'string') &&
+    nullOr(s.lockedSessionId, 'string')
+  )
+}
+
+/** The setup to show for a catalogue: the saved picks when they still fit it, else the defaults. */
+const fitted = (saved: Setup | null | undefined, catalogue: Catalogue): Setup => {
+  if (!saved) return defaults(catalogue)
+  if (saved.lockedSessionId !== null) return saved
+  return catalogue.areas.some((a) => a.name === saved.area) ? saved : defaults(catalogue)
+}
+
+const noPlaybooks = (area: string) => `Yvoke Backend: the area ${area} has no playbooks, so the question was not sent.`
+
+export function registerSetup(on: On, options: PluginOptions) {
+  const showPrototypes = options.showPrototypes === true
+
+  // Loads both lists, writes the catalogue and the setup it implies, and returns the catalogue state.
+  // Written as a hook-local closure each time it is needed would repeat it four times; the engine lets a
+  // same-file function take closures, so the hooks hand it `io` and the state writers.
+  const load = async (
+    io: ServerIo,
+    getSetup: () => Promise<Setup | null | undefined>,
+    write: (catalogue: CatalogueState, setup: Setup | null) => Promise<void>,
+  ): Promise<CatalogueState> => {
+    const [areas, playbooks] = await Promise.all([callYvoke(io, 'list_areas'), callYvoke(io, 'list_playbooks')])
+    const answer: CatalogueState = !areas.ok
+      ? { ok: false, error: areas.error }
+      : !playbooks.ok
+        ? { ok: false, error: playbooks.error }
+        : toCatalogue(areas.text, playbooks.text, showPrototypes)
+    await write(answer, answer.ok ? fitted(await getSetup(), answer.catalogue) : ((await getSetup()) ?? null))
+    return answer
+  }
+
+  on('command.run', { command: 'yvoke' }, async ($, e, next) => {
+    const answer = await next(e)
+    const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
+    if (isYvoke !== true) return answer
+    const { value: had } = await $.state.get({ plugin: 'yvoke', key: 'catalogue' })
+    if (had) return answer
+    const io: ServerIo = {
+      connect: (server) => $.mcp.connect(server),
+      call: (server, tool, args) => $.mcp.call(server, tool, args),
+      sleep: (ms, signal) => $.clock.sleep(ms, { signal }),
+    }
+    await load(
+      io,
+      async () => (await $.state.get({ plugin: 'yvoke', key: 'setup' })).value,
+      async (catalogue, setup) => {
+        await $.state.set({ plugin: 'yvoke', key: 'catalogue' }, catalogue)
+        await $.state.set({ plugin: 'yvoke', key: 'setup' }, setup)
+      },
+    )
+    return answer
+  })
+
+  on('classic.SessionStart', { source: /^(clear|resume|fork)$/ }, async ($, e, next) => {
+    // The session's hook beneath decides whether this is a Yvoke session (P1-10); its answer comes first.
+    const started = await next(e)
+    if (e.source === 'clear') {
+      await $.ui.status(undefined)
+      return started
+    }
+    let saved: Setup | null = null
+    if (e.source === 'resume') {
+      // As P1-10: nothing first, so a store read that fails leaves the resumed session without a setup.
+      await $.state.set({ plugin: 'yvoke', key: 'setup' }, null)
+      await $.state.set({ plugin: 'yvoke', key: 'catalogue' }, null)
+    } else {
+      saved = (await $.state.get({ plugin: 'yvoke', key: 'setup' })).value ?? null
+    }
+    const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
+    if (isYvoke !== true) return started
+    if (e.source === 'resume') {
+      const stored = await $.store.get(setupKey(e.session_id))
+      saved = isSetup(stored) ? stored : null
+    }
+    // The setup belongs to the session it is in now: /branch gives it a new id.
+    if (saved && saved.lockedSessionId !== null) saved = { ...saved, lockedSessionId: e.session_id }
+    await $.state.set({ plugin: 'yvoke', key: 'setup' }, saved)
+    if (saved) await $.store.set(setupKey(e.session_id), saved)
+
+    const io: ServerIo = {
+      connect: (server) => $.mcp.connect(server),
+      call: (server, tool, args) => $.mcp.call(server, tool, args),
+      sleep: (ms, signal) => $.clock.sleep(ms, { signal }),
+    }
+    const catalogue = await load(
+      io,
+      async () => saved,
+      async (c, setup) => {
+        await $.state.set({ plugin: 'yvoke', key: 'catalogue' }, c)
+        await $.state.set({ plugin: 'yvoke', key: 'setup' }, setup)
+      },
+    )
+    if (saved && saved.lockedSessionId !== null) {
+      let shown = saved
+      // D-20: a resumed session carries on with the playbook version the server has now.
+      const moved = e.source === 'resume' && catalogue.ok ? movedOn(saved, catalogue.catalogue) : null
+      if (moved) {
+        shown = moved.setup
+        await $.state.set({ plugin: 'yvoke', key: 'setup' }, shown)
+        await $.store.set(setupKey(e.session_id), shown)
+        await $.ui.toast(
+          `${shown.playbook} moved from v${moved.from} to v${moved.to} since this session started; ` +
+            `answers from now on use v${moved.to}.`,
+        )
+      }
+      await $.ui.status(lineFor(shown, catalogue.ok ? catalogue.catalogue : null))
+    }
+    return started
+  })
+
+  on('prompt.submit', async ($, e, next) => {
+    const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
+    if (isYvoke !== true) return next(e)
+
+    const sessionId = await $.session.id()
+    let { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
+    if (setup && setup.lockedSessionId === sessionId) return next(e)
+
+    let { value: catalogue } = await $.state.get({ plugin: 'yvoke', key: 'catalogue' })
+    if (!catalogue || !catalogue.ok) {
+      const io: ServerIo = {
+        connect: (server) => $.mcp.connect(server),
+        call: (server, tool, args) => $.mcp.call(server, tool, args),
+        sleep: (ms, signal) => $.clock.sleep(ms, { signal }),
+      }
+      catalogue = await load(
+        io,
+        async () => setup,
+        async (c, s) => {
+          await $.state.set({ plugin: 'yvoke', key: 'catalogue' }, c)
+          await $.state.set({ plugin: 'yvoke', key: 'setup' }, s)
+        },
+      )
+      setup = (await $.state.get({ plugin: 'yvoke', key: 'setup' })).value
+    }
+    if (!catalogue.ok) return { drop: catalogue.error }
+    const chosen = fitted(setup, catalogue.catalogue)
+    if (chosen.mode === 'single' && chosen.playbook === null) return { drop: noPlaybooks(chosen.area) }
+
+    // Saved before the question goes down, so P1-07's hook reads this setup whichever side of it runs.
+    await $.state.set({ plugin: 'yvoke', key: 'setup' }, chosen)
+    await $.store.set(setupKey(sessionId), chosen)
+    const entered = await next(e)
+    if (entered.drop !== undefined) return entered
+
+    const locked: Setup = { ...chosen, lockedSessionId: sessionId }
+    await $.state.set({ plugin: 'yvoke', key: 'setup' }, locked)
+    await $.ui.status(lineFor(locked, catalogue.catalogue))
+    await $.store.set(setupKey(sessionId), locked)
+    return entered
+  }).catch(() => ({ drop: DROP_FAILED }))
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next): Promise<RenderElement> => {
+    const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
+    if (isYvoke !== true || e.props.hasSurvey) return next(e)
+    const { Box, Text, Button, Select } = $.ui.resolve(e) as ReturnType<typeof $.ui.resolve> & {
+      Select?: ElementConstructor<SelectProps>
+    }
+    const { value: catalogue } = await $.state.get({ plugin: 'yvoke', key: 'catalogue' })
+    const { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
+    const sessionId = await $.session.id()
+
+    if (setup && setup.lockedSessionId === sessionId) {
+      return h(Text, {}, lineFor(setup, catalogue?.ok ? catalogue.catalogue : null)) as RenderElement
+    }
+    if (!catalogue) return h(Text, { dimColor: true }, LOADING) as RenderElement
+    if (!catalogue.ok) {
+      const retry = async () => {
+        const io: ServerIo = {
+          connect: (server) => $.mcp.connect(server),
+          call: (server, tool, args) => $.mcp.call(server, tool, args),
+          sleep: (ms, signal) => $.clock.sleep(ms, { signal }),
+        }
+        await load(
+          io,
+          async () => (await $.state.get({ plugin: 'yvoke', key: 'setup' })).value,
+          async (c, s) => {
+            await $.state.set({ plugin: 'yvoke', key: 'catalogue' }, c)
+            await $.state.set({ plugin: 'yvoke', key: 'setup' }, s)
+          },
+        )
+      }
+      return h(
+        Box,
+        { gap: 1 },
+        h(Text, { color: 'red' }, catalogue.error),
+        h(Button, { key: 'yvoke-retry', label: 'Retry', onPress: retry }),
+      ) as RenderElement
+    }
+
+    const cat = catalogue.catalogue
+    const current = fitted(setup, cat)
+    if (!Select) return h(Text, {}, lineFor(current, cat)) as RenderElement
+    const choose = (select: Select) => async (value: string) => {
+      const { value: now } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
+      // pick changes nothing once the setup is locked.
+      const after = pick(fitted(now, cat), cat, select, value, MULTI_AGENT_READY)
+      await $.state.set({ plugin: 'yvoke', key: 'setup' }, after)
+      try {
+        await $.store.set(setupKey(await $.session.id()), after)
+      } catch {
+        // The pick stands for this session; only /resume of an unlocked setup would miss it.
+      }
+    }
+    const area = cat.areas.find((a) => a.name === current.area) ?? cat.areas[0]!
+    const third =
+      current.mode === 'multi'
+        ? h(Select, {
+            key: 'yvoke-profile',
+            label: 'Profile',
+            options: area.profiles.map((p) => ({ value: p, label: p })),
+            value: current.profile ?? undefined,
+            onSelect: choose('profile'),
+          })
+        : area.playbooks.length === 0
+          ? h(Text, { color: 'red' }, `The area ${area.title} has no playbooks.`)
+          : h(Select, {
+              key: 'yvoke-playbook',
+              label: 'Playbook',
+              options: area.playbooks.map((p) => ({ value: p.name, label: playbookLabel(p.name, p.version) })),
+              value: current.playbook ?? undefined,
+              onSelect: choose('playbook'),
+            })
+    return h(
+      Box,
+      { gap: 2 },
+      h(Select, {
+        key: 'yvoke-area',
+        label: 'Area',
+        options: cat.areas.map((a) => ({ value: a.name, label: a.title })),
+        value: current.area,
+        onSelect: choose('area'),
+      }),
+      h(Select, {
+        key: 'yvoke-mode',
+        label: 'Mode',
+        options: modesFor(cat, current.area, MULTI_AGENT_READY).map((m) => ({ value: m, label: MODE_LABEL[m] })),
+        value: current.mode,
+        onSelect: choose('mode'),
+      }),
+      third,
+    ) as RenderElement
+  })
+
+  on('skill.prompt', async ($, e, next) => {
+    const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
+    if (isYvoke !== true || e.pluginName !== 'yvoke') return next(e)
+    return { text: SKILL_POINTER }
+  }).catch(() => ({ text: SKILL_POINTER }))
 }

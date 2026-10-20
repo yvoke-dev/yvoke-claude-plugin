@@ -94,9 +94,9 @@ describe('toCatalogue', () => {
     const playbooks = JSON.stringify([playbook('oim-full', { version: 3 }), playbook('oim-new', { prototype: true })])
 
     expect(catalogue(areas, playbooks).areas.map((a) => a.name)).toEqual(['OIM'])
-    expect(catalogue(areas, playbooks).areas[0].playbooks.map((p) => p.name)).toEqual(['oim-full'])
+    expect(catalogue(areas, playbooks).areas[0]!.playbooks.map((p) => p.name)).toEqual(['oim-full'])
     expect(catalogue(areas, playbooks, true).areas.map((a) => a.name)).toEqual(['OIM', 'LAB'])
-    expect(catalogue(areas, playbooks, true).areas[0].playbooks.map((p) => p.name)).toEqual(['oim-full', 'oim-new'])
+    expect(catalogue(areas, playbooks, true).areas[0]!.playbooks.map((p) => p.name)).toEqual(['oim-full', 'oim-new'])
   })
 
   test('a default that is not among the shown playbooks or profiles falls back to the first one', () => {
@@ -104,19 +104,19 @@ describe('toCatalogue', () => {
     const playbooks = JSON.stringify([playbook('oim-new', { prototype: true }), playbook('oim-quick')])
 
     const [oim] = catalogue(areas, playbooks).areas
-    expect(oim.defaultPlaybook).toBe('oim-quick')
-    expect(oim.defaultProfile).toBe('OIM')
+    expect(oim!.defaultPlaybook).toBe('oim-quick')
+    expect(oim!.defaultProfile).toBe('OIM')
   })
 
   test('an area with no playbooks is kept, with no default', () => {
     const [, ping] = catalogue(AREAS, JSON.stringify([playbook('oim-full')])).areas
-    expect(ping.playbooks).toEqual([])
-    expect(ping.defaultPlaybook).toBeNull()
+    expect(ping!.playbooks).toEqual([])
+    expect(ping!.defaultPlaybook).toBeNull()
   })
 
   test('a playbook with no version counts as version 1', () => {
     const playbooks = JSON.stringify([{ ...playbook('oim-full'), version: undefined }])
-    expect(catalogue(AREAS, playbooks).areas[0].playbooks).toEqual([{ name: 'oim-full', version: 1 }])
+    expect(catalogue(AREAS, playbooks).areas[0]!.playbooks).toEqual([{ name: 'oim-full', version: 1 }])
   })
 
   test('a server with no areas is an error', () => {
