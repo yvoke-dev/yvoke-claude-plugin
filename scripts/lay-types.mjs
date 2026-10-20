@@ -1,8 +1,9 @@
 // Lays the mod API's type declarations into plugins/yvoke/.claude-plugin/types/, so `npx tsc --noEmit`
 // has something to check against. Claude Code writes them only when it loads the mod from a folder;
-// `claude plugin validate` and `claude plugin test` do not. So this starts a print-mode session with the
-// plugin, points the model at an address nothing answers on (no sign-in, no model call, no cost), waits
-// for the declarations to appear, and stops the session.
+// `claude plugin validate` and `claude plugin test` do not. Since 2.1.304 it writes them only for a folder
+// the session watches, and print mode watches only with CLAUDE_CODE_PLUGIN_DIR_WATCH=1. So this starts a
+// print-mode session with the plugin and watching on, points the model at an address nothing answers on
+// (no sign-in, no model call, no cost), waits for the declarations to appear, and stops the session.
 // Usage: node scripts/lay-types.mjs   (exit code 1 if the declarations do not appear within 60 s)
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
@@ -23,7 +24,13 @@ const config = mkdtempSync(join(tmpdir(), 'yvoke-lay-types-'))
 
 const child = spawn('claude', ['--plugin-dir', plugin, '-p', 'lay types'], {
   stdio: 'ignore',
-  env: { ...process.env, CLAUDE_CONFIG_DIR: config, ANTHROPIC_BASE_URL: 'http://127.0.0.1:9', ANTHROPIC_API_KEY: 'unused' },
+  env: {
+    ...process.env,
+    CLAUDE_CONFIG_DIR: config,
+    CLAUDE_CODE_PLUGIN_DIR_WATCH: '1',
+    ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
+    ANTHROPIC_API_KEY: 'unused',
+  },
 })
 child.on('error', (err) => stop(1, `lay-types: could not start claude: ${err.message}`))
 process.on('SIGINT', () => stop(130, 'lay-types: interrupted'))
