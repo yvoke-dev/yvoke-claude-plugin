@@ -83,9 +83,9 @@ After M1: Phase 3 (P3-02 after P0-05), Phase 6 (after P0-07), then Phase 7 and t
 P1-10 are done. Next, in this order:
 
 1. **P1-08** setup band, now: area selection comes first in every Yvoke session, and the area carries the
-   default playbook and the default multi-agent profile. It no longer waits for spike P0-06. The two things
-   P0-06 was to settle for it (`$.state` after `/branch`, the typed text after `{ drop }`) are checked on a
-   developer's machine before P1-08 is ticked.
+   default playbook and the default multi-agent profile. It no longer waits for spike P0-06: the four
+   checks P0-06 held for it (skill hiding, `/resume`, `/branch`, the typed text after `{ drop }`) move into
+   P1-08 and are run on a developer's machine before it is ticked.
 2. **P1-07** finished against the playbook's own system prompt (see its entry), in parallel with P1-08.
 3. **P1-09**, **P3-01** and **P0-03** as their plans stand.
 4. **P0-12** (`machine`), then **P2-05**: compute through a wrapped `Bash` (D-19). **P6-03** is re-planned
@@ -187,20 +187,15 @@ a cloud session.
   - Mod commands cannot contain `:` (names are letters, digits, `_` and `-`), so every command the mod
     registers is `/yvoke-<name>`. Skills keep `/yvoke:<skill>`.
 - [ ] **P0-06** `plugin` · S — **Spike: playbook mechanics.**
-  - `skill.prompt` replacing a skill's text at invocation; `tool.call` denying `mcp__…` tools;
-    `$.state` surviving across turns.
+  - `tool.call` denying `mcp__…` tools; `$.state` surviving across turns.
   - Hiding tools: per the mods reference, `tool.describe` can only reword a tool or defer it behind tool
     search, and `agent.offer` can withhold subagent types. Tools are therefore denied at call time, not
     hidden; confirm, and check that a deferred tool stays out of the model's context until searched.
   - A mod command named `yvoke` next to the plugin's `/yvoke:<skill>` skills: does `/yvoke` register and
     autocomplete cleanly on both surfaces (P1-10)?
-  - `prompt.submit` returning `{ drop }`: does the typed text stay in the prompt box? If not, restore it
-    with `$.prompt.fill` (P1-08 promises the draft is kept).
-  - `/clear`, `/resume` and `/branch`: `$.state` resets on `/clear` and `session.start` does not fire again
-    after any of them. Is `$.session.id` the same after `/resume`, so state saved per session can be
-    restored (P1-08, P6-01)?
-  - Done when: findings confirm (or rule out) hiding playbook skills in a Yvoke session (P1-08), the
-    fixed setup surviving `/resume` and `/branch` (P1-08) and the `/yvoke` start (P1-10).
+  - Moved to P1-08 on 2026-10-20: hiding playbook skills (`skill.prompt`), the typed text after
+    `{ drop }`, and the setup surviving `/resume` and `/branch`.
+  - Done when: findings confirm (or rule out) denying tools at call time and the `/yvoke` start (P1-10).
 - [ ] **P0-07** `plugin` · S — **Spike: dynamic subagents.**
   - `$.agent.register` with a restricted tool list, model and effort; `$.agent.spawn`; whether delegation
     shows up in `tool.call` as `Agent`/`Task` so it can be counted; `turn.complete` + `$.prompt.submit` for
@@ -218,11 +213,15 @@ a cloud session.
   - Can a mod change the final answer text? `turn.complete` can only add a line under the answer; P6-05's
     out-of-rounds warning may need a `session.append` rewrite, or a `ui.render` hook on `AssistantMessage`
     (which changes only what is shown, not what is stored).
+  - **Holding back the lead's text** (added 2026-10-20): yvoke-desktop withholds the lead's live and plain
+    text in its own translate layer and shows only the submitted answer. Find the mod's way to do the same
+    (a `ui.render` hook on the lead's `AssistantMessage`, or another), and what is stored versus shown (P6-04).
   - **Review from a tool call** (added 2026-10-20): yvoke-desktop now runs the review inside the lead's
     `submit_answer` call and hands the verdict back as that call's result (P6-05). Check whether a
     `tool.call` hook can spawn the reviewer and wait for it, given the hook's 10-second budget; if not, find
     the fallback (`turn.complete` plus `$.prompt.submit`, as planned before).
-  - Done when: findings confirm D-06 (or reopen it) and say how P2-01 and P6-04 tell the lead from a specialist.
+  - Done when: findings confirm D-06 (or reopen it), say how P2-01 and P6-04 tell the lead from a specialist,
+    how the lead's text is held back, and where the review runs (in `submit_answer` or on `turn.complete`).
 - [ ] **P0-08** `plugin` · S — **Spike: Cowork and Chat.** Install a test plugin on claude.ai: confirm what
   Chat loads, whether Cowork runs plugin `hooks.json` command hooks (`PreToolUse` deny, `Stop` block), and
   whether skill `disallowed-tools` has any effect outside Claude Code.
@@ -234,14 +233,19 @@ a cloud session.
   `execute_code` whose `tool.call` hook runs the code with `$.tool.call({ tool: 'Bash', command: 'node -e …' })`.
   Check, on macOS and on Windows, with the Desktop Code tab and the terminal:
   - whether `node` is there for users of Claude Code's native installer, and what to do when it is not;
-  - Claude Code's sandbox: on by default or only by setting, whether the mod can require it
-    (`$.settings.read`, managed settings) and refuse to run without it, what it blocks (files outside a
-    scratch folder, network), and what happens on native Windows, where it is not supported;
+  - Claude Code's sandbox: on by default or only by setting, how the mod tells it is on
+    (`$.settings.read`, managed settings) so it can refuse to register or run without it, and what happens
+    on native Windows, where it is not supported;
+  - escape cases, each tried from the code itself: reading `process.env` (tokens, keys), reading and
+    writing files outside a scratch folder, `child_process` (spawning a shell), network (`fetch`,
+    `net`), and `dangerouslyDisableSandbox` in the wrapped call, which the mod must never set;
   - whether the call raises a permission prompt, and whether P2-01's deny lets the mod's own `Bash` call
     through (`next.origin`) while still denying the model's;
-  - time: a slow call against the hook's 10-second budget, and a runaway script (a timeout for `node`);
+  - time: yvoke-desktop's limits are a 1 s default and a 2 s maximum per run; check a runaway script is
+    killed at that limit and that the whole call fits the hook's 10-second budget;
   - output: the 32,000-character cap and how stdout, the final value and errors come back.
-  - Done when: findings say whether P2-05 can ship this route on both systems, and with which settings.
+  - Done when: findings say whether P2-05 can ship this route on both systems, with which settings, and
+    which of the escape cases the sandbox blocks.
 
 - [ ] **P0-09** `server` · `IT` · S — **Entra client registration for Claude clients** ([design 5.2](design.md#52-sign-in-for-claude-clients-p0-09-decides-d-03)).
   A public-client app registration (or the desktop's, extended) with the redirect URIs Claude Code and
@@ -309,11 +313,15 @@ a cloud session.
   `Yvoke Backend:` message and keeps the setup unlocked. There is deliberately no cached fallback.
   ⛔ P1-01, P1-06
   - **Which base instructions** (added 2026-10-20): the playbook's own `systemPrompt` (from `get_playbook`)
-    when it names one; else the area's default system prompt; else the active default (D-16). This is
-    `get_system_prompt(name)` and then `get_system_prompt(area)`. A named prompt that is missing or empty
-    falls back to the next one, as on the web and the desktop; only a missing base prompt at the end
-    drops the question. So `get_playbook` is fetched before `get_system_prompt`.
-  - Done when: tests cover success, server down, unknown playbook, and a hook failure (fails closed).
+    when the area lists it among its `systemPrompts` (`list_areas`); else the area's `defaultSystemPrompt`;
+    else the active default (D-16). The choice is made from that data **before** any call, so the mod then
+    makes one `get_system_prompt` call (by name, or with no name for the active default). A prompt the
+    area does not list falls back silently, as on the web and the desktop. That one call failing, an
+    `ERROR:` body included (P1-03 cannot tell a missing prompt from a broken server), drops the question:
+    no fallback after a failed call.
+  - Done when: tests cover success, server down, unknown playbook, a hook failure (fails closed), a
+    playbook prompt the area lists, one it does not list (falls back to the area default), no area
+    default (active default), and an `ERROR:` from `get_system_prompt` (dropped).
 - [ ] **P1-08** `plugin` · M — **Session setup: area, mode, playbook** (D-11).
   - In a new Yvoke session a band above the prompt (`ui.render` on `AbovePrompt`) shows three `Select`s
     (D-18): **area** (default OIM), **mode** (*Single agent* or *Multi-agent*; default *Single agent*) and
@@ -322,21 +330,26 @@ a cloud session.
     `list_areas` (P1-12); prototypes are hidden unless enabled. Until Phase 6 is built, the mode list offers
     only *Single agent*, and an area with no profiles never offers *Multi-agent*.
   - **Area first** (re-stated 2026-10-20): the area is chosen first, and the other selects follow it.
-    Changing the area resets mode and playbook to that area's defaults.
+    Changing the area resets mode, playbook and profile to that area's defaults; switching the mode to
+    *Multi-agent* selects the area's default profile.
   - Playbooks show by name with their version, *oim-full v3*, in the select and in the read-only line
     (yvoke-web and yvoke-desktop 1.3.0). The session keeps the version it locked with.
   - The selection **locks when the first question is sent**: the user can accept the defaults by just
-    typing. From then on the band shows a read-only line (*OIM · Single agent · oim-full*), and the status
+    typing. From then on the band shows a read-only line (*OIM · Single agent · oim-full v3*), and the status
     line shows the same. Nothing can change it; a different setup is a new session (`/clear`).
   - Kept in `$.state`, and in `$.store` under the session id so `/resume` restores it and `/branch` keeps it
-    (`classic.SessionStart` `source`). `/branch`, and whether the typed text survives `{ drop }`, are checked
-    on a developer's machine before this task is ticked; neither waits for the P0-06 spike any more.
+    (`classic.SessionStart` `source`), as P1-10 does for the Yvoke flag.
   - Playbook skills are not offered in Claude Code: generated skills carry `disable-model-invocation`, and
     a `skill.prompt` hook in a Yvoke session answers with a pointer to the setup band.
   - A server with no areas or playbooks: the band says so and questions are refused (no fallback).
   - Only in a Yvoke session (P1-10). ⛔ P1-10, P1-12 (both done)
-  - Done when: tests cover the defaults, changing each select before the first question, the lock, the
-    read-only line on `terminal` and `desktop`, `/clear`, `/resume`, and server down.
+  - Done when: tests cover the defaults (single agent, the area's default playbook), changing each select
+    before the first question, the area reset, the switch to *Multi-agent* picking the area's default
+    profile, the version shown, the lock, the read-only line on `terminal` and `desktop`, `/clear`,
+    `/resume`, and server down. Before it is ticked, a developer's machine confirms what P0-06 used to
+    (moved 2026-10-20): `skill.prompt` replaces a playbook skill's text in a Yvoke session; the typed
+    text stays in the prompt box after `{ drop }` (else restore it with `$.prompt.fill`); `$.session.id`
+    is the same after `/resume`; and the setup survives `/branch`.
 - [ ] **P1-09** `plugin` · S — **Clarifying questions.** Deny the server's `ask_clarifying_question` with a
   message telling the model to use Claude Code's native `AskUserQuestion`. Yvoke Desktop intercepts that tool;
   nothing else does.
@@ -405,11 +418,18 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
     P0-06 that managed `pluginConfigs` override a user's own values; if they do not, record it in [intent 9](intent.md#9-not-planned-and-known-gaps).
   - Done when: yvoke-desktop's web cases from `policy.test.ts` pass here.
 - [ ] **P2-05** `plugin` · M — **Compute tool `execute_code`** (re-planned 2026-10-20, D-19). The mod
-  registers `execute_code` with yvoke-desktop's name, description and limits (JavaScript up to 10,000
-  characters, 32,000 characters of output) and serves it by running the code through Claude Code's
-  `Bash` under its sandbox, as spike P0-12 settles. The model never gets `Bash` itself (D-09, P2-01).
-  Withheld when the active playbook declares `codeExecution: false`. Port the relevant cases of
-  yvoke-desktop's `computeTools.test.ts`. If P0-12 shows the route cannot be made safe, v1 has no compute
+  registers `execute_code` with yvoke-desktop's name and limits (JavaScript up to 10,000 characters, a
+  1 s default and 2 s maximum run time, 32,000 characters of output) and serves it by running the code
+  through Claude Code's `Bash` under its sandbox, as spike P0-12 settles. The model never gets `Bash`
+  itself (D-09, P2-01), and the mod never sets `dangerouslyDisableSandbox`.
+  - **Its own contract, not the desktop's.** yvoke-desktop's tool is a zero-privilege `node:vm` and says
+    "no filesystem, network, shell, or timers"; this one is a `node` process started by a shell, so its
+    description promises only what P0-12 showed the sandbox blocks. Do not copy the desktop's
+    description or its isolation tests.
+  - **Sandbox required.** With Claude Code's sandbox off (or unsupported, as on native Windows), the tool
+    is not offered, and a call is refused with a message saying why.
+  - Withheld when the active playbook declares `codeExecution: false`. Port only the result and limit
+    cases of yvoke-desktop's `computeTools.test.ts`; the escape cases come from P0-12's findings. If P0-12 shows the route cannot be made safe, v1 has no compute
   tool and this task is struck through. The earlier plan for `calculate`, `statistics` and `date_diff`
   ([#19](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/19)) is not used. ⛔ P0-12
 - [ ] **P2-06** `plugin` · M — **Playbook preflight check.** On the first question of a single-agent
@@ -534,14 +554,19 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
   hand). The verdict is the tool call, not text: no call means "no clear verdict", which is how the old
   "NOT APPROVED reads as approved" defect becomes impossible. It sees the question, the draft and only the
   sources the draft cites (port `evidenceDigest.ts` and `chunkBlocks.ts`), and keeps its own session across
-  rounds, receiving only newly cited sources. Port `review.test.ts`, `reviewTools.test.ts`,
-  `evidenceDigest.test.ts` and `chunkBlocks.test.ts`. The tool list is fixed and tools on the reviewer's
+  rounds, receiving only newly cited sources. Port `reviewTools.test.ts` (the `submit_review` half),
+  `evidenceDigest.test.ts`, `chunkBlocks.test.ts`, and from `review.test.ts` only the
+  `renderReviewTask` / `renderReviewFollowUp` cases. The tool list is fixed and tools on the reviewer's
   playbook are ignored (D-17, reversed 2026-10-20).
 - [ ] **P6-04** `plugin` · M — **Lead mode.** While a profile is active, the lead may only delegate, ask
   the user, call `verify_citations` and deliver through `submit_answer` (yvoke-desktop's `orchestration.ts`
-  grants exactly those, and the server's orchestrator playbook relies on `verify_citations`); its plain
-  text is held back and only the submitted answer is shown; other knowledge-base tools are denied to it, but not to the specialists (how the hook tells them
-  apart comes from P0-07). The desktop runtime adapter text is appended to its
+  grants exactly those, and the server's orchestrator playbook relies on `verify_citations`); only the
+  submitted answer is shown, its other text being held back by the mechanism P0-07 finds; other
+  knowledge-base tools are denied to it, but not to the specialists (how the hook tells them apart comes
+  from P0-07).
+  - A lead that never calls `submit_answer`: as in yvoke-desktop, if it consulted a specialist its final
+    text is reviewed as the draft (P6-05); if it consulted none, its text after any answer marker is the
+    answer, unreviewed. The desktop runtime adapter text is appended to its
   instructions, with `REVIEW_FEEDBACK_HEADING` and `EVIDENCE_HEADING` byte-identical to the server's.
   The mode is fixed per session (D-11), which also avoids yvoke-desktop's pitfall of resuming across modes.
 - [ ] **P6-05** `plugin` · L — **Review enforced in code.** As yvoke-desktop 1.3.0 does it: when the lead
@@ -551,12 +576,19 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
   - a turn that consulted no specialist is not reviewed;
   - rejected or no verdict → the revision prompt, separating `citation_fixes` (repair from the sources in
     hand, no specialist) from `unsupported_claims` (may need new research), with the cited evidence, up to
-    `maxReviewRounds`; the prompt stays under Claude Code's limit for a tool result, past which it is
-    written to a file (yvoke-desktop #27);
+    `maxReviewRounds`. The revision prompt puts the feedback, the two lists and the directive first and is
+    capped at 32,000 characters (`MAX_REVISION_PROMPT_CHARS`, yvoke-desktop #27), narrowing the evidence to
+    what is cited before cutting it, because Claude Code moves a tool result over about 50,000 characters
+    to a file and hands the lead only a short preview, which a lead without file tools cannot read;
   - the reviewer itself fails → a non-blank draft ships with an *unreviewed* warning;
   - out of rounds → a warning written into the answer text itself (mechanism from P0-07);
   - a stopped (`e.isAborted`) or failed turn is never re-prompted.
   - `$.prompt.submit` waits until the session is idle; do not `await` it inside the `turn.complete` hook.
+  - Port from `review.test.ts` the `buildRevisionPrompt`, `reviewStatusOf`, `reviewAttempts`,
+    `reviewFlagNote`, `unreviewedNote`, `afterAnswerMarker` and `idsUnderReview` cases (the
+    `buildRunTrace` ones belong to P5-05), and the `submit_answer` half of `reviewTools.test.ts`.
+  - Done when: those tests pass here, including a revision prompt over 32,000 characters that keeps its
+    feedback and directive.
 - [ ] **P6-06** `plugin` · S — **Specialist budget actually enforced.** Count specialist starts in
   `agent.spawn` and deny beyond `maxSpecialistCalls` with a message (yvoke-desktop only advises the lead;
   decision #6 there). The reviewer does not count against the budget.
