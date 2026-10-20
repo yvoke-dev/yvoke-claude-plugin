@@ -30,16 +30,19 @@ same pull request.
 ### 2.1 Session setup and system prompt
 
 - `/yvoke`, typed before a session's first question, makes it a Yvoke session until `/clear`. (P1-10)
-- A new Yvoke session shows a setup band with **area** (default OIM), **mode** (single agent or one of the
-  area's multi-agent profiles, D-15) and, for single agent, **playbook** (default: the area's default
-  playbook, `oim-full` for OIM). The lists and defaults come live from the server; prototypes are hidden unless enabled. (P1-08, P1-12)
+- A new Yvoke session shows a setup band with **area** (default OIM), **mode** (single agent, the default,
+  or multi-agent) and then **playbook** (default: the area's default playbook, `oim-full` for OIM) or
+  **profile** (default: the area's default profile) (D-18). The area comes first and the other two follow it. The lists and defaults come live from the server; prototypes are hidden unless enabled. Playbooks show with their version (*oim-full v3*). (P1-08, P1-12)
 - Sending the first question locks the setup. From then on the band and the status line show it read-only.
   `/resume` and `/branch` keep it. (P1-08)
 - On a single-agent session's first question, when the area has at least two playbooks, a preflight check
-  may offer **Switch to …** or **Send anyway**. Any error lets the question through. (P2-06)
-- The system prompt is the server's base instructions followed by the playbook's text, fetched when the
-  setup locks. A failed fetch drops the question with a `Yvoke Backend:` message and leaves the setup
-  unlocked. (P1-01, P1-06, P1-07)
+  may offer **Switch to …** or **Send anyway**. The area's default playbook skips the check. Any error lets the question through. (P2-06)
+- The system prompt is the server's base instructions followed by the playbook's text, separated by a `---`
+  line, fetched when the setup locks. The base instructions are the playbook's own system prompt when any
+  area lists it, else the area's default, else the active default; which one is decided from `list_areas`
+  before any call, so a missing prompt never reaches the server as a name. Any failed fetch, an `ERROR:`
+  answer included, drops the question with a `Yvoke Backend:` message and leaves the setup unlocked.
+  (P1-01, P1-06, P1-07)
 - Playbook skills are not offered in Claude Code; the model cannot start a playbook by itself. (P1-08)
 
 ### 2.2 Tool policy
@@ -49,8 +52,9 @@ same pull request.
   active. Everything else is denied with a message pointing to the Yvoke tools. (P2-01, P2-02, P2-03)
 - Web tools only when enabled in configuration **and** declared by the playbook; `WebSearch` limited to the
   configured hosts, `WebFetch` checked against the allow-list, WAF-challenged hosts refused. (P2-04)
-- Compute tools `calculate`, `statistics` and `date_diff`, withheld when the playbook declares
-  `codeExecution: false`. (P2-05)
+- A compute tool `execute_code`, refused on every call while Claude Code's sandbox is off, run through `Bash` behind the
+  mod's own tool, so the model never gets `Bash` (D-19). Also refused on every call while the playbook
+  declares `codeExecution: false`. (P0-12, P2-05)
 - The server's `ask_clarifying_question` is denied in favour of the native `AskUserQuestion`. (P1-09)
 - Turn ceilings per question (single agent 25, lead 60, specialist and reviewer 20, configurable). At the
   ceiling the answer is still delivered and marked *stopped at the turn limit*. (P2-08)
@@ -66,10 +70,13 @@ same pull request.
 
 - The profile's specialists and reviewer are registered live from the server; role models and budgets come
   from configuration. (D-06, P6-01, P6-02)
-- The lead may only delegate, ask the user and call `verify_citations`. (P6-04)
-- The reviewer's verdict is strict: the first line is exactly `APPROVED` or `REJECTED`. (P6-03)
-- Review is enforced in code: no review means one re-prompt; a rejection or no verdict means a revision, up
-  to `maxReviewRounds`; out of rounds means a warning in the answer. The specialist budget is enforced.
+- The lead may only delegate, ask the user, call `verify_citations` and submit its answer
+  (`submit_answer`). (P6-04)
+- The reviewer gives its verdict through a `submit_review` tool (approved or not, feedback, unsupported
+  claims, citation fixes) and sees only the sources the draft cites. No verdict counts as a rejection. (P6-03)
+- Review is enforced in code: every answer that consulted a specialist is reviewed; a rejection or no
+  verdict means a revision, up to `maxReviewRounds`; out of rounds means a warning in the answer; a
+  reviewer that fails lets the draft through marked unreviewed. The specialist budget is enforced.
   (P6-05, P6-06)
 - Each delegation shows as a card; rejected drafts collapse into one row; an unapproved answer carries a
   banner. A specialist's clarifying question reaches the user. (P6-07, P6-08)
