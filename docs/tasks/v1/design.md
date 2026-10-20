@@ -68,19 +68,22 @@ A single-agent question in Claude Code:
 1. The user opens a session in any folder and types `/yvoke`. Until then, and in every session without it,
    the mod passes everything through (P1-10, D-13).
 2. The setup band shows area, mode and playbook, filled from `list_areas` and `list_playbooks` (P1-08, P1-12).
-3. The user sends a question. If the area has two or more playbooks, the preflight check may suggest another
-   one; it fails open (P2-06).
+   The area comes first; mode and playbook default to what the area names.
+3. The user sends a question. If the area has two or more playbooks and the chosen one is not the area's
+   default, the preflight check may suggest another one; it fails open (P2-06).
 4. The setup locks and shows read-only, also in the status line (D-11).
-5. `prompt.compose` serves base instructions (`get_system_prompt`) followed by the playbook
-   (`get_playbook`). A failed fetch drops the question with a `Yvoke Backend:` message (P1-07).
+5. `prompt.compose` serves base instructions (`get_system_prompt`: the playbook's own system prompt, else the
+   area's, else the active default) followed by the playbook (`get_playbook`), separated by `---`. A failed
+   fetch drops the question with a `Yvoke Backend:` message (P1-07).
 6. The model works. Every tool call passes `tool.call`; `turn.step` counts toward the turn ceiling
    (P2-01 – P2-05, P2-08).
 7. The reply's citation markers become links; pressing one calls `get_section` and opens the source pane
    (P3-01 – P3-03).
 
 In multi-agent mode, step 5 registers the profile's specialists and reviewer from `list_profiles` instead
-of loading one playbook (D-06). The lead may only delegate, ask the user and verify citations;
-`turn.complete` sends unapproved drafts back for revision up to the round limit (Phase 6).
+of loading one playbook (D-06). The lead may only delegate, ask the user, verify citations and submit its
+answer; submitting runs the reviewer, and an unapproved draft goes back for revision up to the round limit
+(Phase 6).
 
 In Chat and Cowork there is no mod: the user invokes a playbook stub, the stub tells Claude to call
 `get_playbook` first, and Claude answers with the knowledge-base tools over the organization connector
@@ -308,9 +311,10 @@ the same PR.
   | `policy.ts` (`isToolAllowed`, `buildAllowedTools`, `isUrlDomainAllowed`, `WAF_CHALLENGED_HOSTS`) | `src/main/agent/policy.ts` |
   | `DEFAULT_KB_TOOLS`, `qualifyTool`, `MCP_TOOL_PREFIX`, `builtinTool` | `src/shared/types.ts` |
   | `McpPrompts.callGetSection`, `_meta` playbook mapping | `src/main/agent/McpPrompts.ts` |
-  | `computeTools.ts` | `src/main/agent/computeTools.ts` (served by `computeServer.ts`) |
+  | `computeTools.ts` | `src/main/agent/computeTools.ts` (served by `computeServer.ts`); since 1.3.0 it is `execute_code`, and the three old tools are at `a534efd^` |
   | `citationRehype.ts`, citation pane | `src/renderer/src/components/citationRehype.ts`, `CitationModal.tsx`, `sectionView.ts` |
-  | `mapSpecialistTools`, `REVIEW_FEEDBACK_HEADING`, `EVIDENCE_HEADING`, verdict parsing | `src/main/agent/orchestration.ts` |
+  | `mapSpecialistTools`, `REVIEW_FEEDBACK_HEADING`, `EVIDENCE_HEADING` | `src/main/agent/orchestration.ts` |
+  | `submit_review`, `submit_answer`, evidence digest | `src/main/agent/reviewTools.ts`, `reviewServer.ts`, `evidenceDigest.ts`, `chunkBlocks.ts` |
   | Preflight check | `src/main/agent/playbookValidation.ts`, `PlaybookValidator.ts` |
   | Tests named in this plan | `tests/<name>.test.ts` (vitest) |
   | Functional spec chapters | `spec/01_…` – `spec/08_…` |
@@ -521,7 +525,7 @@ existing tools' do (P1-03 relies on it).
 | --- | --- | --- | --- |
 | `get_system_prompt(name?, area?)` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions as plain text, chat prompts only. A name wins; else, with an area, that area's default system prompt; else (or when the area sets none) the *Active Default Chat System Prompt* (D-16). An unknown or empty prompt, or an unknown area, is an `ERROR:` line, not `""` as in REST. Not also served as MCP `instructions` (D-12). | P1-01, P1-12 |
 | `list_areas()` | `AreaService` (new `area` package) | a JSON array sorted by name: `name`, `title`, `description`, `prototype`, `defaultSystemPrompt`, `defaultPlaybook`, `defaultProfile`, and the member names `systemPrompts` (chat prompts), `collections`, `playbooks` (as `list_playbooks`), `profiles`. A default is given only when it is one of those members, else `null`. Read live. | P1-12 |
-| `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | a JSON array of name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`, `area`; orchestrator and reviewer playbooks left out. With an area (case and spaces ignored), only its playbooks; an unknown area gives `[]`. Read live, so a deleted playbook leaves at once. | P1-06, P1-12 |
+| `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | a JSON array of name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`, `area`, `systemPrompt` (the playbook's own base instructions, or null), `version` (a positive integer, default 1); orchestrator and reviewer playbooks left out. With an area (case and spaces ignored), only its playbooks; an unknown area gives `[]`. Read live, so a deleted playbook leaves at once. | P1-06, P1-12 |
 | `get_playbook(name)` | `PlaybookRepository.findByName`, uncached (`PlaybookService.getPlaybook` keeps a playbook for 60 s) | a JSON object with the same metadata (including `area`) plus `text`, the full playbook, for any playbook including orchestrator and reviewer ones. An unknown or blank name is an `ERROR:` line. | P1-06 |
 | `list_profiles(area?)` / `get_profile(name)` | as `GET /orchestrator/profiles` | lead, reviewer and specialist playbooks, `prototype`, area | P6-01 |
 | `submit_feedback(…)` | the feedback store behind `PUT /messages/{id}/feedback` | an id. Keyed to the synced message id, as the desktop's endpoint (D-08): rating, comment, client `claude-plugin`, plugin version. After v1, with sync. | P4-01 (after v1) |
