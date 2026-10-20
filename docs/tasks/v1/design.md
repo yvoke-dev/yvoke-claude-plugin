@@ -405,7 +405,10 @@ the same PR.
   or process. Import `test`, `expect` and `mock` from `claude-code/testing`. Hooks a test registers sit
   *beneath* the plugin and stand for the engine. A test answers each `$` call the plugin makes, and an
   answer to a `$` call that returns a value is `{ value }` (`on('session.turns', () => ({ value: 0 }))`).
-  A test's own `$` has no `$.state` or `$.store`, so observe them through behaviour or a stubbed store.
+  A test's own `$` has no `$.state` or `$.store`, so observe them through behaviour or stub them: hooks on
+  `state.get` / `state.set` (and `store.get` / `store.set`) beneath the plugin answer its calls (`state.get`
+  answers `{ value: { value, version } }`). A stubbed hook that throws is skipped and the kit answers
+  instead, so stage a failed read as an answer the plugin cannot use (P2-08).
   Stub the Yvoke server by hooking `mcp.call` in the test:
   `on('mcp.call', () => ({ content: [{ type: 'text', text: '…' }], isError: false }))`. UI tests mount on a
   surface the test names. Loop every UI test over `['terminal', 'desktop'] as const`.

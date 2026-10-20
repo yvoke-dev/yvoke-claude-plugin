@@ -1,6 +1,6 @@
 # P2-08 Turn ceilings per question
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** done
 
 A Yvoke question may make only so many model requests per loop. At the ceiling the mod does not throw the
 work away, as yvoke-desktop does (`error_max_turns` ends its turn as a failure): it tells the model to
@@ -115,6 +115,18 @@ needs one request to warn and one to answer.
 | `README.md` | the three settings next to `serverUrl` and `devMode` |
 | `docs/tasks/v1/plan.md`, `design.md`, `requirements.md` | tick P2-08 (D-24 and the corrected entry are in the plan commit) |
 
+## Found while building
+
+- In the test kit, `$.turn.step(...)`'s stream has no settled `result`; a test reads the result as the
+  generator's return value (`next()` until `done`).
+- A test's `state.get` / `state.set` hook that throws is skipped and the kit answers in its place, so a
+  failed read or write is staged as an answer the plugin cannot use (`{ value: null }`). The step
+  therefore also treats a write that did not land (`isSet` false) as a failure and ends the loop.
+- `turn.complete`'s `{ text }` is shown *beneath* the answer, so the hook returns the flag line alone, not
+  the answer plus the line.
+- The flag line checks the turn id, so a later turn that ends before its first request (an interrupt) does
+  not inherit the earlier turn's line; a test pins it.
+
 ## Order of work
 
 Each step: write the test, run it and see it fail, then the code, then `npm run check`.
@@ -148,10 +160,8 @@ Each step: write the test, run it and see it fail, then the code, then `npm run 
   `submit_review` included. A lead out of requests then has no `submit_answer`, which P6-04 handles as a
   missing submission; a reviewer has no verdict, which counts as a rejection. Phase 6 may exempt its own
   submit tools from the wrap-up denial; noted for P6-04 and P6-03, not done here.
-- **`$.state` families and `register(on, options)` on Claude Code 2.1.287.** Checked only on 2.1.304 so
-  far; CI runs 2.1.287. If either is missing there, the fallback is one `$.state` key per role (`main`,
-  and a map for subagents written with `ifVersion` to avoid lost updates), and settings read with
-  `$.config.list()`.
+- **`$.state` families and `register(on, options)` on Claude Code 2.1.287.** Checked while building:
+  `validate --strict` and all tests pass on 2.1.287 as on 2.1.304, so no fallback was needed.
 - **A question that continues in a new turn** (a background task waking the session) starts a new
   `turnId`, so its count starts again. Accepted: the ceiling is per model turn, as yvoke-desktop's
   `maxTurns` is per query.
@@ -167,5 +177,5 @@ Each step: write the test, run it and see it fail, then the code, then `npm run 
   role (single, lead, specialist/reviewer), the flag line, and a hook failure (the task's **Done when**).
 - `npm run check` (docs, both validates, typecheck, tests) with its output in the PR; the `calls:` line
   names no `$.fs`, `$.process` or `$.http`. CI on Claude Code 2.1.287 and latest.
-- Not checkable in the cloud, left for a run on a developer's machine before the box is ticked: a real
-  question with `turnLimitSingle` set to 3, to see the denial, the answer and the flag line drawn.
+- Not checkable in the cloud, asked of the product owner in the pull request: a real question with
+  `turnLimitSingle` set to 3, to see the denial, the answer and the flag line drawn.
