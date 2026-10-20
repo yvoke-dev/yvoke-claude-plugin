@@ -1,6 +1,6 @@
 # P2-01 Deny by default
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
 
 In a Yvoke session the model may use only the tools Yvoke grants. Every other tool call is refused with a
 message that points to the Yvoke tools. Outside a Yvoke session nothing changes. Task entry:
