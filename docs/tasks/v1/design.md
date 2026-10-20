@@ -324,6 +324,14 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     is refused while that sandbox is off, and the route ships only if P0-12 shows the sandbox blocks all
     four escapes (environment secrets, files, child processes, network); otherwise P2-05 is dropped.
   - Delivered by: P0-12, P2-05.
+- [x] **D-23** `PO` · `server` — **Where do the plugin-only tools live on yvoke-web?** yvoke-web builds one
+  tool list for `/mcp` and for its own assistant, so `get_system_prompt`, `list_areas`, `list_playbooks`
+  and `get_playbook` are offered as tool choices in its playbook editor.
+  - **Decided 2026-10-20 (Eduard): same `/mcp`, not in the web assistant.** One sign-in. yvoke-web keeps
+    serving them on `/mcp` and leaves them out of its assistant's tool registry and the playbook editor
+    ([5.4](#54-which-model-sees-which-tool-p1-13)). A second endpoint (`/mcp/client`) was rejected: a
+    second sign-in for every plugin user.
+  - Delivered by: P1-13.
 
 ## 4. Notes for implementers
 
@@ -579,11 +587,11 @@ the web's own assistant and to every connected client, including the model in Cl
 `list_areas`, `list_playbooks` and `get_playbook` are called by the mod in Claude Code and by the model in Chat and Cowork,
 when a playbook stub tells it to (D-04, D-12, P8-01).
 
-- Recommended: keep them on the same `/mcp` server (one sign-in) and leave them out of the in-app
+- Chosen (D-23): keep them on the same `/mcp` server (one sign-in) and leave them out of the in-app
   assistant's tool set. In Claude Code the mod's deny-by-default already stops the model from calling them,
   and the mod reaches them through `$.mcp.call`, which is not a model tool call. In Chat and Cowork the model
   sees them; their descriptions should say to call them only when a Yvoke playbook skill says so.
-- Alternative: a second MCP endpoint (for example `/mcp/client`) with only these tools, listed as a second
+- Rejected: a second MCP endpoint (for example `/mcp/client`) with only these tools, listed as a second
   server in the plugin's `.mcp.json`. Cleaner separation, but a second connection to sign in.
 
 ### 5.5 Behaviour to fix on the server

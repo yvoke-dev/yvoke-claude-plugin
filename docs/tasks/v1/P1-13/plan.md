@@ -30,7 +30,7 @@ on the same side by one annotation.
 
 ## What changes
 
-The recommended option of [design 5.4](../design.md#54-which-model-sees-which-tool-p1-13): the tools stay
+D-23 (Eduard, 2026-10-20), the recommended option of [design 5.4](../design.md#54-which-model-sees-which-tool-p1-13): the tools stay
 on the one `/mcp` server (one sign-in) and leave the in-app assistant's tool set.
 
 - A new annotation `@ClientOnlyTools` (package `mcp`) marks a tool class whose tools are for MCP clients
