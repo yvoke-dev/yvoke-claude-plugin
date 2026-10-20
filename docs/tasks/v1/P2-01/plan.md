@@ -1,6 +1,6 @@
 # P2-01 Deny by default
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** done
 
 In a Yvoke session the model may use only the tools Yvoke grants. Every other tool call is refused with a
 message that points to the Yvoke tools. Outside a Yvoke session nothing changes. Task entry:
@@ -71,7 +71,7 @@ Until then each stays denied, so nothing is granted before the task that enforce
 | `plugins/yvoke/src/tool-names.ts` | New. `serverToolPrefix(server)`: a server name as `$.mcp.connect` gives it → `mcp__<normalized>__`, by the engine's rule above. Pure, no `$`. P2-03 adds `qualifyTool` here. |
 | `plugins/yvoke/src/policy.ts` | New. `DENIED(tool)` message, `POLICY_FAILED`, the pure `isAllowed(tool, serverPrefix)`, and `registerPolicy(on)`: the `tool.call` hook (flag check first, as design 4.4; then `isAllowed`; `$.mcp.connect` only for `mcp__` names) with its `.catch`. |
 | `plugins/yvoke/hooks/register.tsx` | One line: `registerPolicy(on)`. |
-| `plugins/yvoke/tests/tool-names.test.ts` | New: the prefix for `plugin:yvoke:yvoke`, `yvoke`, `claude.ai yvoke`, `claude.ai  Yvoke (prod)`. |
+| `plugins/yvoke/tests/tool-names.test.ts` | New: the prefix for `plugin:yvoke:yvoke`, `yvoke`, `claude.ai yvoke`, `claude.ai  Yvoke (prod)`, and that only a connector collapses underscores. |
 | `plugins/yvoke/tests/policy.test.ts` | New: the cases under *Proof*. |
 | `docs/specs/tool-policy.md` | New spec; row in `docs/specs/README.md`; `session.md` points to it. |
 | `docs/tasks/v1/plan.md` | Tick P2-01. Move the "mod's own `Bash` call" exception from P2-01's entry to P2-05's (see step 6). |
