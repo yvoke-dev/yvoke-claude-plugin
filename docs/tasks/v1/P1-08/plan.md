@@ -55,7 +55,8 @@ on, as in yvoke-web's picker.
 - **The choice** lives in `$.state` `yvoke.setup` = `{ area, mode, playbook, version, profile, lockedSessionId }`
   (`playbook` null in multi-agent mode, `profile` null in single agent). This is the key P1-07 already reads
   (PR #17: `{ area, mode, playbook }`); the added fields are ignored by it. Written on every pick and copied to
-  the session's `$.store` entry `session:<id>` next to P1-10's `yvoke: true`, so `/resume` and `/branch`
+  `$.store` under its own key `setup:<id>` (changed while building: sharing P1-10's `session:<id>` entry
+  would let P1-10's `{ yvoke: true }` writes on `/yvoke` and `/branch` wipe it), so `/resume` and `/branch`
   bring it back.
 - **The lock.** A `prompt.submit` hook (enforcing: opens with the Yvoke check, rule 5) calls `next(e)` and,
   when the question entered (no `drop`), sets `lockedSessionId` to the current session id, saves the entry,
@@ -126,6 +127,22 @@ Each step starts with a test, seen failing first.
    toasts once; same version, no toast; a toast is not repeated on a second resume.
 9. Register the line, write the spec, run the checks, then the machine checks below.
 
+## Changed while building
+
+- **One hook per event, unless matched.** Claude Code 2.1.304 refuses a module that registers an event
+  twice without a matcher. `src/session.ts` already hooks `classic.SessionStart` and `command.run`, and
+  P1-07 hooks `prompt.submit`, so this module's `classic.SessionStart` matches `{ source: /^(clear|resume|fork)$/ }`
+  and its `prompt.submit` matches every prompt (`{ text: /^/ }`). Checked by merging P1-07's branch
+  locally: both modules load and P1-08's tests pass beside it; P1-07's own tests then need a stub for
+  `list_playbooks` (told to its thread). Recorded in design 4.4.
+- **Register order.** Hooks on one event run in registration order, the first outermost, and the
+  session's `/yvoke` hook answers without `next`, so `registerSetup` comes first in `hooks/register.tsx`.
+  On `classic.SessionStart` the setup hook calls `next(e)` first, so P1-10 has decided the flag before it
+  reads it.
+- **A `Text` keeps no `key`.** Tests find the read-only line and the notices by their text.
+- **Slash commands that reach the model lock too.** `prompt.submit` fires for a command only when it asks
+  the model, which is a question like any other, as for P1-07.
+
 ## Machine checks (Eduard's machine, before the tick)
 
 The test kit cannot show these; one short session with `claude --plugin-dir plugins/yvoke`, Claude Code
@@ -138,6 +155,10 @@ The test kit cannot show these; one short session with `claude --plugin-dir plug
 4. `/branch`: the new session shows the same locked line.
 
 Findings go in this plan's *Results* section; a check that fails reopens the step it belongs to.
+
+## Results
+
+Not run yet.
 
 ## Risks
 

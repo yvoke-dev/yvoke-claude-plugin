@@ -418,8 +418,8 @@ the same PR.
 | Rewrite a tool's input (WebSearch domains) | `next({ ...e, allowed_domains: [ … ] })` | The tool's arguments sit flat on `e`, beside `tool` (there is no `e.input`). Managed hooks run again on the rewritten call. |
 | Gate a prompt | `on('prompt.submit', h)` → `{ drop: reason }` | The reason is shown to the user. Whether the draft stays is checked in P1-08; `$.prompt.fill` restores it. |
 | Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Cached until `$.ui.invalidate('prompt.compose')`; the text is fixed per session, so one fetch at lock. |
-| Hide playbook skills in Claude Code | `on('skill.prompt', { skill }, h)` → `{ text }` | Input is only `{ skill, text }`: no caller, no metadata. |
-| Session setup band | `ui.render` on `{ component: 'AbovePrompt' }` with `Select`s from `$.ui.resolve(e)` | `mobile` has no `Select`: show the read-only line there. |
+| Hide playbook skills in Claude Code | `on('skill.prompt', h)` → `{ text }` | Input carries `skill`, `text`, `frontmatter`, `source` and `pluginName` (2.1.304); P1-08 matches `pluginName === 'yvoke'`. |
+| Session setup band | `ui.render` on `{ component: 'AbovePrompt' }` with `Select`s from `$.ui.resolve(e)` | Raised on terminal and desktop only. A `Text` keeps no `key`, so tests find it by its text. A write of `$.state` the hook read redraws it. |
 | Mod commands | `$.command.register({ name, description })` in `session.start`, answered by `command.run` | No `:` in names. Register last or in `try`/`catch`. |
 | Compute tools | `$.tool.register(…)` + `tool.call` on `mcp__yvoke__<name>` | Register when `/yvoke` starts the Yvoke session, and again when `/resume` or `/branch` restores one (P1-10), so they are listed on the first question. A registered tool cannot be withdrawn, so after `/clear` it stays listed in the plain session; every call is refused there, as when the sandbox is off or the playbook declares `codeExecution: false` (P2-05). |
 | Subagents | `$.agent.register` (`yvoke:<name>`), `$.agent.spawn`, `agent.spawn` (`{ deny }`, `parentAgentId`), `agent.offer` (`{ isOffered: false }`) | |
@@ -464,6 +464,12 @@ the same PR.
   generated data such as a playbook map can be a `.ts` module. JSX compiles against the global `h`.
 - **No `$.fs`, `$.process` or `$.http`** unless a decision says so (section 2). Reach yvoke-web only through
   `$.mcp.call`, so the connector's sign-in is the only credential.
+- **One hook per event per plugin, unless it has a matcher.** The engine refuses a module that registers
+  the same event twice without a matcher (checked on 2.1.304, P1-08), and every `src/` module shares one
+  plugin. A module that hooks an event another module already hooks unmatched gives its own a matcher,
+  catch-all if need be (`{ source: /^(clear|resume|fork)$/ }`, `{ text: /^/ }`). Hooks on one event run in
+  the order `hooks/register.tsx` registers them, the first outermost; a hook that answers without
+  `next(e)` hides the ones beneath it, which is why `registerSetup` comes before `registerSession`.
 - **Never log tokens or full answers** with `$.ui.log`; the debug log is something users attach to tickets.
 - **`e` is frozen.** Rewrite with `next({ ...e, x })`.
 

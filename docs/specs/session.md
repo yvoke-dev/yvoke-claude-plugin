@@ -18,8 +18,8 @@
 - `/clear` ends a Yvoke session. `/resume` restores what the resumed session was: Yvoke if it was started
   with `/yvoke`, plain otherwise, whatever the session it was resumed from. If the saved entry cannot be
   read, the resumed session is plain. `/branch` keeps a Yvoke session.
-- What a Yvoke session enforces (setup band, system prompt, tool rules) arrives with later tasks; each
-  applies only in a Yvoke session.
+- A Yvoke session shows the setup band ([setup.md](setup.md)). What else it enforces (system prompt, tool
+  rules) arrives with later tasks; each applies only in a Yvoke session.
 
 ## Interfaces
 
