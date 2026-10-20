@@ -292,6 +292,14 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     `get_system_prompt` with no name (or `default-chat`) returns it, as yvoke-web's own single-agent mode
     does. Multi-agent roles get their own system prompts with the profiles (P6-01), not from this tool.
   - Delivered by: P1-01.
+- [x] **D-17** `PO` · `plugin` · `server` — **Where do the reviewer's tools come from?**
+  - Decided 2026-10-07 (Eduard), in the P6-03 plan ([#18](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/18)):
+    from the reviewer playbook's `tools` list, in the plugin and in yvoke-web.
+  - **Reversed 2026-10-20 (Eduard): fixed, as yvoke-web and yvoke-desktop.** Neither app made that change:
+    yvoke-web ignores tools on reviewer and orchestrator playbooks, and yvoke-desktop #24 aligned with it.
+    The reviewer always has exactly `verify_citations` and `submit_review` (the verdict, P6-03); tools on its
+    playbook are ignored. No yvoke-web change.
+  - Delivered by: P6-03.
 - [x] **D-18** `PO` · `plugin` — **Which mode does a new Yvoke session start in?** The area names a default
   playbook and a default multi-agent profile (P1-12). The plan had one mode list (*Single agent* plus each
   profile) defaulting to the area's profile, so a session would start in multi-agent mode whenever the
