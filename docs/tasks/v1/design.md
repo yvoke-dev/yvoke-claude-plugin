@@ -302,6 +302,15 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     default profile. Changing the area resets the other selects to its defaults. (D-17 is in the open
     PR #18, so this is D-18.)
   - Delivered by: P1-08.
+- [x] **D-19** `PO` · `plugin` — **Which compute tools, now that yvoke-desktop has `execute_code`?**
+  yvoke-desktop 1.3.0 replaced `calculate`, `statistics` and `date_diff` with `execute_code`, run in
+  `node:vm` inside its own process. A mod cannot do that: its worker refuses `eval` and `new Function`
+  and has no `WebAssembly` (checked on Claude Code 2.1.304).
+  - **Decided 2026-10-20 (Eduard): wrap Claude Code's `Bash`, nothing else.** The mod registers its own
+    `execute_code` and runs the code through `Bash` (`node -e`, via `$.tool.call`) under Claude Code's
+    sandbox; the model itself still never gets `Bash` (D-09). The three old tools are not ported. P2-05
+    waits for spike P0-12; if the route does not hold, v1 has no compute tool.
+  - Delivered by: P0-12, P2-05.
 
 ## 4. Notes for implementers
 

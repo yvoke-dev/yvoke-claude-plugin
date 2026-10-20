@@ -88,7 +88,8 @@ P1-10 are done. Next, in this order:
    developer's machine before P1-08 is ticked.
 2. **P1-07** finished against the playbook's own system prompt (see its entry), in parallel with P1-08.
 3. **P1-09**, **P3-01** and **P0-03** as their plans stand.
-4. **P2-05** and **P6-03** re-planned first: what they port changed in yvoke-desktop (see below).
+4. **P0-12** (`machine`), then **P2-05**: compute through a wrapped `Bash` (D-19). **P6-03** is re-planned
+   first: what it ports changed in yvoke-desktop (see below).
 
 ### Changes in yvoke-web and yvoke-desktop since 2026-10-06
 
@@ -100,7 +101,7 @@ Both apps moved to 1.3.0. What that changes here:
 | Mode and playbook lock on the first question ([web#12](https://github.com/yvoke-dev/yvoke-web/pull/12), desktop #21) | Already D-11; nothing to change |
 | Playbooks carry a version, shown next to the name everywhere and stamped on messages and trace steps ([web#15](https://github.com/yvoke-dev/yvoke-web/pull/15), [web#17](https://github.com/yvoke-dev/yvoke-web/pull/17), desktop #25, #26) | P1-08 shows *name vN*; P4-02 and P5-05 record the version |
 | The area's default playbook skips the preflight check; a suggestion of the same playbook counts as a fit ([web#18](https://github.com/yvoke-dev/yvoke-web/pull/18), desktop #17) | P2-06 |
-| `calculate`, `statistics` and `date_diff` replaced by one sandboxed `execute_code` (JavaScript in an in-memory VM) in the desktop; the web added and then removed the three as MCP tools ([web#8](https://github.com/yvoke-dev/yvoke-web/pull/8), [web#13](https://github.com/yvoke-dev/yvoke-web/pull/13), desktop #23) | P2-05 is re-planned. A mod cannot run generated code: checked on Claude Code 2.1.304, `new Function` and `eval` throw *Code generation from strings disallowed* and `WebAssembly` is undefined |
+| `calculate`, `statistics` and `date_diff` replaced by one sandboxed `execute_code` (JavaScript in an in-memory VM) in the desktop; the web added and then removed the three as MCP tools ([web#8](https://github.com/yvoke-dev/yvoke-web/pull/8), [web#13](https://github.com/yvoke-dev/yvoke-web/pull/13), desktop #23) | A mod cannot run generated code: checked on Claude Code 2.1.304, `new Function` and `eval` throw *Code generation from strings disallowed* and `WebAssembly` is undefined. D-19: `execute_code` wraps Claude Code's `Bash`; spike P0-12, then P2-05 |
 | The reviewer submits a structured verdict through a `submit_review` tool (`approved`, `feedback`, `unsupported_claims`, `citation_fixes`), has only `verify_citations` besides, sees only the cited evidence, and keeps its own session across rounds. The lead delivers through `submit_answer`, which runs the review in code ([web](https://github.com/yvoke-dev/yvoke-web/blob/main/src/main/java/de/palsoftware/yvoke/chat/orchestration/OrchestrationService.java), desktop #24, #27) | P6-03, P6-04 and P6-05 follow this design. D-17 (reviewer tools from its playbook, recorded in the open P6-03 plan [#18](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/18)) needs a fresh decision |
 | Domain-scoped `WebSearch` in the web's own chat ([web#14](https://github.com/yvoke-dev/yvoke-web/pull/14)) | None: it is not an MCP tool. P2-04 keeps Claude Code's `WebSearch` |
 | Models mapped to the 5.5 family by explicit id (desktop #19) | P6-02: role models are explicit ids such as `claude-sonnet-5-5`; a bare alias like `haiku` resolves to an older model |
@@ -228,6 +229,19 @@ a cloud session.
   - Command hooks keep no state between calls (no mod, no `$.state`). Check that a hook can work out the
     active playbook and whether the reviewer ran from the transcript at `transcript_path`, as P8-02 needs.
   - Done when: findings feed D-10 and Phase 8.
+
+- [ ] **P0-12** `plugin` · S — **Spike: `execute_code` through a wrapped `Bash`** (D-19). A mod-registered
+  `execute_code` whose `tool.call` hook runs the code with `$.tool.call({ tool: 'Bash', command: 'node -e …' })`.
+  Check, on macOS and on Windows, with the Desktop Code tab and the terminal:
+  - whether `node` is there for users of Claude Code's native installer, and what to do when it is not;
+  - Claude Code's sandbox: on by default or only by setting, whether the mod can require it
+    (`$.settings.read`, managed settings) and refuse to run without it, what it blocks (files outside a
+    scratch folder, network), and what happens on native Windows, where it is not supported;
+  - whether the call raises a permission prompt, and whether P2-01's deny lets the mod's own `Bash` call
+    through (`next.origin`) while still denying the model's;
+  - time: a slow call against the hook's 10-second budget, and a runaway script (a timeout for `node`);
+  - output: the 32,000-character cap and how stdout, the final value and errors come back.
+  - Done when: findings say whether P2-05 can ship this route on both systems, and with which settings.
 
 - [ ] **P0-09** `server` · `IT` · S — **Entra client registration for Claude clients** ([design 5.2](design.md#52-sign-in-for-claude-clients-p0-09-decides-d-03)).
   A public-client app registration (or the desktop's, extended) with the redirect URIs Claude Code and
@@ -367,6 +381,8 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   rules, and delegation while a profile is active (P6-04). Everything else is denied
   with: *"The tool … is not available in this application. Use the yvoke knowledge-base tools instead."*
   - Includes `Bash`, file tools, other MCP servers and `Agent`/`Task` outside a profile.
+  - Except the mod's own `Bash` call that serves `execute_code` (D-19): it is told apart by its origin
+    (`next.origin`, P0-12); the model's own `Bash` calls stay denied.
   - Applies only in a Yvoke session. ⛔ P1-10
   - Done when: tests cover each class of tool.
 - [ ] **P2-02** `plugin` · M — **Per-playbook scoping.** A playbook that declares tools gets exactly
@@ -388,17 +404,14 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
     user, as in yvoke-desktop; where IT deploys managed `pluginConfigs`, those values apply. 🔍 Confirm in
     P0-06 that managed `pluginConfigs` override a user's own values; if they do not, record it in [intent 9](intent.md#9-not-planned-and-known-gaps).
   - Done when: yvoke-desktop's web cases from `policy.test.ts` pass here.
-- [ ] **P2-05** `plugin` · M — **Safe compute tools.** Register `calculate`, `statistics` and `date_diff` with
-  `$.tool.register`, ported from yvoke-desktop's `computeTools.ts` with its `computeTools.test.ts`. Withheld when
-  the active playbook declares `codeExecution: false`.
-  - Fix while porting: make the `log` (base 10) vs `ln` difference explicit in the tool description.
-  - **Re-plan before code (2026-10-20).** yvoke-desktop 1.3.0 replaced these three with one sandboxed
-    `execute_code` tool (JavaScript up to 10,000 characters in an in-memory VM, 1 s timeout, 32,000
-    characters of output). A mod cannot do that: on Claude Code 2.1.304 `new Function` and `eval` throw
-    *Code generation from strings disallowed* and `WebAssembly` is undefined, so the only routes are an
-    interpreter written for the mod, or Claude Code's sandboxed `Bash`, which D-09 and P2-01 deny. The
-    product owner decides between keeping the three tools and another route; the old tests are still in
-    yvoke-desktop's history (`git show a534efd^:tests/computeTools.test.ts`).
+- [ ] **P2-05** `plugin` · M — **Compute tool `execute_code`** (re-planned 2026-10-20, D-19). The mod
+  registers `execute_code` with yvoke-desktop's name, description and limits (JavaScript up to 10,000
+  characters, 32,000 characters of output) and serves it by running the code through Claude Code's
+  `Bash` under its sandbox, as spike P0-12 settles. The model never gets `Bash` itself (D-09, P2-01).
+  Withheld when the active playbook declares `codeExecution: false`. Port the relevant cases of
+  yvoke-desktop's `computeTools.test.ts`. If P0-12 shows the route cannot be made safe, v1 has no compute
+  tool and this task is struck through. The earlier plan for `calculate`, `statistics` and `date_diff`
+  ([#19](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/19)) is not used. ⛔ P0-12
 - [ ] **P2-06** `plugin` · M — **Playbook preflight check.** On the first question of a single-agent
   session, before the setup locks (P1-08), when the area offers at least two playbooks, ask the model
   (`$.model.complete`, no tools, 45 s timeout) whether the playbook fits; if not, show a band with

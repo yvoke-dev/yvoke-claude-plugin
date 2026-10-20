@@ -50,9 +50,9 @@ same pull request.
   active. Everything else is denied with a message pointing to the Yvoke tools. (P2-01, P2-02, P2-03)
 - Web tools only when enabled in configuration **and** declared by the playbook; `WebSearch` limited to the
   configured hosts, `WebFetch` checked against the allow-list, WAF-challenged hosts refused. (P2-04)
-- Compute tools, withheld when the playbook declares `codeExecution: false`. Which tools is being re-decided:
-  yvoke-desktop replaced `calculate`, `statistics` and `date_diff` with a sandboxed `execute_code`, which a
-  mod cannot run. (P2-05)
+- A compute tool `execute_code`, as in yvoke-desktop, run through Claude Code's sandboxed `Bash` behind the
+  mod's own tool, so the model never gets `Bash` (D-19). Withheld when the playbook declares
+  `codeExecution: false`. (P0-12, P2-05)
 - The server's `ask_clarifying_question` is denied in favour of the native `AskUserQuestion`. (P1-09)
 - Turn ceilings per question (single agent 25, lead 60, specialist and reviewer 20, configurable). At the
   ceiling the answer is still delivered and marked *stopped at the turn limit*. (P2-08)
