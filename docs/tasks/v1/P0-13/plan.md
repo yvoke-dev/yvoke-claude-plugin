@@ -21,8 +21,8 @@ script runs.
 - Its plugin-authoring reference says why: the engine lays the declarations only for a folder the session
   **hot-reloads**. "A folder the session loads from and does not hot-reload (a `--plugin-dir` under
   `claude -p` or an SDK host, an installed plugin's) is never written in." The change came in **2.1.295**:
-  2.1.287 to 2.1.294 still write them under `-p`, every release from 2.1.295 to 2.1.304 does not (table
-  below). CI's `latest` row first met it on 2.1.304.
+  of the releases tested, 2.1.287, 2.1.293 and 2.1.294 still write them under `-p`, and every release
+  from 2.1.295 to 2.1.304 does not (table below). CI's `latest` row first met it on 2.1.304.
 - The same reference names the switch that makes a headless session watch its plugin folders:
   `CLAUDE_CODE_PLUGIN_DIR_WATCH=1` ("a long-lived headless session (SDK, desktop) watches too when
   `CLAUDE_CODE_PLUGIN_DIR_WATCH=1` is set"). It is the same variable P0-03 documents for the Desktop
