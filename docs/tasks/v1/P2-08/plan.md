@@ -57,19 +57,15 @@ session nothing changes.
 | --- | --- | --- |
 | `turnLimitSingle` | 25 | the main loop in a single-agent session |
 | `turnLimitLead` | 60 | the main loop in a multi-agent session (`yvoke.setup.mode` set and not `single`) |
-| `turnLimitAgent` | 20 | every subagent: each specialist and the reviewer (*if the decision below says 20*) |
+| `turnLimitAgent` | 20 | every subagent: each specialist and the reviewer |
 
 `0` turns a ceiling off, as in yvoke-desktop. Any other value below 2 counts as 2, because the mechanism
 needs one request to warn and one to answer.
 
-## Open decision (one card in the thread)
+## Decision
 
-**Reviewer ceiling.** Recommended: **20, one setting for all subagents** (as the plan entry says). It needs
-no way to tell the reviewer from a specialist, and a reviewer stopped at its ceiling cannot call
-`submit_review`, which counts as a rejection (P6-03), so a low ceiling causes extra revision rounds. The
-alternative is the desktop's 6 with a separate `turnLimitReviewer` setting, matched on the reviewer's agent
-name, which P6-02 would then have to use. The answer is recorded in `design.md` as D-24, and the plan
-entry's "(yvoke-desktop's shipped values)" is corrected either way.
+**Reviewer ceiling: 20, one setting for all subagents** (D-24, Eduard 2026-10-20). The plan entry's
+"(yvoke-desktop's shipped values)" is corrected in this PR: the desktop hard-codes its reviewer at 6.
 
 ## Design
 
@@ -117,7 +113,7 @@ entry's "(yvoke-desktop's shipped values)" is corrected either way.
 | `plugins/yvoke/tests/turn-limits.test.ts` | new: the hooks through the engine |
 | `docs/specs/turn-limits.md`, `docs/specs/README.md` | new spec, listed |
 | `README.md` | the three settings next to `serverUrl` and `devMode` |
-| `docs/tasks/v1/plan.md`, `design.md`, `requirements.md` | tick P2-08; D-24; correct "desktop's shipped values" |
+| `docs/tasks/v1/plan.md`, `design.md`, `requirements.md` | tick P2-08 (D-24 and the corrected entry are in the plan commit) |
 
 ## Order of work
 

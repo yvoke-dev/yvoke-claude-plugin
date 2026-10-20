@@ -324,6 +324,14 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     is refused while that sandbox is off, and the route ships only if P0-12 shows the sandbox blocks all
     four escapes (environment secrets, files, child processes, network); otherwise P2-05 is dropped.
   - Delivered by: P0-12, P2-05.
+- [x] **D-24** `PO` · `plugin` — **Which turn ceiling does the reviewer get?** The plan said 20 as
+  yvoke-desktop's value, but the desktop hard-codes its reviewer at 6 (`AgentService.ts`); its other
+  shipped ceilings are single agent 25, lead 60, specialist 20. A reviewer stopped at its ceiling cannot
+  call `submit_review`, and no verdict counts as a rejection (P6-03).
+  - **Decided 2026-10-20 (Eduard): 20, one setting (`turnLimitAgent`) for every subagent**, specialists
+    and reviewer alike. The mod need not tell the reviewer from a specialist, and a reviewer that runs out
+    of requests does not cause extra revision rounds as easily as at 6.
+  - Delivered by: P2-08.
 
 ## 4. Notes for implementers
 

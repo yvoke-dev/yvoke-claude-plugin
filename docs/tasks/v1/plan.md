@@ -481,8 +481,8 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
 
 - [ ] **P2-08** `plugin` · M — **Turn ceilings per question** (decided 2026-10-05). The mod counts the model
   requests of each question per loop (`turn.step`, keyed by `turnId` and `agentId`) and enforces
-  configurable ceilings from `userConfig`: single agent 25, lead 60, each specialist and the reviewer 20
-  (yvoke-desktop's shipped values). At the ceiling it **delivers rather than discards**: further tool calls
+  configurable ceilings from `userConfig`: single agent 25, lead 60, each specialist and the reviewer 20, one
+  setting for all subagents (D-24; yvoke-desktop ships 25, 60 and 20, but hard-codes its reviewer at 6). At the ceiling it **delivers rather than discards**: further tool calls
   in that loop are denied with a message telling the model to answer now with what it has, and the answer
   is flagged (*stopped at the turn limit*) by a line under it. A specialist at its ceiling returns its
   partial answer to the lead. Fails closed ([requirements 1](requirements.md#1-principles-carried-over-from-yvoke-desktop)). Port the ceiling cases from yvoke-desktop's tests where
