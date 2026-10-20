@@ -323,8 +323,8 @@ a cloud session.
     (yvoke-web's `findChatPrompt` looks a name up globally, not within the area); else the area's
     `defaultSystemPrompt`; else the active default (D-16). The choice is made from that data **before**
     any call, so the mod then makes one `get_system_prompt` call (by name, or with no name for the active
-    default). A playbook prompt that no area lists falls back to the next one, as on the web and the
-    desktop (both log a warning and fall back). That one call failing, an
+    default). A playbook prompt that no area lists falls back to the area's default, then the active
+    default (the web and the desktop also log a warning and fall back, but straight to the active default). That one call failing, an
     `ERROR:` body included (P1-03 cannot tell a missing prompt from a broken server), drops the question:
     no fallback after a failed call.
   - Done when: tests cover success, server down, unknown playbook, a hook failure (fails closed), a
@@ -439,7 +439,11 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   - **Sandbox required.** A registered tool cannot be withdrawn (P2-05's earlier plan, #19), so the check
     is made on every call: with Claude Code's sandbox off, or unsupported as on native Windows, the call
     is refused with a message saying why, and nothing runs.
-  - Withheld when the active playbook declares `codeExecution: false`. Port only the result and limit
+  - **Playbook opt-out, also per call.** The tool is registered at session start, before the playbook is
+    known, so it cannot be withheld later either: while the active playbook declares
+    `codeExecution: false`, every call is refused with a message saying so, and nothing runs. (A specialist
+    agent type in P6-02 simply leaves the tool out of its list.)
+  - Port only the result and limit
     cases of yvoke-desktop's `computeTools.test.ts`; the escape cases come from P0-12's findings. If P0-12 shows the route cannot be made safe, v1 has no compute
   tool and this task is struck through. The earlier plan for `calculate`, `statistics` and `date_diff`
   ([#19](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/19)) is not used. ⛔ P0-12

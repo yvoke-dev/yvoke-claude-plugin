@@ -53,8 +53,8 @@ same pull request.
 - Web tools only when enabled in configuration **and** declared by the playbook; `WebSearch` limited to the
   configured hosts, `WebFetch` checked against the allow-list, WAF-challenged hosts refused. (P2-04)
 - A compute tool `execute_code`, refused on every call while Claude Code's sandbox is off, run through `Bash` behind the
-  mod's own tool, so the model never gets `Bash` (D-19). Withheld when the playbook declares
-  `codeExecution: false`. (P0-12, P2-05)
+  mod's own tool, so the model never gets `Bash` (D-19). Also refused on every call while the playbook
+  declares `codeExecution: false`. (P0-12, P2-05)
 - The server's `ask_clarifying_question` is denied in favour of the native `AskUserQuestion`. (P1-09)
 - Turn ceilings per question (single agent 25, lead 60, specialist and reviewer 20, configurable). At the
   ceiling the answer is still delivered and marked *stopped at the turn limit*. (P2-08)
