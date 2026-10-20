@@ -113,8 +113,8 @@ a cloud session.
     yvoke-desktop's `AgentRuleFilesParity` test).
   - Done when: a deliberately broken test turns the workflow red, and restoring it turns it green.
 - [x] **P0-13** `plugin` · S — **Type declarations on Claude Code 2.1.304** (bug fix, found 2026-10-20). ([#21](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/21))
-  `npm run typecheck` times out on 2.1.304, which writes `.claude-plugin/types/` only for a plugin folder
-  the session watches; `scripts/lay-types.mjs` turns watching on in its print-mode run
+  `npm run typecheck` times out on 2.1.295 and later (first seen on 2.1.304), which write
+  `.claude-plugin/types/` only for a plugin folder the session watches; `scripts/lay-types.mjs` turns watching on in its print-mode run
   ([P0-13 plan](P0-13/plan.md)).
   - Done when: `npm run typecheck` passes on 2.1.287 and on 2.1.304, and both CI rows are green.
 - [ ] **P0-03** `plugin` · S — **Contributor guide** (`docs/contributing.md`):

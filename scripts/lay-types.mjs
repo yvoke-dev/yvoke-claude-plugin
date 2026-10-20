@@ -1,6 +1,6 @@
 // Lays the mod API's type declarations into plugins/yvoke/.claude-plugin/types/, so `npx tsc --noEmit`
 // has something to check against. Claude Code writes them only when it loads the mod from a folder;
-// `claude plugin validate` and `claude plugin test` do not. Since 2.1.304 it writes them only for a folder
+// `claude plugin validate` and `claude plugin test` do not. From 2.1.295 on it writes them only for a folder
 // the session watches, and print mode watches only with CLAUDE_CODE_PLUGIN_DIR_WATCH=1. So this starts a
 // print-mode session with the plugin and watching on, points the model at an address nothing answers on
 // (no sign-in, no model call, no cost), waits for the declarations to appear, and stops the session.

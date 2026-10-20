@@ -20,18 +20,23 @@ script runs.
   `hooks module yvoke@inline loaded`), but Claude Code no longer writes `.claude-plugin/types/`.
 - Its plugin-authoring reference says why: the engine lays the declarations only for a folder the session
   **hot-reloads**. "A folder the session loads from and does not hot-reload (a `--plugin-dir` under
-  `claude -p` or an SDK host, an installed plugin's) is never written in." 2.1.287 still writes them under
-  `-p` (table below).
+  `claude -p` or an SDK host, an installed plugin's) is never written in." The change came in **2.1.295**:
+  2.1.287 to 2.1.294 still write them under `-p`, every release from 2.1.295 to 2.1.304 does not (table
+  below). CI's `latest` row first met it on 2.1.304.
 - The same reference names the switch that makes a headless session watch its plugin folders:
   `CLAUDE_CODE_PLUGIN_DIR_WATCH=1` ("a long-lived headless session (SDK, desktop) watches too when
   `CLAUDE_CODE_PLUGIN_DIR_WATCH=1` is set"). It is the same variable P0-03 documents for the Desktop
   Code tab.
 
-Tried by hand, same script environment plus that one variable:
+Tried by hand, same script environment plus that one variable, each release installed from npm
+(2.1.297 and 2.1.298 were never published):
 
 | Claude Code | Without the variable | With `CLAUDE_CODE_PLUGIN_DIR_WATCH=1` |
 | --- | --- | --- |
 | 2.1.287 | declarations written | declarations written |
+| 2.1.293, 2.1.294 | declarations written | declarations written |
+| 2.1.295, 2.1.296, 2.1.299 to 2.1.302 | nothing within 40 s | declarations written |
+| 2.1.303 | nothing within 40 s | declarations written |
 | 2.1.304 | nothing within 60 s | declarations written, `tsc --noEmit` clean |
 
 ## Files that change
@@ -74,5 +79,6 @@ No change to `.github/workflows/ci.yml`: the variable lives in the script, so a 
 - `npm run typecheck` on Claude Code 2.1.304: before the fix
   `lay-types: the declarations did not appear within 60 s`, exit 1; after it `lay-types: OK (…)` and
   nothing from `tsc`, exit 0.
-- The same on 2.1.287 after the fix.
+- The same on 2.1.287 after the fix, and the declarations written on every release from 2.1.293 to
+  2.1.304 (table above).
 - `npm run check` (all five rows of the AGENTS.md table), and both CI matrix rows green on the PR.
