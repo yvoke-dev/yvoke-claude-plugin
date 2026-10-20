@@ -1,6 +1,6 @@
 # P0-13 Type declarations on Claude Code 2.1.304
 
-**Release:** v1 · **Size:** S · **Type:** bug fix · **Status:** in progress
+**Release:** v1 · **Size:** S · **Type:** bug fix · **Status:** done
 
 **Regression test:** none, by exception: `scripts/` has no test kit. The failing CI run is the proof:
 [plugin (Claude Code latest) on the plan commit](https://github.com/yvoke-dev/yvoke-claude-plugin/actions/runs/39470560537/job/118793203056).
