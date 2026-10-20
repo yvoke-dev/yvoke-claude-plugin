@@ -110,6 +110,11 @@ a cloud session.
   - `node scripts/check-docs.mjs` (links, anchors, and `CLAUDE.md` being exactly `@AGENTS.md`, in place of
     yvoke-desktop's `AgentRuleFilesParity` test).
   - Done when: a deliberately broken test turns the workflow red, and restoring it turns it green.
+- [ ] **P0-12** `plugin` · S — **Type declarations on Claude Code 2.1.304** (bug fix, found 2026-10-20).
+  `npm run typecheck` times out on 2.1.304, which writes `.claude-plugin/types/` only for a plugin folder
+  the session watches; `scripts/lay-types.mjs` turns watching on in its print-mode run
+  ([P0-12 plan](P0-12/plan.md)).
+  - Done when: `npm run typecheck` passes on 2.1.287 and on 2.1.304, and both CI rows are green.
 - [ ] **P0-03** `plugin` · S — **Contributor guide** (`docs/contributing.md`):
   - terminal: `claude --plugin-dir plugins/yvoke`;
   - Desktop Code tab: `CLAUDE_CODE_PLUGIN_DIRS` and `CLAUDE_CODE_PLUGIN_DIR_WATCH=1` in the `env` block
