@@ -64,6 +64,8 @@ unless it says otherwise. `cloud` runs in a Claude cloud session (Claude Code 2.
    a playbook's searches to its own area's collections, can follow P1-12 any time; M1 does not need it.
 4. Spikes **P0-04** to **P0-07** (`machine`), in one session on Eduard's computer, in that order. P0-04
    waits for P0-09. **P0-08** needs a claude.ai organization where a test plugin can be installed.
+5. **P0-13** type declarations on Claude Code 2.1.304 (`cloud`, bug fix, 2026-10-20): unblocks CI's
+   `latest` row for every open pull request, so it goes first.
 
 **Wave 2: after P0-01.** Tests run against a stubbed server (`on('mcp.call', …)`), so none of these waits
 for yvoke-web.
@@ -110,10 +112,10 @@ a cloud session.
   - `node scripts/check-docs.mjs` (links, anchors, and `CLAUDE.md` being exactly `@AGENTS.md`, in place of
     yvoke-desktop's `AgentRuleFilesParity` test).
   - Done when: a deliberately broken test turns the workflow red, and restoring it turns it green.
-- [ ] **P0-12** `plugin` · S — **Type declarations on Claude Code 2.1.304** (bug fix, found 2026-10-20).
+- [ ] **P0-13** `plugin` · S — **Type declarations on Claude Code 2.1.304** (bug fix, found 2026-10-20).
   `npm run typecheck` times out on 2.1.304, which writes `.claude-plugin/types/` only for a plugin folder
   the session watches; `scripts/lay-types.mjs` turns watching on in its print-mode run
-  ([P0-12 plan](P0-12/plan.md)).
+  ([P0-13 plan](P0-13/plan.md)).
   - Done when: `npm run typecheck` passes on 2.1.287 and on 2.1.304, and both CI rows are green.
 - [ ] **P0-03** `plugin` · S — **Contributor guide** (`docs/contributing.md`):
   - terminal: `claude --plugin-dir plugins/yvoke`;
