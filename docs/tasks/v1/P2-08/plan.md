@@ -68,7 +68,7 @@ needs one request to warn and one to answer.
 no way to tell the reviewer from a specialist, and a reviewer stopped at its ceiling cannot call
 `submit_review`, which counts as a rejection (P6-03), so a low ceiling causes extra revision rounds. The
 alternative is the desktop's 6 with a separate `turnLimitReviewer` setting, matched on the reviewer's agent
-name, which P6-02 would then have to use. The answer is recorded in `design.md` as D-20, and the plan
+name, which P6-02 would then have to use. The answer is recorded in `design.md` as D-24, and the plan
 entry's "(yvoke-desktop's shipped values)" is corrected either way.
 
 ## Design
@@ -117,7 +117,7 @@ entry's "(yvoke-desktop's shipped values)" is corrected either way.
 | `plugins/yvoke/tests/turn-limits.test.ts` | new: the hooks through the engine |
 | `docs/specs/turn-limits.md`, `docs/specs/README.md` | new spec, listed |
 | `README.md` | the three settings next to `serverUrl` and `devMode` |
-| `docs/tasks/v1/plan.md`, `design.md`, `requirements.md` | tick P2-08; D-20; correct "desktop's shipped values" |
+| `docs/tasks/v1/plan.md`, `design.md`, `requirements.md` | tick P2-08; D-24; correct "desktop's shipped values" |
 
 ## Order of work
 
@@ -138,7 +138,7 @@ Each step: write the test, run it and see it fail, then the code, then `npm run 
    with `$.state.set` throwing → tool chunks dropped; `turn.complete` throwing → answer unchanged. Plus a
    `tool.call` that overruns its budget, if the test kit can stage it (P1-07 found it cannot; then say so
    in the PR as for P1-07).
-8. Spec, README, plan tick, D-20; `finish-task`.
+8. Spec, README, plan tick, D-24; `finish-task`.
 
 ## Risks
 
