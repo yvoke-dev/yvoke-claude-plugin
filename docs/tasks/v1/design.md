@@ -325,6 +325,14 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     four escapes (environment secrets, files, child processes, network); otherwise P2-05 is dropped.
   - Delivered by: P0-12, P2-05.
 
+- [x] **D-20** `PO` · `plugin` — **What does a resumed session do when its playbook has a newer version?**
+  The setup records the version it locked with, but yvoke-web keeps no old playbook text, so a session
+  resumed after the playbook was saved again can only fetch the new text.
+  - **Decided 2026-10-20 (Eduard): carry on with the new version.** On `/resume` the setup line and the
+    status line move to the new version, and the user is told once. Within one session nothing changes:
+    the text is fetched once, at the lock.
+  - Delivered by: P1-08.
+
 ## 4. Notes for implementers
 
 Read this before you pick up a task, whether you are a person or an agent. It holds what you would otherwise
