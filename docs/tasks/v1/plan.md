@@ -296,15 +296,18 @@ a cloud session.
     `McpPrompts.callGetSection` does);
   - prefixes server failures with `Yvoke Backend:`.
   - Done when: tests cover not connected, timeout, error flag, `ERROR:` body and success.
-- [ ] **P1-04** `plugin` · M — **Skill generator** (`scripts/generate-skills.ts`), **for Chat and Cowork
-  only** (D-11). Reads the server's playbook catalogue (`prompts/list` with `_meta`) and writes one
-  `skills/<name>/SKILL.md` per playbook. In Claude Code the mod hides them (P1-08).
+- [x] **P1-04** `plugin` · M — **Skill generator** (`scripts/generate-skills.mjs`), **for Chat and Cowork
+  only** (D-11) ([#24](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/24)). Reads the server's playbook catalogue (the `list_playbooks` and `list_areas` tools, as the
+  mod does; changed from `prompts/list` with `_meta` on 2026-10-20) and writes one
+  `skills/<name>/SKILL.md` per playbook. In Claude Code the mod hides them (P1-08). Plan in
+  [P1-04/plan.md](P1-04/plan.md).
   - Leaves out playbooks whose `targetAgent` is `orchestrator` or `reviewer`, and keeps `prototype` playbooks
     out of the default set.
   - The mod does not read these skills: in Claude Code it gets each playbook's `tools` and `codeExecution`
     from `list_playbooks` (D-11).
   - Port the relevant cases from yvoke-desktop's `promptMapping.test.ts` and `playbooks.test.ts`, including
-    the `_meta` vs `meta` regression.
+    the `_meta` vs `meta` regression (here: each field read from where `list_playbooks` puts it, against a
+    live fixture).
   - Done when: running it against the server produces a stable, reviewable diff.
 - [ ] **P1-05** `plugin` · S — **Catalogue sync job.** A scheduled GitHub Action runs P1-04 and opens a PR
   when playbooks change on the server.

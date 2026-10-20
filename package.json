@@ -7,8 +7,10 @@
     "types": "node scripts/lay-types.mjs",
     "typecheck": "npm run types && tsc --noEmit",
     "test": "claude plugin test plugins/yvoke",
+    "test:scripts": "node --test 'scripts/*.test.mjs'",
+    "skills": "node scripts/generate-skills.mjs",
     "validate": "claude plugin validate --strict . && claude plugin validate --strict plugins/yvoke",
-    "check": "node scripts/check-docs.mjs && npm run validate && npm run typecheck && npm test"
+    "check": "node scripts/check-docs.mjs && npm run validate && npm run typecheck && npm test && npm run test:scripts"
   },
   "devDependencies": {
     "typescript": "7.0.2"

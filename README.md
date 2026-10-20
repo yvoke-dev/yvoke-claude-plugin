@@ -53,6 +53,19 @@ Use the steps above when you need it connected to a server.
 
 **Remove it:** `claude plugin uninstall yvoke@yvoke`, then `claude plugin marketplace remove yvoke`.
 
+## Regenerate the Chat and Cowork playbook skills
+
+`plugins/yvoke/skills/` holds one stub per playbook, generated from the server and never edited by hand
+([spec](docs/specs/skills.md)). With yvoke-web running in mock mode as in step 1 above:
+
+```sh
+npm run skills -- --dev-mode
+```
+
+It prints what it added, changed or removed. Against another server, pass `--url https://<server>/mcp`
+and put a bearer token in `YVOKE_TOKEN`. Review the diff before you commit it: the descriptions go into
+this public repository (D-22).
+
 ## Documents
 
 | Document | What it covers |

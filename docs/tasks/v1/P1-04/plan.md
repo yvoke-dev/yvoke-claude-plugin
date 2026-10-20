@@ -1,6 +1,6 @@
 # P1-04 Skill generator for Chat and Cowork
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** done
 
 **Done when** (from [plan.md](../plan.md)): running it against the server produces a stable, reviewable diff.
 
@@ -145,6 +145,12 @@ Each step starts with its tests, run red first.
 
 - `scripts/skills.test.mjs` steps 1 to 6 above.
 - The Done when: step 7's second run printed no changes, and the generated stubs are in this pull request.
+  How step 7 was done (2026-10-20): the cloud session has no token for the server's HTTP endpoint, so it
+  read `list_playbooks` and `list_areas` through the `yvoke` connector, saved the answers to a file, and
+  ran the generator with `--from`. The HTTP route itself is covered by step 6's tests against a stub
+  server. A developer run against a real server (`npm run skills -- --dev-mode`, or `--url` with
+  `YVOKE_TOKEN`) that prints `no changes` closes the gap; until then a copying slip in the saved file
+  would show up there as a changed stub.
 - `npm run check`, which runs every row of the AGENTS.md table, including the new one.
 
 ## Decisions
