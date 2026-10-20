@@ -16,11 +16,18 @@ export const POLICY_FAILED = 'Yvoke: the policy check failed, so this tool was n
 const ALWAYS = ['ToolSearch', 'AskUserQuestion']
 
 /**
+ * The mod's own tools, named `mcp__yvoke__<name>`: the same prefix a server configured under the bare
+ * name `yvoke` gives its tools, so they are refused by name before the server's prefix is matched. The
+ * task that adds a mod tool lists it here and opens it with its own rules (`execute_code`: P2-05).
+ */
+const MOD_TOOLS = ['mcp__yvoke__execute_code']
+
+/**
  * Whether a Yvoke session may run `tool`. `serverPrefix` is the Yvoke server's tool prefix, or null when
  * the server is not connected, so no tool counts as its.
  */
 export const isAllowed = (tool: string, serverPrefix: string | null): boolean =>
-  ALWAYS.includes(tool) || (serverPrefix !== null && tool.startsWith(serverPrefix))
+  ALWAYS.includes(tool) || (!MOD_TOOLS.includes(tool) && serverPrefix !== null && tool.startsWith(serverPrefix))
 
 export function registerPolicy(on: On) {
   on('tool.call', async ($, e, next) => {
@@ -33,5 +40,7 @@ export function registerPolicy(on: On) {
       if (connected.isConnected) serverPrefix = serverToolPrefix(connected.server)
     }
     return isAllowed(e.tool, serverPrefix) ? next(e) : { deny: denied(e.tool) }
-  }).catch(() => ({ deny: POLICY_FAILED }))
+    // Once the gate has let the call through, a failure beneath is the tool's, not the check's: hand on
+    // what `next` settled to rather than claim the tool did not run.
+  }).catch((_$, e, next) => (next.called ? next(e) : { deny: POLICY_FAILED }))
 }

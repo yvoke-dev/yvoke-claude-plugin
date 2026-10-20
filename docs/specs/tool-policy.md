@@ -19,8 +19,10 @@
 - The same rule applies inside subagents.
 - When the Yvoke server is not connected, no tool counts as its, so its tools are refused too.
 - Built-in tools are decided without asking for the server's connection.
+- The mod's own tools (`mcp__yvoke__execute_code`) are refused by name, also when the Yvoke server is
+  configured under the bare name `yvoke` and its tools share that prefix.
 - If the check itself fails, the call is refused with *Yvoke: the policy check failed, so this tool was
-  not run.*
+  not run.* A failure after the check let the call through is the tool's own and is passed on as such.
 - Not yet: the playbook's own tool list (P2-02), web tools under the web rules (P2-04), `execute_code`
   and the mod's own `Bash` call behind it (P2-05), delegation while a profile is active (P6-04).
 
@@ -40,8 +42,8 @@ tools granted.
 ## Tests
 
 - `plugins/yvoke/tests/policy.test.ts`: outside a Yvoke session; each allowed and denied class; the server
-  under a connector name; a look-alike server name; subagents; the server not connected; built-ins not
-  waiting on the server; a failing check.
+  under a connector name and under the bare name; a look-alike server name; subagents; the server not connected; built-ins not
+  waiting on the server; a failing check; a tool failing after the check.
 - `plugins/yvoke/tests/tool-names.test.ts`: the naming rule.
 
 ## History

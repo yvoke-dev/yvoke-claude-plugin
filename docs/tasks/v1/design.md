@@ -434,7 +434,8 @@ the same PR.
   as if it were not there. Every enforcing hook therefore gets a `.catch` with the safe answer (1 s grace):
 
   ```ts
-  on('tool.call', enforcePolicy).catch(() => ({ deny: 'Yvoke: the policy check failed, so this tool was not run.' }))
+  // Once the hook has called next, the tool may have run: pass on what it settled to (P2-01).
+  on('tool.call', enforcePolicy).catch(($, e, next) => (next.called ? next(e) : { deny: 'Yvoke: the policy check failed, so this tool was not run.' }))
   on('prompt.submit', lockSetup).catch(() => ({ drop: 'Yvoke Backend: the session could not be set up, so the question was not sent.' }))
   ```
 

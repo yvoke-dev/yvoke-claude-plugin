@@ -84,6 +84,16 @@ describe('in a Yvoke session: allowed', () => {
     expect(w.reached).toEqual(['mcp__claude_ai_yvoke__get_section'])
   })
 
+  test("the server under its bare name: its tools are allowed, the mod's own tool names are not", async ($, on) => {
+    const w = engine(on, () => ({ isConnected: true, server: 'yvoke' }))
+    await yvokeSession($)
+
+    // A server configured as `yvoke` shares the `mcp__yvoke__` prefix with the mod's own tools.
+    expect(await call($, 'mcp__yvoke__search_corpus')).toEqual({ result: 'ran mcp__yvoke__search_corpus' })
+    expect(await call($, 'mcp__yvoke__execute_code')).toEqual({ deny: denied('mcp__yvoke__execute_code') })
+    expect(w.reached).toEqual(['mcp__yvoke__search_corpus'])
+  })
+
   test('a Yvoke tool inside a subagent', async ($, on) => {
     const w = engine(on)
     await yvokeSession($)
@@ -145,6 +155,18 @@ describe('in a Yvoke session: denied', () => {
 })
 
 describe('fails closed', () => {
+  test('a failure after the gate let the call through is not reported as a refusal', async ($, on) => {
+    // Registered before the engine's own tool hook, so it is the one that answers this tool.
+    on('tool.call', { tool: 'mcp__plugin_yvoke_yvoke__search_corpus' }, () => {
+      throw new Error('tool fault')
+    })
+    engine(on)
+    await yvokeSession($)
+
+    const answer = await call($, 'mcp__plugin_yvoke_yvoke__search_corpus').catch((error: unknown) => ({ rejected: String(error) }))
+    expect(answer).not.toEqual({ deny: POLICY_FAILED })
+  })
+
   test('a connect that throws refuses the call', async ($, on) => {
     const w = engine(on, () => {
       throw new Error('engine fault')

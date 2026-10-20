@@ -58,7 +58,14 @@ Until then each stays denied, so nothing is granted before the task that enforce
 - **Not connected.** If `$.mcp.connect('yvoke')` reports the server not connected, no tool counts as the
   Yvoke server's and every MCP tool is denied (the model could not reach the server anyway). The
   connect is made only for `mcp__` tools, so built-ins never wait on it.
-- **Fails closed** (design 4.4): `.catch(() => ({ deny: 'Yvoke: the policy check failed, so this tool was not run.' }))`.
+- **Fails closed** (design 4.4): `.catch(($, e, next) => next.called ? next(e) : { deny: POLICY_FAILED })`,
+  with `POLICY_FAILED` = *Yvoke: the policy check failed, so this tool was not run.* A failure before the
+  gate has decided is refused; once it has called `next`, the tool's own failure is passed on as it
+  settled, not reported as a refusal (the form the engine's declarations recommend for `tool.call`;
+  changed after review).
+- **The mod's own tools** (`mcp__yvoke__<name>`, D-05) share their prefix with a server configured under
+  the bare name `yvoke`. They are listed by name (`execute_code`) and refused before the server's prefix
+  is matched (found in review).
 - **Every loop.** The rule applies to the main loop and to any subagent alike (`agentId` is not read).
   P6-04 adds what differs for the lead and the specialists.
 - The server's `ask_clarifying_question` is a server tool, so this gate allows it; P1-09's own hook
@@ -69,7 +76,7 @@ Until then each stays denied, so nothing is granted before the task that enforce
 | File | Change |
 | --- | --- |
 | `plugins/yvoke/src/tool-names.ts` | New. `serverToolPrefix(server)`: a server name as `$.mcp.connect` gives it → `mcp__<normalized>__`, by the engine's rule above. Pure, no `$`. P2-03 adds `qualifyTool` here. |
-| `plugins/yvoke/src/policy.ts` | New. `DENIED(tool)` message, `POLICY_FAILED`, the pure `isAllowed(tool, serverPrefix)`, and `registerPolicy(on)`: the `tool.call` hook (flag check first, as design 4.4; then `isAllowed`; `$.mcp.connect` only for `mcp__` names) with its `.catch`. |
+| `plugins/yvoke/src/policy.ts` | New. `denied(tool)` message, `POLICY_FAILED`, the pure `isAllowed(tool, serverPrefix)`, and `registerPolicy(on)`: the `tool.call` hook (flag check first, as design 4.4; then `isAllowed`; `$.mcp.connect` only for `mcp__` names) with its `.catch`. |
 | `plugins/yvoke/hooks/register.tsx` | One line: `registerPolicy(on)`. |
 | `plugins/yvoke/tests/tool-names.test.ts` | New: the prefix for `plugin:yvoke:yvoke`, `yvoke`, `claude.ai yvoke`, `claude.ai  Yvoke (prod)`, and that only a connector collapses underscores. |
 | `plugins/yvoke/tests/policy.test.ts` | New: the cases under *Proof*. |
@@ -84,12 +91,15 @@ Each step: write the test, run `claude plugin test plugins/yvoke` and see it fai
 1. `serverToolPrefix`: the four names above.
 2. Outside a Yvoke session `Bash` and an unknown MCP tool reach the engine unchanged (already true; the
    test pins it against the new hook).
-3. In a Yvoke session `Bash` is denied with `DENIED('Bash')`, and the engine never sees the call.
+3. In a Yvoke session `Bash` is denied with `denied('Bash')`, and the engine never sees the call.
 4. One test per class in *Rule*: allowed (the engine sees the call) or denied (with the message).
-   Server tools under both `plugin:yvoke:yvoke` and `claude.ai yvoke`; a server not connected; a tool of a
+   Server tools under `plugin:yvoke:yvoke`, `claude.ai yvoke` and the bare `yvoke` (where
+   `mcp__yvoke__execute_code` stays denied); a server not connected; a tool of a
    server whose name only starts like Yvoke's (`mcp__plugin_yvoke_yvoke2__x`); a call inside a subagent.
-5. Fail closed: `$.mcp.connect` throws → `POLICY_FAILED`. (A hook overrunning its 10 s budget cannot be
-   staged in the test kit, P1-07 finding; the `.catch` covers both paths alike.)
+5. Fail closed: `$.mcp.connect` throws → `POLICY_FAILED`. (The test kit cannot stage a hook that overruns its
+   10 s budget; the same was found in P1-07, [#17](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/17).
+   The `.catch` answers a throw and an overrun alike.) Also: a failure beneath, after the gate let the call
+   through, is not reported as `POLICY_FAILED`.
 6. **The mod's own `Bash` call moves to P2-05.** Nothing makes that call until P2-05 exists, so a test of
    the exception here would need a caller written only for the test, and code no test can drive is code
    no test proves. P2-05 adds the exception (origin `yvoke`, `Bash` only) with a test through its real
