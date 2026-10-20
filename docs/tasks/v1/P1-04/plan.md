@@ -149,4 +149,5 @@ Each step starts with its tests, run red first.
 
 ## Decisions
 
-- **Descriptions in the public repo** (open, asked 2026-10-20).
+- **D-22 Descriptions in the public repo** (open, asked 2026-10-20). The answer goes into
+  [design.md](../design.md) section 3 as D-22.
