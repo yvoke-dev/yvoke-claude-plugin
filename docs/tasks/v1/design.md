@@ -75,7 +75,7 @@ A single-agent question in Claude Code:
 4. The setup locks and shows read-only, also in the status line (D-11).
 5. `prompt.compose` serves base instructions (`get_system_prompt`) followed by the playbook (`get_playbook`),
    separated by `---`. Which base instructions is decided from data, before any call: the playbook's own
-   system prompt if `list_areas` lists it in the area, else the area's default, else the active default.
+   system prompt if any area in `list_areas` lists it, else the area's default, else the active default.
    Any failed call, `ERROR:` bodies included, drops the question with a `Yvoke Backend:` message (P1-07).
 6. The model works. Every tool call passes `tool.call`; `turn.step` counts toward the turn ceiling
    (P2-01 – P2-05, P2-08).
@@ -320,8 +320,9 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     sandbox; the model itself still never gets `Bash` (D-09). The three old tools are not ported. P2-05
     waits for spike P0-12; if the route does not hold, v1 has no compute tool.
   - It is **not** yvoke-desktop's isolation: `node -e` runs as a process in a shell, so whatever keeps it
-    from files, network, environment and child processes comes from Claude Code's sandbox alone. The tool
-    is offered only while that sandbox is on, and its description promises only what P0-12 verified.
+    from files, network, environment and child processes comes from Claude Code's sandbox alone. Each call
+    is refused while that sandbox is off, and the route ships only if P0-12 shows the sandbox blocks all
+    four escapes (environment secrets, files, child processes, network); otherwise P2-05 is dropped.
   - Delivered by: P0-12, P2-05.
 
 ## 4. Notes for implementers

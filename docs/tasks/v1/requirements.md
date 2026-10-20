@@ -38,7 +38,7 @@ same pull request.
 - On a single-agent session's first question, when the area has at least two playbooks, a preflight check
   may offer **Switch to …** or **Send anyway**. The area's default playbook skips the check. Any error lets the question through. (P2-06)
 - The system prompt is the server's base instructions followed by the playbook's text, separated by a `---`
-  line, fetched when the setup locks. The base instructions are the playbook's own system prompt when the
+  line, fetched when the setup locks. The base instructions are the playbook's own system prompt when any
   area lists it, else the area's default, else the active default; which one is decided from `list_areas`
   before any call, so a missing prompt never reaches the server as a name. Any failed fetch, an `ERROR:`
   answer included, drops the question with a `Yvoke Backend:` message and leaves the setup unlocked.
@@ -52,7 +52,7 @@ same pull request.
   active. Everything else is denied with a message pointing to the Yvoke tools. (P2-01, P2-02, P2-03)
 - Web tools only when enabled in configuration **and** declared by the playbook; `WebSearch` limited to the
   configured hosts, `WebFetch` checked against the allow-list, WAF-challenged hosts refused. (P2-04)
-- A compute tool `execute_code`, offered only while Claude Code's sandbox is on, run through `Bash` behind the
+- A compute tool `execute_code`, refused on every call while Claude Code's sandbox is off, run through `Bash` behind the
   mod's own tool, so the model never gets `Bash` (D-19). Withheld when the playbook declares
   `codeExecution: false`. (P0-12, P2-05)
 - The server's `ask_clarifying_question` is denied in favour of the native `AskUserQuestion`. (P1-09)

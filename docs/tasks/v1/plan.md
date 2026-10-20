@@ -231,7 +231,8 @@ a cloud session.
 
 - [ ] **P0-12** `plugin` · S — **Spike: `execute_code` through a wrapped `Bash`** (D-19). A mod-registered
   `execute_code` whose `tool.call` hook runs the code with `$.tool.call({ tool: 'Bash', command: 'node -e …' })`.
-  Check, on macOS and on Windows, with the Desktop Code tab and the terminal:
+  Check, on macOS and on Windows, with the Desktop Code tab and the terminal, on Claude Code 2.1.287 (the
+  oldest with mods) and on the latest release, since D-19's premise was checked only on 2.1.304:
   - whether `node` is there for users of Claude Code's native installer, and what to do when it is not;
   - Claude Code's sandbox: on by default or only by setting, how the mod tells it is on
     (`$.settings.read`, managed settings) so it can refuse to register or run without it, and what happens
@@ -244,8 +245,13 @@ a cloud session.
   - time: yvoke-desktop's limits are a 1 s default and a 2 s maximum per run; check a runaway script is
     killed at that limit and that the whole call fits the hook's 10-second budget;
   - output: the 32,000-character cap and how stdout, the final value and errors come back.
-  - Done when: findings say whether P2-05 can ship this route on both systems, with which settings, and
-    which of the escape cases the sandbox blocks.
+  - **Pass or fail, not a report.** The route passes only if, on every system and version in the matrix
+    where the tool would be offered, the sandbox blocks **all four** escapes (`process.env` secrets, files
+    outside the scratch folder, `child_process`, network) and the wrapped call runs with
+    `dangerouslyDisableSandbox` unset. Any one escape that gets through fails the spike, and P2-05 is
+    struck through (D-19: v1 then has no compute tool).
+  - Done when: findings record the result of every escape case on every row of the matrix, and say pass
+    or fail.
 
 - [ ] **P0-09** `server` · `IT` · S — **Entra client registration for Claude clients** ([design 5.2](design.md#52-sign-in-for-claude-clients-p0-09-decides-d-03)).
   A public-client app registration (or the desktop's, extended) with the redirect URIs Claude Code and
@@ -313,15 +319,18 @@ a cloud session.
   `Yvoke Backend:` message and keeps the setup unlocked. There is deliberately no cached fallback.
   ⛔ P1-01, P1-06
   - **Which base instructions** (added 2026-10-20): the playbook's own `systemPrompt` (from `get_playbook`)
-    when the area lists it among its `systemPrompts` (`list_areas`); else the area's `defaultSystemPrompt`;
-    else the active default (D-16). The choice is made from that data **before** any call, so the mod then
-    makes one `get_system_prompt` call (by name, or with no name for the active default). A prompt the
-    area does not list falls back silently, as on the web and the desktop. That one call failing, an
+    when it exists as a chat prompt, i.e. **any** area in `list_areas` lists it among its `systemPrompts`
+    (yvoke-web's `findChatPrompt` looks a name up globally, not within the area); else the area's
+    `defaultSystemPrompt`; else the active default (D-16). The choice is made from that data **before**
+    any call, so the mod then makes one `get_system_prompt` call (by name, or with no name for the active
+    default). A playbook prompt that no area lists falls back to the next one, as on the web and the
+    desktop (both log a warning and fall back). That one call failing, an
     `ERROR:` body included (P1-03 cannot tell a missing prompt from a broken server), drops the question:
     no fallback after a failed call.
   - Done when: tests cover success, server down, unknown playbook, a hook failure (fails closed), a
-    playbook prompt the area lists, one it does not list (falls back to the area default), no area
-    default (active default), and an `ERROR:` from `get_system_prompt` (dropped).
+    playbook prompt its own area lists, one only another area lists (still used), one no area lists
+    (falls back to the area default), no area default (active default), and an `ERROR:` from
+    `get_system_prompt` (dropped).
 - [ ] **P1-08** `plugin` · M — **Session setup: area, mode, playbook** (D-11).
   - In a new Yvoke session a band above the prompt (`ui.render` on `AbovePrompt`) shows three `Select`s
     (D-18): **area** (default OIM), **mode** (*Single agent* or *Multi-agent*; default *Single agent*) and
@@ -345,7 +354,8 @@ a cloud session.
   - Only in a Yvoke session (P1-10). ⛔ P1-10, P1-12 (both done)
   - Done when: tests cover the defaults (single agent, the area's default playbook), changing each select
     before the first question, the area reset, the switch to *Multi-agent* picking the area's default
-    profile, the version shown, the lock, the read-only line on `terminal` and `desktop`, `/clear`,
+    profile, the version shown, the version kept after the lock even when the server's playbook moves on
+    to a newer one, the lock, the read-only line on `terminal` and `desktop`, `/clear`,
     `/resume`, and server down. Before it is ticked, a developer's machine confirms what P0-06 used to
     (moved 2026-10-20): `skill.prompt` replaces a playbook skill's text in a Yvoke session; the typed
     text stays in the prompt box after `{ drop }` (else restore it with `$.prompt.fill`); `$.session.id`
@@ -426,8 +436,9 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
     "no filesystem, network, shell, or timers"; this one is a `node` process started by a shell, so its
     description promises only what P0-12 showed the sandbox blocks. Do not copy the desktop's
     description or its isolation tests.
-  - **Sandbox required.** With Claude Code's sandbox off (or unsupported, as on native Windows), the tool
-    is not offered, and a call is refused with a message saying why.
+  - **Sandbox required.** A registered tool cannot be withdrawn (P2-05's earlier plan, #19), so the check
+    is made on every call: with Claude Code's sandbox off, or unsupported as on native Windows, the call
+    is refused with a message saying why, and nothing runs.
   - Withheld when the active playbook declares `codeExecution: false`. Port only the result and limit
     cases of yvoke-desktop's `computeTools.test.ts`; the escape cases come from P0-12's findings. If P0-12 shows the route cannot be made safe, v1 has no compute
   tool and this task is struck through. The earlier plan for `calculate`, `statistics` and `date_diff`
@@ -584,8 +595,9 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
   - out of rounds → a warning written into the answer text itself (mechanism from P0-07);
   - a stopped (`e.isAborted`) or failed turn is never re-prompted.
   - `$.prompt.submit` waits until the session is idle; do not `await` it inside the `turn.complete` hook.
-  - Port from `review.test.ts` the `buildRevisionPrompt`, `reviewStatusOf`, `reviewAttempts`,
-    `reviewFlagNote`, `unreviewedNote`, `afterAnswerMarker` and `idsUnderReview` cases (the
+  - Port from `review.test.ts` the `buildRevisionPrompt`, `reviewStatusOf`, `reviewAttempts`, `addUsage`
+    (token totals carried across review rounds), `reviewFlagNote`, `unreviewedNote`, `afterAnswerMarker`
+    and `idsUnderReview` cases (the
     `buildRunTrace` ones belong to P5-05), and the `submit_answer` half of `reviewTools.test.ts`.
   - Done when: those tests pass here, including a revision prompt over 32,000 characters that keeps its
     feedback and directive.
