@@ -128,7 +128,7 @@ Each step starts with its tests, run red first.
 - **Descriptions are public.** The repo is public (D-02), and the stubs carry the server's descriptions,
   which D-04 accepted. Today's `oim-customers` description names two real environments
   (`iC Consult 1IM HQ environment`, `iC Consult Group IDM`) and `oim-field-qa` an internal Teams channel.
-  Asked as a decision (below); the generator commits what it is given, and every scheduled update arrives
+  D-22 (below) keeps the served text; the generator commits what it is given, and every scheduled update arrives
   as a pull request someone reads (P1-05).
 - **Chat or Cowork may refuse `disable-model-invocation`, or honour it.** If claude.ai refuses unknown
   frontmatter, the stubs do not load there; if it honours the field, Chat may not let the user start them
@@ -149,5 +149,5 @@ Each step starts with its tests, run red first.
 
 ## Decisions
 
-- **D-22 Descriptions in the public repo** (open, asked 2026-10-20). The answer goes into
-  [design.md](../design.md) section 3 as D-22.
+- **D-22 Descriptions in the public repo** (decided 2026-10-20, recorded in [design.md](../design.md)
+  section 3): the served descriptions, as they are, capped at 1,024 characters.

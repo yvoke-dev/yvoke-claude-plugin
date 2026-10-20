@@ -325,6 +325,15 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     four escapes (environment secrets, files, child processes, network); otherwise P2-05 is dropped.
   - Delivered by: P0-12, P2-05.
 
+- [x] **D-22** `PO` · `plugin` — **Which playbook descriptions may the public repo's skill stubs carry?**
+  The Chat/Cowork stubs (P1-04) copy each playbook's description from the server, and on 2026-10-20
+  `oim-customers` named two real environments and `oim-field-qa` an internal Teams channel.
+  - **Decided 2026-10-20 (Eduard): the served descriptions, as they are**, capped at 1,024 characters.
+    The server stays the only source. A description that should not be public is reworded on the server,
+    which fixes it for yvoke-web and yvoke-desktop too, and every scheduled update arrives as a pull
+    request someone reads (P1-05).
+  - Delivered by: P1-04.
+
 ## 4. Notes for implementers
 
 Read this before you pick up a task, whether you are a person or an agent. It holds what you would otherwise
