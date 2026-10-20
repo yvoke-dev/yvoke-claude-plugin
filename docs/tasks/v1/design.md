@@ -292,6 +292,16 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     `get_system_prompt` with no name (or `default-chat`) returns it, as yvoke-web's own single-agent mode
     does. Multi-agent roles get their own system prompts with the profiles (P6-01), not from this tool.
   - Delivered by: P1-01.
+- [x] **D-18** `PO` · `plugin` — **Which mode does a new Yvoke session start in?** The area names a default
+  playbook and a default multi-agent profile (P1-12). The plan had one mode list (*Single agent* plus each
+  profile) defaulting to the area's profile, so a session would start in multi-agent mode whenever the
+  area has one. yvoke-web and yvoke-desktop both start single agent.
+  - **Decided 2026-10-20 (Eduard): single agent; the profile on switch.** The band is **area**, then
+    **mode** (*Single agent* / *Multi-agent*), then **playbook** or **profile**. A new session starts in
+    single agent with the area's default playbook. Switching the mode to multi-agent selects the area's
+    default profile. Changing the area resets the other selects to its defaults. (D-17 is in the open
+    PR #18, so this is D-18.)
+  - Delivered by: P1-08.
 
 ## 4. Notes for implementers
 

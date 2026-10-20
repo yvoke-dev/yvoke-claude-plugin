@@ -301,11 +301,12 @@ a cloud session.
     drops the question. So `get_playbook` is fetched before `get_system_prompt`.
   - Done when: tests cover success, server down, unknown playbook, and a hook failure (fails closed).
 - [ ] **P1-08** `plugin` · M — **Session setup: area, mode, playbook** (D-11).
-  - In a new Yvoke session a band above the prompt (`ui.render` on `AbovePrompt`) shows three `Select`s:
-    **area** (default OIM), **mode** (*Single agent* plus each of the area's multi-agent profiles, D-15;
-    default the area's default profile, else *Single agent*) and, for single agent, **playbook** (default
-    the area's default playbook; `oim-full` for OIM). Lists and defaults come live from `list_areas` (P1-12);
-    prototypes are hidden unless enabled. Until Phase 6 is built, the mode list offers only *Single agent*.
+  - In a new Yvoke session a band above the prompt (`ui.render` on `AbovePrompt`) shows three `Select`s
+    (D-18): **area** (default OIM), **mode** (*Single agent* or *Multi-agent*; default *Single agent*) and
+    then **playbook** for single agent (default the area's default playbook; `oim-full` for OIM) or
+    **profile** for multi-agent (default the area's default profile). Lists and defaults come live from
+    `list_areas` (P1-12); prototypes are hidden unless enabled. Until Phase 6 is built, the mode list offers
+    only *Single agent*, and an area with no profiles never offers *Multi-agent*.
   - **Area first** (re-stated 2026-10-20): the area is chosen first, and the other selects follow it.
     Changing the area resets mode and playbook to that area's defaults.
   - Playbooks show by name with their version, *oim-full v3*, in the select and in the read-only line
