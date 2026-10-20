@@ -68,19 +68,24 @@ A single-agent question in Claude Code:
 1. The user opens a session in any folder and types `/yvoke`. Until then, and in every session without it,
    the mod passes everything through (P1-10, D-13).
 2. The setup band shows area, mode and playbook, filled from `list_areas` and `list_playbooks` (P1-08, P1-12).
-3. The user sends a question. If the area has two or more playbooks, the preflight check may suggest another
-   one; it fails open (P2-06).
+   The area comes first. The mode starts at *Single agent* with the area's default playbook; switching to
+   multi-agent selects the area's default profile (D-18).
+3. The user sends a question. If the area has two or more playbooks and the chosen one is not the area's
+   default, the preflight check may suggest another one; it fails open (P2-06).
 4. The setup locks and shows read-only, also in the status line (D-11).
-5. `prompt.compose` serves base instructions (`get_system_prompt`) followed by the playbook
-   (`get_playbook`). A failed fetch drops the question with a `Yvoke Backend:` message (P1-07).
+5. `prompt.compose` serves base instructions (`get_system_prompt`) followed by the playbook (`get_playbook`),
+   separated by `---`. Which base instructions is decided from data, before any call: the playbook's own
+   system prompt if any area in `list_areas` lists it, else the area's default, else the active default.
+   Any failed call, `ERROR:` bodies included, drops the question with a `Yvoke Backend:` message (P1-07).
 6. The model works. Every tool call passes `tool.call`; `turn.step` counts toward the turn ceiling
    (P2-01 – P2-05, P2-08).
 7. The reply's citation markers become links; pressing one calls `get_section` and opens the source pane
    (P3-01 – P3-03).
 
 In multi-agent mode, step 5 registers the profile's specialists and reviewer from `list_profiles` instead
-of loading one playbook (D-06). The lead may only delegate, ask the user and verify citations;
-`turn.complete` sends unapproved drafts back for revision up to the round limit (Phase 6).
+of loading one playbook (D-06). The lead may only delegate, ask the user, verify citations and submit its
+answer; submitting runs the reviewer, and an unapproved draft goes back for revision up to the round limit
+(Phase 6).
 
 In Chat and Cowork there is no mod: the user invokes a playbook stub, the stub tells Claude to call
 `get_playbook` first, and Claude answers with the knowledge-base tools over the organization connector
@@ -289,6 +294,36 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     `get_system_prompt` with no name (or `default-chat`) returns it, as yvoke-web's own single-agent mode
     does. Multi-agent roles get their own system prompts with the profiles (P6-01), not from this tool.
   - Delivered by: P1-01.
+- [x] **D-17** `PO` · `plugin` — **Where do the reviewer's tools come from?**
+  - Decided 2026-10-07 (Eduard), in the P6-03 plan ([#18](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/18)):
+    from the reviewer playbook's `tools` list, in the plugin and in yvoke-web.
+  - **Reversed 2026-10-20 (Eduard): fixed, as yvoke-web and yvoke-desktop.** Neither app made that change:
+    yvoke-web ignores tools on reviewer and orchestrator playbooks, and yvoke-desktop #24 aligned with it.
+    The reviewer always has exactly `verify_citations` and `submit_review` (the verdict, P6-03); tools on its
+    playbook are ignored. No yvoke-web change.
+  - Delivered by: P6-03.
+- [x] **D-18** `PO` · `plugin` — **Which mode does a new Yvoke session start in?** The area names a default
+  playbook and a default multi-agent profile (P1-12). The plan had one mode list (*Single agent* plus each
+  profile) defaulting to the area's profile, so a session would start in multi-agent mode whenever the
+  area has one. yvoke-web and yvoke-desktop both start single agent.
+  - **Decided 2026-10-20 (Eduard): single agent; the profile on switch.** The band is **area**, then
+    **mode** (*Single agent* / *Multi-agent*), then **playbook** or **profile**. A new session starts in
+    single agent with the area's default playbook. Switching the mode to multi-agent selects the area's
+    default profile. Changing the area resets the other selects to its defaults.
+  - Delivered by: P1-08.
+- [x] **D-19** `PO` · `plugin` — **Which compute tools, now that yvoke-desktop has `execute_code`?**
+  yvoke-desktop 1.3.0 replaced `calculate`, `statistics` and `date_diff` with `execute_code`, run in
+  `node:vm` inside its own process. A mod cannot do that: its worker refuses `eval` and `new Function`
+  and has no `WebAssembly` (checked on Claude Code 2.1.304).
+  - **Decided 2026-10-20 (Eduard): wrap Claude Code's `Bash`, nothing else.** The mod registers its own
+    `execute_code` and runs the code through `Bash` (`node -e`, via `$.tool.call`) under Claude Code's
+    sandbox; the model itself still never gets `Bash` (D-09). The three old tools are not ported. P2-05
+    waits for spike P0-12; if the route does not hold, v1 has no compute tool.
+  - It is **not** yvoke-desktop's isolation: `node -e` runs as a process in a shell, so whatever keeps it
+    from files, network, environment and child processes comes from Claude Code's sandbox alone. Each call
+    is refused while that sandbox is off, and the route ships only if P0-12 shows the sandbox blocks all
+    four escapes (environment secrets, files, child processes, network); otherwise P2-05 is dropped.
+  - Delivered by: P0-12, P2-05.
 
 ## 4. Notes for implementers
 
@@ -308,9 +343,10 @@ the same PR.
   | `policy.ts` (`isToolAllowed`, `buildAllowedTools`, `isUrlDomainAllowed`, `WAF_CHALLENGED_HOSTS`) | `src/main/agent/policy.ts` |
   | `DEFAULT_KB_TOOLS`, `qualifyTool`, `MCP_TOOL_PREFIX`, `builtinTool` | `src/shared/types.ts` |
   | `McpPrompts.callGetSection`, `_meta` playbook mapping | `src/main/agent/McpPrompts.ts` |
-  | `computeTools.ts` | `src/main/agent/computeTools.ts` (served by `computeServer.ts`) |
+  | `computeTools.ts` | `src/main/agent/computeTools.ts` (served by `computeServer.ts`); since 1.3.0 it is `execute_code`, and the three old tools are at `a534efd^` |
   | `citationRehype.ts`, citation pane | `src/renderer/src/components/citationRehype.ts`, `CitationModal.tsx`, `sectionView.ts` |
-  | `mapSpecialistTools`, `REVIEW_FEEDBACK_HEADING`, `EVIDENCE_HEADING`, verdict parsing | `src/main/agent/orchestration.ts` |
+  | `mapSpecialistTools`, `REVIEW_FEEDBACK_HEADING`, `EVIDENCE_HEADING` | `src/main/agent/orchestration.ts` |
+  | `submit_review`, `submit_answer`, evidence digest | `src/main/agent/reviewTools.ts`, `reviewServer.ts`, `evidenceDigest.ts`, `chunkBlocks.ts` |
   | Preflight check | `src/main/agent/playbookValidation.ts`, `PlaybookValidator.ts` |
   | Tests named in this plan | `tests/<name>.test.ts` (vitest) |
   | Functional spec chapters | `spec/01_…` – `spec/08_…` |
@@ -353,7 +389,8 @@ the same PR.
   `plugins/yvoke/.claude-plugin/types/claude-code/index.d.ts` (about 20,000 lines; grep for `'tool.call'`,
   `HookBudget` and so on). Do not commit that `types/` folder; it is regenerated on every load.
   `validate` and `test` do not write it; `npm run types` (`scripts/lay-types.mjs`) loads the mod once in
-  print mode, with no sign-in and no model call, to lay it before `tsc` runs (P0-01).
+  print mode, with no sign-in and no model call, to lay it before `tsc` runs (P0-01). From 2.1.295 on the
+  engine writes it only for a folder it watches, so the script sets `CLAUDE_CODE_PLUGIN_DIR_WATCH=1` (P0-13).
 - `claude plugin validate plugins/yvoke` prints the `hooks:` and `calls:` lines the security review (P7-06)
   needs, and refuses source the engine could not read. Run it before every push.
 - `claude plugin test plugins/yvoke` runs `*.test.ts` against the real engine with no session, network, fs
@@ -371,12 +408,12 @@ the same PR.
 | --- | --- | --- |
 | Deny a tool | `on('tool.call', h)` → `{ deny: reason }` | `e.tool` is the full name; `e.agentId` set for subagents. Managed `PreToolUse` hooks run first. |
 | Rewrite a tool's input (WebSearch domains) | `next({ ...e, allowed_domains: [ … ] })` | The tool's arguments sit flat on `e`, beside `tool` (there is no `e.input`). Managed hooks run again on the rewritten call. |
-| Gate a prompt | `on('prompt.submit', h)` → `{ drop: reason }` | The reason is shown to the user. Whether the draft stays is 🔍 P0-06; `$.prompt.fill` restores it. |
+| Gate a prompt | `on('prompt.submit', h)` → `{ drop: reason }` | The reason is shown to the user. Whether the draft stays is checked in P1-08; `$.prompt.fill` restores it. |
 | Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Not cached: it fires for every request (2.1.293 cannot invalidate it), so the hook only reads `$.state`; the text is fetched once per session id in `prompt.submit` (P1-07). |
 | Hide playbook skills in Claude Code | `on('skill.prompt', { skill }, h)` → `{ text }` | Input is only `{ skill, text }`: no caller, no metadata. |
 | Session setup band | `ui.render` on `{ component: 'AbovePrompt' }` with `Select`s from `$.ui.resolve(e)` | `mobile` has no `Select`: show the read-only line there. |
 | Mod commands | `$.command.register({ name, description })` in `session.start`, answered by `command.run` | No `:` in names. Register last or in `try`/`catch`. |
-| Compute tools | `$.tool.register(…)` + `tool.call` on `mcp__yvoke__<name>` | Register in `session.start` (awaited) so they are listed on turn one. |
+| Compute tools | `$.tool.register(…)` + `tool.call` on `mcp__yvoke__<name>` | Register when `/yvoke` starts the Yvoke session, and again when `/resume` or `/branch` restores one (P1-10), so they are listed on the first question. A registered tool cannot be withdrawn, so after `/clear` it stays listed in the plain session; every call is refused there, as when the sandbox is off or the playbook declares `codeExecution: false` (P2-05). |
 | Subagents | `$.agent.register` (`yvoke:<name>`), `$.agent.spawn`, `agent.spawn` (`{ deny }`, `parentAgentId`), `agent.offer` (`{ isOffered: false }`) | |
 | End of turn | `turn.complete`: `answer`, `reason`, `isAborted`, `agentId`, `usage` | Returning `{ text }` shows a line *under* the answer; the record never changes. |
 | Re-prompt | `$.prompt.submit` | Queues a new turn once idle; never `await` it inside `turn.complete`. |
@@ -521,7 +558,7 @@ existing tools' do (P1-03 relies on it).
 | --- | --- | --- | --- |
 | `get_system_prompt(name?, area?)` | `SystemPromptService` (as `GET /prompts/system/{name}`) | the base instructions as plain text, chat prompts only. A name wins; else, with an area, that area's default system prompt; else (or when the area sets none) the *Active Default Chat System Prompt* (D-16). An unknown or empty prompt, or an unknown area, is an `ERROR:` line, not `""` as in REST. Not also served as MCP `instructions` (D-12). | P1-01, P1-12 |
 | `list_areas()` | `AreaService` (new `area` package) | a JSON array sorted by name: `name`, `title`, `description`, `prototype`, `defaultSystemPrompt`, `defaultPlaybook`, `defaultProfile`, and the member names `systemPrompts` (chat prompts), `collections`, `playbooks` (as `list_playbooks`), `profiles`. A default is given only when it is one of those members, else `null`. Read live. | P1-12 |
-| `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | a JSON array of name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`, `area`; orchestrator and reviewer playbooks left out. With an area (case and spaces ignored), only its playbooks; an unknown area gives `[]`. Read live, so a deleted playbook leaves at once. | P1-06, P1-12 |
+| `list_playbooks(area?)` | `PlaybookService.listSpecializedPlaybooks` (as `GET /playbooks`) | a JSON array of name, title, description, `tools`, `codeExecution`, `targetAgent`, `prototype`, `area`, `systemPrompt` (the playbook's own base instructions, or null), `version` (a positive integer, default 1); orchestrator and reviewer playbooks left out. With an area (case and spaces ignored), only its playbooks; an unknown area gives `[]`. Read live, so a deleted playbook leaves at once. | P1-06, P1-12 |
 | `get_playbook(name)` | `PlaybookRepository.findByName`, uncached (`PlaybookService.getPlaybook` keeps a playbook for 60 s) | a JSON object with the same metadata (including `area`) plus `text`, the full playbook, for any playbook including orchestrator and reviewer ones. An unknown or blank name is an `ERROR:` line. | P1-06 |
 | `list_profiles(area?)` / `get_profile(name)` | as `GET /orchestrator/profiles` | lead, reviewer and specialist playbooks, `prototype`, area | P6-01 |
 | `submit_feedback(…)` | the feedback store behind `PUT /messages/{id}/feedback` | an id. Keyed to the synced message id, as the desktop's endpoint (D-08): rating, comment, client `claude-plugin`, plugin version. After v1, with sync. | P4-01 (after v1) |
