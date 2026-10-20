@@ -140,6 +140,12 @@ Each step starts with a test, seen failing first.
   On `classic.SessionStart` the setup hook calls `next(e)` first, so P1-10 has decided the flag before it
   reads it.
 - **A `Text` keeps no `key`.** Tests find the read-only line and the notices by their text.
+- **Skills on 2.1.287.** Its `skill.prompt` input is only `{ skill, text }` (no `pluginName`), so a skill
+  counts as Yvoke's when `pluginName` is `yvoke` or its name starts with `yvoke:`. Whether 2.1.287 names a
+  plugin skill `yvoke:<name>` is part of machine check 1.
+- **A lock that cannot be saved never drops the question.** After `next(e)` the question has entered;
+  the status line and store writes are caught (found red on 2.1.287 only, whose test kit passes a test
+  hook's throw on to the caller).
 - **Slash commands that reach the model lock too.** `prompt.submit` fires for a command only when it asks
   the model, which is a question like any other, as for P1-07.
 
@@ -148,7 +154,8 @@ Each step starts with a test, seen failing first.
 The test kit cannot show these; one short session with `claude --plugin-dir plugins/yvoke`, Claude Code
 2.1.287 and latest, against his local yvoke-web:
 
-1. `/yvoke`, then a playbook skill (`/yvoke:<skill>`, any test skill): the model sees the pointer text.
+1. `/yvoke`, then a playbook skill (`/yvoke:<skill>`, any test skill): the model sees the pointer text,
+   on 2.1.287 and on latest.
 2. Stop the server, type a question: it is dropped; is the typed text still in the prompt box? If not, the
    hook restores it with `$.prompt.fill` (one line plus a test).
 3. Lock a setup, `/resume` the session: same `$.session.id`, setup line back.

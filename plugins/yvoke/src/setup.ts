@@ -203,6 +203,13 @@ const fitted = (saved: Setup | null | undefined, catalogue: Catalogue): Setup =>
   return catalogue.areas.some((a) => a.name === saved.area) ? saved : defaults(catalogue)
 }
 
+/**
+ * Whether a skill is one of this plugin's. Newer Claude Code names the plugin (`pluginName`, checked on
+ * 2.1.304); 2.1.287 hands only `{ skill, text }`, where a plugin skill's name carries the plugin as `yvoke:<skill>`.
+ */
+const isYvokeSkill = (e: { skill: string; pluginName?: string }) =>
+  e.pluginName === 'yvoke' || e.skill.startsWith('yvoke:')
+
 const noPlaybooks = (area: string) => `Yvoke Backend: the area ${area} has no playbooks, so the question was not sent.`
 
 export function registerSetup(on: On, options: PluginOptions) {
@@ -342,10 +349,16 @@ export function registerSetup(on: On, options: PluginOptions) {
     const entered = await next(e)
     if (entered.drop !== undefined) return entered
 
+    // The question has entered: nothing from here on may turn it into a drop, which would tell the user
+    // it was not sent. A lock that cannot be saved still holds for this session; only /resume misses it.
     const locked: Setup = { ...chosen, lockedSessionId: sessionId }
     await $.state.set({ plugin: 'yvoke', key: 'setup' }, locked)
-    await $.ui.status(lineFor(locked, catalogue.catalogue))
-    await $.store.set(setupKey(sessionId), locked)
+    try {
+      await $.ui.status(lineFor(locked, catalogue.catalogue))
+      await $.store.set(setupKey(sessionId), locked)
+    } catch {
+      // As above.
+    }
     return entered
   }).catch(() => ({ drop: DROP_FAILED }))
 
@@ -443,7 +456,7 @@ export function registerSetup(on: On, options: PluginOptions) {
 
   on('skill.prompt', async ($, e, next) => {
     const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
-    if (isYvoke !== true || e.pluginName !== 'yvoke') return next(e)
+    if (isYvoke !== true || !isYvokeSkill(e)) return next(e)
     return { text: SKILL_POINTER }
   }).catch(() => ({ text: SKILL_POINTER }))
 }

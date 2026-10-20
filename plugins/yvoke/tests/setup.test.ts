@@ -44,6 +44,7 @@ type World = {
   toasts: string[]
   failStoreRead: boolean
   failId: boolean
+  failLockedSave: boolean
   savedAtSubmit: unknown[]
 }
 
@@ -63,6 +64,7 @@ function engine(on: On, start: Partial<World> = {}): World {
     toasts: [],
     failStoreRead: false,
     failId: false,
+    failLockedSave: false,
     savedAtSubmit: [],
     ...start,
   }
@@ -78,6 +80,7 @@ function engine(on: On, start: Partial<World> = {}): World {
     return { value: w.store.get(e.key) }
   })
   on('store.set', (_$, e) => {
+    if (w.failLockedSave && (e.value as { lockedSessionId?: unknown } | undefined)?.lockedSessionId) throw new Error('disk full')
     w.store.set(e.key, e.value)
     return { value: undefined }
   })
@@ -432,16 +435,31 @@ test('a failing hook drops the question (fails closed)', async ($, on) => {
   expect(w.entered).toEqual([])
 })
 
+test('a question that entered is never reported as dropped, even when saving the lock fails', async ($, on) => {
+  const w = engine(on, { failLockedSave: true })
+  await begin($)
+  await yvoke($)
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+  expect(w.entered).toEqual(['q'])
+  expect(w.store.get('setup:session-a')).toMatchObject({ lockedSessionId: null })
+  const ui = await band($, 'terminal')
+  expect(await lineOf(ui)).toBe(LINE)
+})
+
 test('a playbook skill in a Yvoke session is replaced by a pointer to the band', async ($, on) => {
   engine(on)
   await begin($)
-  const skill = (pluginName?: string) =>
-    $.skill.prompt({ skill: 'oim-full', text: 'PLAYBOOK STUB', frontmatter: {}, source: 'plugin', pluginName })
+  // Newer Claude Code (2.1.304) names the plugin; 2.1.287 hands only the skill (`yvoke:<name>`) and its text.
+  const skill = (name: string, pluginName?: string) =>
+    $.skill.prompt({ skill: name, text: 'PLAYBOOK STUB', frontmatter: {}, source: 'plugin', pluginName } as never)
 
-  expect(await skill('yvoke')).toEqual({ text: 'PLAYBOOK STUB' })
+  expect(await skill('oim-full', 'yvoke')).toEqual({ text: 'PLAYBOOK STUB' })
+  expect(await skill('yvoke:oim-full')).toEqual({ text: 'PLAYBOOK STUB' })
   await yvoke($)
-  expect((await skill('yvoke')).text).toContain('setup band')
-  expect(await skill('other')).toEqual({ text: 'PLAYBOOK STUB' })
+  expect((await skill('oim-full', 'yvoke')).text).toContain('setup band')
+  expect((await skill('yvoke:oim-full')).text).toContain('setup band')
+  expect(await skill('review', 'other')).toEqual({ text: 'PLAYBOOK STUB' })
+  expect(await skill('other:review')).toEqual({ text: 'PLAYBOOK STUB' })
 })
 
 test('prototypes show only when the setting is on', { options: { showPrototypes: true } }, async ($, on) => {
