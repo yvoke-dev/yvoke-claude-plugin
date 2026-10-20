@@ -1,6 +1,6 @@
 # P1-08 Session setup: area, mode, playbook
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
 
 **Done when** (from [plan.md](../plan.md#phase-1--knowledge-base-base-instructions-and-playbooks-mvp)):
 tests cover the defaults (single agent, the area's default playbook), changing each select before the first
