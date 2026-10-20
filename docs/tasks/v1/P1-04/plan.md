@@ -1,6 +1,6 @@
 # P1-04 Skill generator for Chat and Cowork
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
 
 **Done when** (from [plan.md](../plan.md)): running it against the server produces a stable, reviewable diff.
 
