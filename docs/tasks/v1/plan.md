@@ -383,10 +383,11 @@ a cloud session.
   - Done when: tests cover a session without `/yvoke`, `/yvoke` before the first question, `/yvoke` after it,
     `/yvoke` twice, `/clear`, `/resume`, and `/branch`.
 - P1-11 was never assigned.
-- [ ] **P1-13** `server` · S — **Keep plugin-control tools away from models that should not call them**
+- [x] **P1-13** `server` · S — **Keep plugin-control tools away from models that should not call them**
   ([design 5.4](design.md#54-which-model-sees-which-tool-p1-13)). `get_system_prompt`, `list_areas`, `list_playbooks`, `get_playbook`, `submit_feedback` and the sync tools are for
   Claude clients, not for the web's in-app assistant, which today shares one tool set with every MCP client.
-  Plan: [P1-13/plan.md](P1-13/plan.md).
+  - Delivered in [yvoke-web#23](https://github.com/yvoke-dev/yvoke-web/pull/23); plan in
+    [P1-13/plan.md](P1-13/plan.md) ([#25](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/25)).
 - [x] **P1-12** `server` · L — **Areas** (D-15). An area is a collection of system prompts, collections,
   playbooks and orchestrator profiles, with a default for each of the first, third and fourth. yvoke-web
   gets an `areas` table, an area list on each of the four kinds of item, and an admin page. A

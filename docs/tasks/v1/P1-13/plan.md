@@ -1,6 +1,6 @@
 # P1-13 Keep plugin-control tools away from models that should not call them
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** done
 
 The code lives in [`yvoke-dev/yvoke-web`](https://github.com/yvoke-dev/yvoke-web) and follows that
 repository's rules (its `CLAUDE.md`: strict TDD, unit tests in `src/test`, integration tests `*IT.java` in
@@ -99,3 +99,14 @@ design 5.4 saying the recommended option was built.
 - `JsonObjectsToolsIT.everyDocumentedToolIsPresentInTheRegisteredCallbackList` (split).
 - yvoke-web: `./mvnw verify -Pit-tests` green, `check_steering.py` clean.
 - This repository: `npm run check` (docs links; nothing else changes here).
+
+## What differed from the plan
+
+- The shared list starts from the client-only names, so a shared class can never add one of them back.
+- `McpToolCatalogueParityTest`'s comment now says that, on a `@ClientOnlyTools` class, `@Tool` builds the
+  MCP-only callback.
+- `JsonObjectsToolsIT.theInAppChatAgentIsFedTheSameToolCallbackInstancesAsTheMcpServer` now reads the
+  renamed bean, and its exact-match assertion also pins that the registry holds none of the four.
+- Delivered in [yvoke-web#23](https://github.com/yvoke-dev/yvoke-web/pull/23). Unit run: 2144 tests, 0
+  failures. IT run: 622 tests, 0 failures, 1 skipped. Mutation checks: removing the mark from
+  `PlaybookTools` turns the registry test red; an empty provider makes `tools/list` miss all four.
