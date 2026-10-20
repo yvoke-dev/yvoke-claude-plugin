@@ -1,6 +1,6 @@
 # P1-13 Keep plugin-control tools away from models that should not call them
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
 
 The code lives in [`yvoke-dev/yvoke-web`](https://github.com/yvoke-dev/yvoke-web) and follows that
 repository's rules (its `CLAUDE.md`: strict TDD, unit tests in `src/test`, integration tests `*IT.java` in
