@@ -305,7 +305,9 @@ export function registerSetup(on: On, options: PluginOptions) {
     return started
   })
 
-  on('prompt.submit', async ($, e, next) => {
+  // The matcher takes every prompt. It is there because the engine refuses a second hook on one event
+  // with no matcher in the same plugin, and P1-07's prompt.submit has none.
+  on('prompt.submit', { text: /^/ }, async ($, e, next) => {
     const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
     if (isYvoke !== true) return next(e)
 
