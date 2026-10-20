@@ -25,6 +25,13 @@ In a Yvoke session (P1-10), the first question loads the instructions from the s
 
 Claude Code's own sections stay; the Yvoke section is added after them, as design 4.3 says.
 
+**Changed on 2026-10-20 (yvoke-web and yvoke-desktop 1.3.0, see the v1 plan check).** A playbook can name
+its own system prompt (`systemPrompt` in `get_playbook`). The base instructions are that prompt, else the
+area's default, else the active default, as in web chat (`ChatMessageService.resolveSystemPrompt`). A named
+prompt the server does not have, or an empty one, falls back; one the server did not answer drops the
+question. Base and playbook are joined with `\n\n---\n\n` instead of a blank line. So `get_playbook`
+comes before `get_system_prompt(name)`, which adds one round only for a playbook that names a prompt.
+
 ## Until P1-08: the setup comes from the area's defaults
 
 P1-08 (the setup band) is not built yet. Until it is, the setup is fixed:

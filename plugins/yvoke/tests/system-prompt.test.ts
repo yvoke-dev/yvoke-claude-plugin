@@ -72,7 +72,7 @@ const ask = ($: Engine, question: string) => $.prompt.submit({ text: question, w
 const RENDER = { model: 'claude-x', promptModel: 'claude-x', surfaces: ['terminal'], tools: [], outputStyle: null, traits: [] } as const
 const compose = async ($: Engine) => (await $.prompt.compose(RENDER)).sections
 
-const OURS: PromptComposeSection = { id: 'yvoke:instructions', text: 'BASE\n\nPLAYBOOK', scope: 'session' }
+const OURS: PromptComposeSection = { id: 'yvoke:instructions', text: 'BASE\n\n---\n\nPLAYBOOK', scope: 'session' }
 
 test('a plain session: questions and the system prompt pass through, and the server is never called', async ($, on) => {
   const w = engine(on)
@@ -160,7 +160,7 @@ test('a new session id (/clear, /resume, /branch) loads its own instructions on 
   w.server.playbook = 'NEWER'
   await ask($, 'two')
   expect(w.server.calls).toHaveLength(6)
-  expect(await compose($)).toEqual([...CORE, { ...OURS, text: 'BASE\n\nNEWER' }])
+  expect(await compose($)).toEqual([...CORE, { ...OURS, text: 'BASE\n\n---\n\nNEWER' }])
 })
 
 test('a throw in prompt.submit drops the question (fails closed)', async ($, on) => {

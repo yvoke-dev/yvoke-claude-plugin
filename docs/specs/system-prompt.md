@@ -3,10 +3,15 @@
 ## Behaviour
 
 - In a Yvoke session ([session.md](session.md)), the first question loads the instructions from the Yvoke
-  server before it is sent: the base instructions (`get_system_prompt` for the session's area, D-16) and,
-  in single-agent mode, the playbook's text (`get_playbook`).
+  server before it is sent: the base instructions and, in single-agent mode, the playbook's text
+  (`get_playbook`).
+- The base instructions are, as in yvoke-web's chat: the system prompt the playbook names (its
+  `systemPrompt`, yvoke-web 1.3.0), else the area's default prompt, else the active default (D-16). A named
+  prompt the server does not know, or one that is empty, falls back to the next one. A named prompt the
+  server did not answer at all (not connected, timed out) drops the question instead.
 - From then on every system prompt of that session ends with one section, `yvoke:instructions`
-  (`scope: 'session'`): the base instructions, a blank line, then the playbook text. Claude Code's own
+  (`scope: 'session'`): the base instructions, a `---` line between blank lines (`\n\n---\n\n`, as web
+  chat joins them), then the playbook text. Claude Code's own
   sections stay before it. The playbook comes last, so it wins a conflict.
 - Until the setup band exists (P1-08), the setup is area **OIM**, single agent, and the playbook `list_areas`
   names as that area's default (`oim-full` today). In multi-agent mode only the base instructions are added.
@@ -24,8 +29,12 @@
 
 | Load step | Calls | Time |
 | --- | --- | --- |
-| Setup names its playbook | `get_system_prompt` and `get_playbook` together | one round |
-| Setup has no playbook (today) | `list_areas` and `get_system_prompt` together, then `get_playbook` | two rounds |
+| Setup names its playbook | `get_system_prompt(area)` and `get_playbook` together | one round |
+| Setup has no playbook (today) | `list_areas` and `get_system_prompt(area)` together, then `get_playbook` | two rounds |
+| The playbook names a system prompt | then `get_system_prompt(name)` | one more round |
+
+The area's prompt is asked for alongside the playbook even when the playbook names its own, so the fallback
+needs no extra round.
 
 Each round waits at most 8 s (the server client's limit) or what the hook has left less 1.5 s, whichever is
 smaller. With under 1 s left, it fails at once and asks to send the question again.
@@ -37,14 +46,14 @@ smaller. With under 1 s left, it fails at once and asks to send the question aga
 | `prompt.submit` hook (loads, or drops the question) and `prompt.compose` hook (adds the section) | `plugins/yvoke/src/system-prompt.ts` |
 | `$.state` `yvoke.instructions` = `{ sessionId, text }`, written only by `system-prompt.ts` | contract in `plugins/yvoke/types/index.d.ts` |
 | `$.state` `yvoke.setup` = `{ area, mode, playbook }` (playbook null = the area's default), read here, written by P1-08 | same |
-| Server tools `list_areas`, `get_system_prompt(area)`, `get_playbook(name)` | through `callYvoke` ([server-client.md](server-client.md)) |
+| Server tools `list_areas`, `get_system_prompt(area)`, `get_system_prompt(name)`, `get_playbook(name)` (its `systemPrompt` and `text`) | through `callYvoke` ([server-client.md](server-client.md)) |
 
 For P1-08: the setup is locked exactly when `yvoke.instructions.sessionId` is the current session id.
 
 ## Tests
 
-- `plugins/yvoke/tests/system-prompt-load.test.ts`: the calls and their order, base first, a setup with
-  and without a playbook, multi-agent, server down, unknown playbook, a missing area or default playbook,
+- `plugins/yvoke/tests/system-prompt-load.test.ts`: the calls and their order, base first, the `---` join,
+  the playbook's own prompt and each fallback, a setup with and without a playbook, multi-agent, server down, unknown playbook, a missing area or default playbook,
   unreadable answers, empty texts, and the time budget per round.
 - `plugins/yvoke/tests/system-prompt.test.ts`, through the engine: a plain session, first question,
   later questions, server down then back, no playbook text, a server that does not answer, a new session
@@ -56,4 +65,5 @@ For P1-08: the setup is locked exactly when `yvoke.instructions.sessionId` is th
 
 ## History
 
-- P1-07 ([#17](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/17)): instructions from the server.
+- P1-07 ([#17](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/17)): instructions from the server,
+  including a playbook's own system prompt and the `---` join from yvoke-web 1.3.0.

@@ -26,6 +26,9 @@ const MIN_ROUND_MS = 1_000
 
 export const SECTION_ID = 'yvoke:instructions'
 
+/** Between the base instructions and the playbook text, as yvoke-web's chat joins them. */
+export const SEPARATOR = '\n\n---\n\n'
+
 export const DROP_FAILED = 'Yvoke Backend: the instructions could not be loaded, so the question was not sent.'
 const NO_TIME = 'there was not enough time left to load the instructions. Send the question again.'
 
@@ -39,11 +42,15 @@ export const MISSING_SECTION: PromptComposeSection = {
 }
 
 const ORIGIN = 'Yvoke Backend:'
-const fail = (message: string): ServerAnswer => ({ ok: false, error: `${ORIGIN} ${message}` })
+const fail = (message: string): { ok: false; error: string } => ({ ok: false, error: `${ORIGIN} ${message}` })
 const unreadable = (tool: string) => fail(`${tool} gave an answer the plugin cannot read.`)
 
 /**
- * Loads the base instructions and, in single-agent mode, the playbook text, joined by a blank line.
+ * Loads the base instructions and, in single-agent mode, the playbook text, joined by SEPARATOR.
+ * The base instructions are the playbook's own `systemPrompt` when it names one the server has (yvoke-web
+ * 1.3.0), else the area's default, else the active default; `get_system_prompt({ area })` answers the last
+ * two, so it is asked for alongside the playbook and used when the playbook's prompt is unset, unknown or
+ * empty, as web chat does. A playbook prompt the server did not answer at all is a failure, not a fallback.
  * `remainingMs` reads what the calling hook has left; each round of calls waits at most that less
  * MARGIN_MS, and at most the server client's own 8 s.
  */
@@ -66,41 +73,58 @@ export const loadInstructions = async (
     return base.ok ? baseText(base.text) : base
   }
 
+  let areaBase: ServerAnswer
+  let pb: ServerAnswer
+  let name: string
   if (playbook) {
     const both = await round((t) =>
       Promise.all([call('get_system_prompt', { area })(t), call('get_playbook', { name: playbook })(t)]),
     )
-    return Array.isArray(both) ? join(both[0], both[1], playbook) : both
+    if (!Array.isArray(both)) return both
+    ;[areaBase, pb] = both
+    name = playbook
+  } else {
+    const first = await round((t) => Promise.all([call('list_areas', {})(t), call('get_system_prompt', { area })(t)]))
+    if (!Array.isArray(first)) return first
+    const [areas, base] = first
+    if (!areas.ok) return areas
+    const found = defaultPlaybook(areas.text, area)
+    if (!found.ok) return found
+    areaBase = base
+    name = found.text
+    pb = await round(call('get_playbook', { name }))
   }
 
-  const first = await round((t) => Promise.all([call('list_areas', {})(t), call('get_system_prompt', { area })(t)]))
-  if (!Array.isArray(first)) return first
-  const [areas, base] = first
-  if (!areas.ok) return areas
+  if (!pb.ok) return pb
+  const parsed = playbookText(pb.text, name)
+  if (!parsed.ok) return parsed
+
+  let base = areaBase.ok ? baseText(areaBase.text) : areaBase
+  if (parsed.systemPrompt) {
+    const own = await round(call('get_system_prompt', { name: parsed.systemPrompt }))
+    if (own.ok && own.text.trim()) base = { ok: true, text: own.text.trim() }
+    else if (!own.ok && !SERVER_SAID_NO.test(own.error)) return own
+  }
   if (!base.ok) return base
-  const name = defaultPlaybook(areas.text, area)
-  if (!name.ok) return name
-  return join(base, await round(call('get_playbook', { name: name.text })), name.text)
+  return { ok: true, text: `${base.text}${SEPARATOR}${parsed.text}` }
 }
 
-const join = (base: ServerAnswer, pb: ServerAnswer, name: string): ServerAnswer => {
-  if (!base.ok) return base
-  if (!pb.ok) return pb
-  const b = baseText(base.text)
-  if (!b.ok) return b
-  const p = playbookText(pb.text, name)
-  if (!p.ok) return p
-  return { ok: true, text: `${b.text}\n\n${p.text}` }
-}
+// The server answered, but has no such prompt: fall back, as web chat does. Anything else (not connected,
+// timed out, a transport error) is a failure.
+const SERVER_SAID_NO = /^Yvoke Backend:\s*(ERROR|Error):/
 
 const baseText = (text: string): ServerAnswer =>
   text.trim() ? { ok: true, text: text.trim() } : fail('get_system_prompt gave no instructions.')
 
-const playbookText = (json: string, name: string): ServerAnswer => {
+type PlaybookText = { ok: true; text: string; systemPrompt: string | null } | { ok: false; error: string }
+
+const playbookText = (json: string, name: string): PlaybookText => {
   const parsed = parse(json)
   if (!isRecord(parsed) || typeof parsed.text !== 'string') return unreadable('get_playbook')
   const text = parsed.text.trim()
-  return text ? { ok: true, text } : fail(`playbook '${name}' has no text.`)
+  if (!text) return fail(`playbook '${name}' has no text.`)
+  const own = typeof parsed.systemPrompt === 'string' ? parsed.systemPrompt.trim() : ''
+  return { ok: true, text, systemPrompt: own || null }
 }
 
 const defaultPlaybook = (json: string, area: string): ServerAnswer => {
