@@ -1,0 +1,161 @@
+# P1-08 Session setup: area, mode, playbook
+
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** planned
+
+**Done when** (from [plan.md](../plan.md#phase-1--knowledge-base-base-instructions-and-playbooks-mvp)):
+tests cover the defaults (single agent, the area's default playbook), changing each select before the first
+question, the area reset, the switch to *Multi-agent* picking the area's default profile, the version shown,
+the version kept after the lock even when the server's playbook moves on to a newer one, the lock, the
+read-only line on `terminal` and `desktop`, `/clear`, `/resume`, and server down. Before it is ticked, a
+developer's machine confirms: `skill.prompt` replaces a playbook skill's text in a Yvoke session; the typed
+text stays in the prompt box after `{ drop }` (else restore it with `$.prompt.fill`); `$.session.id` is the
+same after `/resume`; and the setup survives `/branch`.
+
+Facts below were read from the declarations Claude Code **2.1.304** lays for the mod, and from yvoke-web
+`main` (1.3.0) on 2026-10-20. No yvoke-web change is needed: `list_areas` and `list_playbooks` exist
+(P1-06, P1-12).
+
+## What the user gets
+
+1. The user types `/yvoke`. The band above the prompt shows *Loading the Yvoke setup…*, then three selects:
+   - **Area**: every non-prototype area by title (`OIM`). Default: OIM if the server has it, else the first.
+   - **Mode**: *Single agent*. *Multi-agent* is added only once Phase 6 is built, and never for an area
+     with no profiles.
+   - **Playbook** (single agent): the area's playbooks as *title vN* (`oim-full v3`), the area's
+     `defaultPlaybook` selected. **Profile** (multi-agent) takes its place: the area's profiles, its
+     `defaultProfile` selected.
+2. Changing the area resets mode to *Single agent* and the playbook and profile to that area's defaults.
+   Switching the mode to *Multi-agent* selects the area's default profile.
+3. The user types a question and sends it. If it gets through (P1-07 loaded the instructions, nothing
+   dropped it), the setup **locks**: the band becomes one read-only line, *OIM · Single agent · oim-full
+   v3*, and the status line shows the same. Nothing can change it; a different setup is `/clear`, then
+   `/yvoke`.
+4. `/resume` brings the setup back as it was locked; `/branch` keeps it; `/clear` ends it with the session.
+5. Server down, or a server with no areas or no playbook in the chosen area: the band says so with a
+   **Retry** button, and a question is dropped with a `Yvoke Backend:` message rather than sent without a
+   setup. There is no cached list.
+6. Playbook skills (Chat/Cowork stubs, P1-04) typed in a Yvoke session do not run: the skill's text is
+   replaced by one line telling the model to say the playbook is chosen in the setup band.
+
+Prototype areas and playbooks are hidden unless a new `userConfig` switch `showPrototypes` (default off) is
+on, as in yvoke-web's picker.
+
+## Design
+
+- **`src/setup.ts`** (new), two parts, so the rules are testable without the engine:
+  - Pure functions, no `$` (mod rule 1): `toCatalogue(areasJson, playbooksJson, showPrototypes)` →
+    areas with their playbooks and profiles, or an error; `defaults(catalogue, area)`; `pick(setup, catalogue,
+    select, value)` doing the area reset and the profile on switch; `lineFor(setup)` for the read-only line.
+  - `registerSetup(on)`: the hooks, one line in `hooks/register.tsx`.
+- **Loading.** Two calls through `callYvoke` (P1-03): `list_areas` and `list_playbooks` (no area: one call
+  returns every playbook with its `area` and `version`). They run when `/yvoke` starts a session (a
+  `command.run` hook on `yvoke` that calls `next(e)` first and loads only if the flag is now true), on
+  `/resume` or `/branch` of a Yvoke session that is not yet locked, and on **Retry**. The result goes to
+  `$.state` `yvoke.catalogue`, then `$.ui.invalidate` redraws the band.
+- **The choice** lives in `$.state` `yvoke.setup` = `{ area, mode, playbook, version, profile, lockedSessionId }`
+  (`playbook` null in multi-agent mode, `profile` null in single agent). This is the key P1-07 already reads
+  (PR #17: `{ area, mode, playbook }`); the added fields are ignored by it. Written on every pick and copied to
+  the session's `$.store` entry `session:<id>` next to P1-10's `yvoke: true`, so `/resume` and `/branch`
+  bring it back.
+- **The lock.** A `prompt.submit` hook (enforcing: opens with the Yvoke check, rule 5) calls `next(e)` and,
+  when the question entered (no `drop`), sets `lockedSessionId` to the current session id, saves the entry,
+  sets the status line and redraws the band. So the setup locks exactly when the question was sent, P1-07's
+  fetch included, whichever hook order the two modules end up in; P1-08 does not read P1-07's
+  `yvoke.instructions` key. Before calling `next`, it drops the question when there is no catalogue or no
+  setup (server down, empty server) with the load's own `Yvoke Backend:` error. `.catch` → `{ drop }`
+  (fails closed). Locked means `lockedSessionId === $.session.id()`; `/clear` empties `$.state`, so it
+  cannot carry over.
+- **The band.** `ui.render` on `{ component: 'AbovePrompt' }`, only in a Yvoke session and only on
+  `terminal` and `desktop` (mobile has no `Select`: the read-only line only). Not locked: the three
+  `Select`s, each `onSelect` writing through `pick`. Locked: one `Text` line. It passes while
+  `hasSurvey` is true. It draws nothing outside a Yvoke session.
+- **Skills.** `skill.prompt` with `pluginName === 'yvoke'` in a Yvoke session answers `{ text }` with the
+  pointer line. P1-04 adds `disable-model-invocation` to the generated skills; nothing to generate here.
+- **`types/index.d.ts`**: `setup` and `catalogue` keys in `PluginState.yvoke`. If P1-07 merges first it adds
+  `setup` already; whoever merges second rebases.
+- **`plugin.json`**: `userConfig.showPrototypes` (boolean, default false).
+- **Store size.** The entry stays a few hundred bytes per session. Pruning old `session:` entries (left to
+  this task by P1-10) is not needed yet at that size; it is noted in the spec instead.
+- Nothing is logged with `$.ui.log`.
+
+## Open decision (asked on a card)
+
+**The locked version after `/resume`.** The server keeps no old playbook text (yvoke-web spec 02 "Not
+supported": saving overwrites in place). Within one session nothing moves: P1-07 fetches the text once. After
+`/resume`, P1-07 fetches again and gets whatever version the server now has, while the setup says the locked
+one. Options: (a) refuse the resumed session's questions when the versions differ and tell the user to start a
+new session; (b) carry on with the new text and update the line to the new version, telling the user once;
+(c) keep the locked text in `$.store` (P1-07 rejected a cached copy). Recommended: (a), because a session's
+answers then all come from the one version it names. Its outcome goes into `design.md` as D-20 and into
+this plan.
+
+## Files that change
+
+| File | Change |
+| --- | --- |
+| `plugins/yvoke/src/setup.ts` | new: pure rules and the hooks |
+| `plugins/yvoke/hooks/register.tsx` | one line: `registerSetup(on)` |
+| `plugins/yvoke/types/index.d.ts` | `setup` and `catalogue` keys |
+| `plugins/yvoke/.claude-plugin/plugin.json` | `showPrototypes` setting |
+| `plugins/yvoke/tests/setup-rules.test.ts` | new: the pure functions |
+| `plugins/yvoke/tests/setup.test.ts` | new: the hooks through the engine, both surfaces |
+| `docs/specs/setup.md`, `docs/specs/README.md`, `docs/specs/session.md` | new spec, index line, one line in session |
+| `docs/tasks/v1/plan.md`, `design.md` | tick P1-08 (after the machine checks); D-20; 4.3 rows if the API differs |
+
+## Order of work
+
+Each step starts with a test, seen failing first.
+
+1. `toCatalogue`: areas with members and defaults, playbooks joined by area with their version, prototypes
+   hidden and shown, `ERROR:` and bad JSON, no areas, an area whose default playbook is missing.
+2. `defaults` and `pick`: the defaults (OIM, single agent, the area's default playbook); changing each
+   select; the area reset; *Multi-agent* picking the default profile; *Multi-agent* never offered while
+   Phase 6 is off or for an area without profiles; `lineFor` with the version.
+3. Loading hooks with a stubbed server (`on('mcp.call', …)`): `/yvoke` loads once; a plain session calls
+   nothing; server down shows the error and Retry; Retry loads again.
+4. The band on `terminal` and `desktop`: selects before the lock, the line after, nothing in a plain
+   session, the line only on `mobile`.
+5. `prompt.submit`: the lock after an entered question; no lock after a drop beneath; dropped with no
+   catalogue; a throw drops (fails closed); a plain session passes untouched; the version kept after the
+   lock when the server's list moves on to a newer one.
+6. `/clear`, `/resume` (locked setup restored, store read failing leaves it unlocked and reloads), `/branch`
+   (copied to the new id).
+7. `skill.prompt`: replaced in a Yvoke session, untouched in a plain one and for another plugin's skill.
+8. The decision's behaviour on `/resume` (step 6), once Eduard has chosen.
+9. Register the line, write the spec, run the checks, then the machine checks below.
+
+## Machine checks (Eduard's machine, before the tick)
+
+The test kit cannot show these; one short session with `claude --plugin-dir plugins/yvoke`, Claude Code
+2.1.287 and latest, against his local yvoke-web:
+
+1. `/yvoke`, then a playbook skill (`/yvoke:<skill>`, any test skill): the model sees the pointer text.
+2. Stop the server, type a question: it is dropped; is the typed text still in the prompt box? If not, the
+   hook restores it with `$.prompt.fill` (one line plus a test).
+3. Lock a setup, `/resume` the session: same `$.session.id`, setup line back.
+4. `/branch`: the new session shows the same locked line.
+
+Findings go in this plan's *Results* section; a check that fails reopens the step it belongs to.
+
+## Risks
+
+- **The lock depends on hook order only in its timing.** If P1-07's hook sits beneath this one, `next(e)`
+  includes its fetch and a failed fetch is a `drop`: no lock. If it sits above, a drop never reaches this
+  hook: no lock either. Both orders tested with a stand-in hook.
+- **A select picked while the question is being sent.** `onSelect` checks the lock first, so a pick after
+  the lock is ignored.
+- **Rejected: lock on P1-07's `yvoke.instructions` key**, as the coordinator's note suggested. It couples
+  P1-08 to an unmerged module and gives no lock until P1-07 lands; the `next(e)` result gives the same
+  answer with no coupling.
+- **Rejected: load the lists inside `ui.render`.** It redraws often and a slow server would hold the band;
+  loading on `/yvoke`, resume and Retry keeps rendering to reads of `$.state`.
+- **Rejected: one Select listing *Single agent* plus each profile** (the old plan); D-18 replaced it.
+
+## Proof
+
+- `plugins/yvoke/tests/setup-rules.test.ts` and `setup.test.ts` cover every item of *Done when* that a test
+  can show; each hook test seen failing against a mutation of what it pins (Yvoke check removed, lock
+  before `next`, catch removed, reset removed).
+- The four machine checks above, recorded under *Results*.
+- `npm run check`: docs, both `validate --strict` runs (the `calls:` line names no `$.fs`, `$.process` or
+  `$.http`), types, and `claude plugin test plugins/yvoke` (N pass, 0 fail).
