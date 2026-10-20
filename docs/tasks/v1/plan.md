@@ -436,13 +436,18 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
     "no filesystem, network, shell, or timers"; this one is a `node` process started by a shell, so its
     description promises only what P0-12 showed the sandbox blocks. Do not copy the desktop's
     description or its isolation tests.
-  - **Sandbox required.** A registered tool cannot be withdrawn (P2-05's earlier plan, #19), so the check
-    is made on every call: with Claude Code's sandbox off, or unsupported as on native Windows, the call
-    is refused with a message saying why, and nothing runs.
-  - **Playbook opt-out, also per call.** The tool is registered when `/yvoke` starts the Yvoke session (and
-    again when `/resume` or `/branch` restores one, P1-10), before the playbook is known, so it cannot be withheld later either: while the active playbook declares
-    `codeExecution: false`, every call is refused with a message saying so, and nothing runs. (A specialist
-    agent type in P6-02 simply leaves the tool out of its list.)
+  - **Registered once, checked on every call.** The mod registers the tool when `/yvoke` starts the Yvoke
+    session, or when `/resume` or `/branch` restores one (P1-10), if this process has not registered it
+    yet. That happens before the playbook is known, and a registered tool cannot be withdrawn (P2-05's
+    earlier plan, #19): after `/clear` it stays listed in what is now a plain session. So every call
+    checks, in this order, and refuses with a message saying why, running nothing, when:
+    - the Yvoke flag (`$.state` `yvokeSession`) is not `true`, i.e. this is not, or is no longer, a Yvoke
+      session;
+    - Claude Code's sandbox is off, or unsupported as on native Windows;
+    - the active playbook declares `codeExecution: false`. (A specialist agent type in P6-02 simply
+      leaves the tool out of its list.)
+  - Tests cover each refusal: a call after `/clear`, a call in a session never started with `/yvoke`,
+    sandbox off, and `codeExecution: false`; each runs nothing.
   - Port only the result and limit
     cases of yvoke-desktop's `computeTools.test.ts`; the escape cases come from P0-12's findings. If P0-12 shows the route cannot be made safe, v1 has no compute
   tool and this task is struck through. The earlier plan for `calculate`, `statistics` and `date_diff`
