@@ -1,6 +1,6 @@
 # P2-08 Turn ceilings per question
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
 
 A Yvoke question may make only so many model requests per loop. At the ceiling the mod does not throw the
 work away, as yvoke-desktop does (`error_max_turns` ends its turn as a failure): it tells the model to
