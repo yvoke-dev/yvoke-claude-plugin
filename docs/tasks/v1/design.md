@@ -353,7 +353,8 @@ the same PR.
   `plugins/yvoke/.claude-plugin/types/claude-code/index.d.ts` (about 20,000 lines; grep for `'tool.call'`,
   `HookBudget` and so on). Do not commit that `types/` folder; it is regenerated on every load.
   `validate` and `test` do not write it; `npm run types` (`scripts/lay-types.mjs`) loads the mod once in
-  print mode, with no sign-in and no model call, to lay it before `tsc` runs (P0-01).
+  print mode, with no sign-in and no model call, to lay it before `tsc` runs (P0-01). Since 2.1.304 the
+  engine writes it only for a folder it watches, so the script sets `CLAUDE_CODE_PLUGIN_DIR_WATCH=1` (P0-13).
 - `claude plugin validate plugins/yvoke` prints the `hooks:` and `calls:` lines the security review (P7-06)
   needs, and refuses source the engine could not read. Run it before every push.
 - `claude plugin test plugins/yvoke` runs `*.test.ts` against the real engine with no session, network, fs
