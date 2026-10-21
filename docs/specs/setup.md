@@ -35,9 +35,6 @@
 - After `/resume` or `/branch` of a locked session whose playbook the server has saved again, the setup
   carries on with the server's version: the line and the status line show it, and a toast says once *oim-full moved
   from v3 to v4 since this session started; answers from now on use v4.* (D-20).
-- A Yvoke playbook skill (a Chat/Cowork stub) typed in a Yvoke session does not run: the model is told to
-  say that the playbook is chosen in the setup band. Other plugins' skills, and every skill outside a Yvoke
-  session, are unchanged.
 - A question that entered the session is never reported as dropped, even when saving the lock fails;
   the lock then holds for this session, and `/resume` finds the setup unlocked.
 - The saved setups (`setup:<session id>`) are a few hundred bytes each, in the plugin's 4 MiB store. They
@@ -53,7 +50,6 @@
 | Band | `ui.render` on `AbovePrompt` (terminal and desktop); `Select` keys `yvoke-area`, `yvoke-mode`, `yvoke-playbook`, `yvoke-profile`; Button `yvoke-retry` |
 | Loading | `command.run` on `yvoke`, `classic.SessionStart` (`resume`, `fork`), Retry, or a question with no lists |
 | Lock | `prompt.submit` (matcher `{ text: /^/ }`, so it can sit beside another module's unmatched hook) |
-| Skills | `skill.prompt`, for skills whose `pluginName` is `yvoke` or whose name starts with `yvoke:` (2.1.287 gives no `pluginName`) |
 | `$.state` `yvoke.setup` | `{ area, mode: 'single' \| 'multi', playbook, version, profile, lockedSessionId }`; P1-07 reads area, mode and playbook |
 | `$.state` `yvoke.catalogue` | the lists as the band shows them, or the error |
 | `$.store` `setup:<session id>` | the setup, saved on every pick, before a question goes down, and at the lock |
@@ -71,9 +67,9 @@
   with Retry, no areas, an area with no playbooks, lists loaded by the first question, a survey, `/clear`,
   `/resume` locked, moved on (D-20), unlocked, plain or unreadable, `/branch` (and moved on), the status
   line cleared on `/resume` of a plain or unlocked session, a hook failure, a lock that
-  cannot be saved, skills (both input forms), and prototypes on. Run on Claude Code 2.1.287 and latest.
+  cannot be saved, and prototypes on. Run on Claude Code 2.1.287 and latest.
 - Not checkable in the test kit; checked on a developer's machine before P1-08 is ticked (see its plan):
-  the skill text replaced, the typed text after a dropped question, the session id after `/resume`, and
+  the typed text after a dropped question, the session id after `/resume`, and
   the setup after `/branch`.
 
 ## History

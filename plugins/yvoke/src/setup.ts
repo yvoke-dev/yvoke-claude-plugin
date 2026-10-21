@@ -173,9 +173,6 @@ export const movedOn = (setup: Setup, catalogue: Catalogue): { setup: Setup; fro
 
 export const LOADING = 'Loading the Yvoke setup…'
 export const DROP_FAILED = 'Yvoke Backend: the session could not be set up, so the question was not sent.'
-export const SKILL_POINTER =
-  'This Yvoke playbook is not started this way in Claude Code. Tell the user, in one sentence, that the ' +
-  'playbook is chosen in the Yvoke setup band above the prompt before the first question, and do nothing else.'
 
 /** The `$.store` key holding one session's setup, next to P1-10's `session:<id>`. */
 export const setupKey = (sessionId: string) => `setup:${sessionId}`
@@ -202,13 +199,6 @@ const fitted = (saved: Setup | null | undefined, catalogue: Catalogue): Setup =>
   if (saved.lockedSessionId !== null) return saved
   return catalogue.areas.some((a) => a.name === saved.area) ? saved : defaults(catalogue)
 }
-
-/**
- * Whether a skill is one of this plugin's. Newer Claude Code names the plugin (`pluginName`, checked on
- * 2.1.304); 2.1.287 hands only `{ skill, text }`, where a plugin skill's name carries the plugin as `yvoke:<skill>`.
- */
-const isYvokeSkill = (e: { skill: string; pluginName?: string }) =>
-  e.pluginName === 'yvoke' || e.skill.startsWith('yvoke:')
 
 const noPlaybooks = (area: string) => `Yvoke Backend: the area ${area} has no playbooks, so the question was not sent.`
 
@@ -455,11 +445,4 @@ export function registerSetup(on: On, options: PluginOptions) {
       third,
     ) as RenderElement
   })
-
-  on('skill.prompt', async ($, e, next) => {
-    const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
-    if (isYvoke !== true || !isYvokeSkill(e)) return next(e)
-    return { text: SKILL_POINTER }
-    // Fails closed for Yvoke's own skills only: anyone else's skill, in any session, passes on.
-  }).catch((_$, e, next) => (isYvokeSkill(e) ? { text: SKILL_POINTER } : next(e)))
 }

@@ -7,7 +7,7 @@ tests cover the defaults (single agent, the area's default playbook), changing e
 question, the area reset, the switch to *Multi-agent* picking the area's default profile, the version shown,
 the version kept after the lock even when the server's playbook moves on to a newer one, the lock, the
 read-only line on `terminal` and `desktop`, `/clear`, `/resume`, and server down. Before it is ticked, a
-developer's machine confirms: `skill.prompt` replaces a playbook skill's text in a Yvoke session; the typed
+developer's machine confirms: the typed
 text stays in the prompt box after `{ drop }` (else restore it with `$.prompt.fill`); `$.session.id` is the
 same after `/resume`; and the setup survives `/branch`.
 
@@ -34,8 +34,6 @@ Facts below were read from the declarations Claude Code **2.1.304** lays for the
 5. Server down, or a server with no areas or no playbook in the chosen area: the band says so with a
    **Retry** button, and a question is dropped with a `Yvoke Backend:` message rather than sent without a
    setup. There is no cached list.
-6. Playbook skills (Chat/Cowork stubs, P1-04) typed in a Yvoke session do not run: the skill's text is
-   replaced by one line telling the model to say the playbook is chosen in the setup band.
 
 Prototype areas and playbooks are hidden unless a new `userConfig` switch `showPrototypes` (default off) is
 on, as in yvoke-web's picker.
@@ -70,8 +68,6 @@ on, as in yvoke-web's picker.
   `terminal` and `desktop` (`AbovePrompt` is raised on those two only, design 4.3). Not locked: the three
   `Select`s, each `onSelect` writing through `pick`. Locked: one `Text` line. It passes while
   `hasSurvey` is true. It draws nothing outside a Yvoke session.
-- **Skills.** `skill.prompt` with `pluginName === 'yvoke'` in a Yvoke session answers `{ text }` with the
-  pointer line. P1-04 adds `disable-model-invocation` to the generated skills; nothing to generate here.
 - **`types/index.d.ts`**: `setup` and `catalogue` keys in `PluginState.yvoke`. If P1-07 merges first it adds
   `setup` already; whoever merges second rebases.
 - **`plugin.json`**: `userConfig.showPrototypes` (boolean, default false).
@@ -122,10 +118,9 @@ Each step starts with a test, seen failing first.
    lock when the server's list moves on to a newer one.
 6. `/clear`, `/resume` (locked setup restored, store read failing leaves it unlocked and reloads), `/branch`
    (copied to the new id).
-7. `skill.prompt`: replaced in a Yvoke session, untouched in a plain one and for another plugin's skill.
-8. D-20: `/resume` or `/branch` of a locked session whose playbook moved on updates the version and the line and
+7. D-20: `/resume` or `/branch` of a locked session whose playbook moved on updates the version and the line and
    toasts once; same version, no toast; a toast is not repeated on a second resume.
-9. Register the line, write the spec, run the checks, then the machine checks below.
+8. Register the line, write the spec, run the checks, then the machine checks below.
 
 ## Changed while building
 
@@ -140,9 +135,6 @@ Each step starts with a test, seen failing first.
   On `classic.SessionStart` the setup hook calls `next(e)` first, so P1-10 has decided the flag before it
   reads it.
 - **A `Text` keeps no `key`.** Tests find the read-only line and the notices by their text.
-- **Skills on 2.1.287.** Its `skill.prompt` input is only `{ skill, text }` (no `pluginName`), so a skill
-  counts as Yvoke's when `pluginName` is `yvoke` or its name starts with `yvoke:`. Whether 2.1.287 names a
-  plugin skill `yvoke:<name>` is part of machine check 1.
 - **A lock that cannot be saved never drops the question.** After `next(e)` the question has entered;
   the status line and store writes are caught (found red on 2.1.287 only, whose test kit passes a test
   hook's throw on to the caller).
@@ -157,7 +149,9 @@ Each step starts with a test, seen failing first.
 - **Review of #22 (Eduard, 2026-10-21).** The status line is now cleared on every `/clear`, `/resume` and
   `/branch` and set again only for a locked setup (it outlived its session on `/resume` of a plain or
   unlocked one). D-20 also applies to `/branch`, which fetches the playbook afresh under its new id.
-  `skill.prompt`'s `.catch` answers the pointer only for Yvoke's own skills and passes others on.
+- **No playbook skills (D-26, Eduard 2026-10-21).** Chat and Cowork are dropped from v1, so the plugin
+  ships no skills, and the `skill.prompt` hook, its test and its machine check are removed (they were
+  built and then taken out in this PR).
 - **Slash commands that reach the model lock too.** `prompt.submit` fires for a command only when it asks
   the model, which is a question like any other, as for P1-07.
 
@@ -166,12 +160,10 @@ Each step starts with a test, seen failing first.
 The test kit cannot show these; one short session with `claude --plugin-dir plugins/yvoke`, Claude Code
 2.1.287 and latest, against his local yvoke-web:
 
-1. `/yvoke`, then a playbook skill (`/yvoke:<skill>`, any test skill): the model sees the pointer text,
-   on 2.1.287 and on latest.
-2. Stop the server, type a question: it is dropped; is the typed text still in the prompt box? If not, the
+1. Stop the server, type a question: it is dropped; is the typed text still in the prompt box? If not, the
    hook restores it with `$.prompt.fill` (one line plus a test).
-3. Lock a setup, `/resume` the session: same `$.session.id`, setup line back.
-4. `/branch`: the new session shows the same locked line.
+2. Lock a setup, `/resume` the session: same `$.session.id`, setup line back.
+3. `/branch`: the new session shows the same locked line.
 
 Findings go in this plan's *Results* section; a check that fails reopens the step it belongs to.
 
@@ -200,6 +192,6 @@ Not run yet.
 - `plugins/yvoke/tests/setup-rules.test.ts` and `setup.test.ts` cover every item of *Done when* that a test
   can show; each hook test seen failing against a mutation of what it pins (Yvoke check removed, lock
   before `next`, catch removed, reset removed).
-- The four machine checks above, recorded under *Results*.
+- The three machine checks above, recorded under *Results*.
 - `npm run check`: docs, both `validate --strict` runs (the `calls:` line names no `$.fs`, `$.process` or
   `$.http`), types, and `claude plugin test plugins/yvoke` (N pass, 0 fail).

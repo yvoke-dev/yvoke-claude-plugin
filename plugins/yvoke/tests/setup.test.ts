@@ -112,7 +112,6 @@ function engine(on: On, start: Partial<World> = {}): World {
     w.toasts.push(e.text)
     return { value: undefined }
   })
-  on('skill.prompt', (_$, e) => ({ text: e.text }))
   // The engine's own drawing of the band: nothing.
   on('ui.render', ($$, e) => {
     const { Box } = $$.ui.resolve(e)
@@ -486,22 +485,6 @@ test('a question that entered is never reported as dropped, even when saving the
   expect(w.store.get('setup:session-a')).toMatchObject({ lockedSessionId: null })
   const ui = await band($, 'terminal')
   expect(await lineOf(ui)).toBe(LINE)
-})
-
-test('a playbook skill in a Yvoke session is replaced by a pointer to the band', async ($, on) => {
-  engine(on)
-  await begin($)
-  // Newer Claude Code (2.1.304) names the plugin; 2.1.287 hands only the skill (`yvoke:<name>`) and its text.
-  const skill = (name: string, pluginName?: string) =>
-    $.skill.prompt({ skill: name, text: 'PLAYBOOK STUB', frontmatter: {}, source: 'plugin', pluginName } as never)
-
-  expect(await skill('oim-full', 'yvoke')).toEqual({ text: 'PLAYBOOK STUB' })
-  expect(await skill('yvoke:oim-full')).toEqual({ text: 'PLAYBOOK STUB' })
-  await yvoke($)
-  expect((await skill('oim-full', 'yvoke')).text).toContain('setup band')
-  expect((await skill('yvoke:oim-full')).text).toContain('setup band')
-  expect(await skill('review', 'other')).toEqual({ text: 'PLAYBOOK STUB' })
-  expect(await skill('other:review')).toEqual({ text: 'PLAYBOOK STUB' })
 })
 
 test('prototypes show only when the setting is on', { options: { showPrototypes: true } }, async ($, on) => {
