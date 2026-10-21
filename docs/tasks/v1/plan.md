@@ -406,13 +406,16 @@ a cloud session.
 Port yvoke-desktop's `src/main/agent/policy.ts` semantics into a `tool.call` hook. Port the matching cases
 from `tests/policy.test.ts` first, watch them fail, then implement.
 
-- [ ] **P2-01** `plugin` · M — **Deny by default.** Allowed: the knowledge-base tools granted (P2-02),
+- [x] **P2-01** `plugin` · M — **Deny by default** ([#23](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/23)). Allowed: the knowledge-base tools granted (P2-02),
   `ToolSearch`, `AskUserQuestion` (P1-09, P6-04), the compute tools (P2-05), the web tools under P2-04's
   rules, and delegation while a profile is active (P6-04). Everything else is denied
   with: *"The tool … is not available in this application. Use the yvoke knowledge-base tools instead."*
   - Includes `Bash`, file tools, other MCP servers and `Agent`/`Task` outside a profile.
-  - Except the mod's own `Bash` call that serves `execute_code` (D-19): it is told apart by its origin
-    (`next.origin`, P0-12); the model's own `Bash` calls stay denied.
+  - The mod's own `Bash` call that serves `execute_code` (D-19) is let through by P2-05, which is where
+    that call is made and can be tested; the gate sees it with `next.origin.plugin` `yvoke`, the model's
+    calls with `engine` (checked on 2.1.304).
+  - Until P2-02, every tool of the Yvoke server is granted; until P2-04, P2-05 and P6-04, the web tools,
+    `execute_code` and delegation stay denied.
   - Applies only in a Yvoke session. ⛔ P1-10
   - Done when: tests cover each class of tool.
 - [ ] **P2-02** `plugin` · M — **Per-playbook scoping.** A playbook that declares tools gets exactly
@@ -453,6 +456,9 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
     - Claude Code's sandbox is off, or unsupported as on native Windows;
     - the active playbook declares `codeExecution: false`. (A specialist agent type in P6-02 simply
       leaves the tool out of its list.)
+  - **The mod's own `Bash` call passes P2-01's gate** only when it comes from this plugin
+    (`next.origin.plugin === 'yvoke'`) and is `Bash`; the model's `Bash` stays denied. A test drives it
+    through the real `execute_code` hook (moved here from P2-01, 2026-10-20).
   - Tests cover each refusal: a call after `/clear`, a call in a session never started with `/yvoke`,
     sandbox off, and `codeExecution: false`; each runs nothing.
   - Port only the result and limit

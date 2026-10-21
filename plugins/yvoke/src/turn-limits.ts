@@ -5,8 +5,9 @@
 // beneath it. The work is delivered, never discarded (decided 2026-10-05; D-24 for the subagents).
 //
 // `turn.step` carries the request's position (`index`), so nothing is counted here: each request writes
-// where its loop stands to `$.state` `yvoke.loopStep` (one member per loop), and `tool.call`, which knows
-// its loop but not its request, reads it back.
+// where its loop stands to `$.state` `yvoke.loopStep` (one member per loop). The denial itself is the first
+// check of the one `tool.call` gate in src/policy.ts, which knows the call's loop but not its request and
+// reads `loopStep` back: the engine takes one unmatched `tool.call` hook per plugin, so the gate is one hook.
 import type { On, PluginOptions, TurnStepChunk, TurnStepResult } from 'claude-code'
 
 export type Limits = { single: number | null; lead: number | null; agent: number | null }
@@ -98,14 +99,6 @@ export function registerTurnLimits(on: On, options: PluginOptions) {
   }).catch(async function* ($, e, next) {
     return yield* withoutTools(next(e))
   })
-
-  on('tool.call', async ($, e, next) => {
-    const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
-    if (isYvoke !== true) return next(e)
-    const { value: at } = await $.state.get({ plugin: 'yvoke', key: 'loopStep', id: e.agentId ?? 'main' })
-    if (at && isWrapUp(at.index, at.n)) return { deny: WRAP_UP }
-    return next(e)
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: CHECK_FAILED }))
 
   // Only adds a line; it enforces nothing, so a failure here leaves the answer as it was.
   on('turn.complete', async ($, e, next) => {

@@ -417,7 +417,7 @@ the same PR.
 
 | Plan uses | API (2.1.289) | Notes |
 | --- | --- | --- |
-| Deny a tool | `on('tool.call', h)` → `{ deny: reason }` | `e.tool` is the full name; `e.agentId` set for subagents. Managed `PreToolUse` hooks run first. |
+| Deny a tool | `on('tool.call', h)` → `{ deny: reason }` | `e.tool` is the full name; `e.agentId` set for subagents. Managed `PreToolUse` hooks run first. The model's calls arrive with `next.origin.plugin` `engine`; a call the mod makes with `$.tool.call` skips only the calling hook, and the mod's other `tool.call` hooks see it with origin `yvoke` (2.1.304, P2-01). |
 | Rewrite a tool's input (WebSearch domains) | `next({ ...e, allowed_domains: [ … ] })` | The tool's arguments sit flat on `e`, beside `tool` (there is no `e.input`). Managed hooks run again on the rewritten call. |
 | Gate a prompt | `on('prompt.submit', h)` → `{ drop: reason }` | The reason is shown to the user. Whether the draft stays is checked in P1-08; `$.prompt.fill` restores it. |
 | Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Cached until `$.ui.invalidate('prompt.compose')`; the text is fixed per session, so one fetch at lock. |
@@ -445,11 +445,17 @@ the same PR.
   as if it were not there. Every enforcing hook therefore gets a `.catch` with the safe answer (1 s grace):
 
   ```ts
-  on('tool.call', enforcePolicy).catch(() => ({ deny: 'Yvoke: the policy check failed, so this tool was not run.' }))
+  // Once the hook has called next, the tool may have run: pass on what it settled to (P2-01).
+  on('tool.call', enforcePolicy).catch(($, e, next) => (next.called ? next(e) : { deny: 'Yvoke: the policy check failed, so this tool was not run.' }))
   on('prompt.submit', lockSetup).catch(() => ({ drop: 'Yvoke Backend: the session could not be set up, so the question was not sent.' }))
   ```
 
   Tests cover the throw and the timeout path for each one.
+- **One hook per event in the whole mod.** A plugin's registrations nest in order (first outermost), and a
+  second `on(event, hook)` without a matcher stops the module loading (*registered twice without a
+  matcher*). Every tool rule is therefore a check inside the one `tool.call` gate in `src/policy.ts`, in a
+  fixed order, each with its own failure message: the turn limit (P2-08) first, then the policy (P2-01).
+  A later task adds its check there rather than a hook of its own (found in P2-08's review).
 - **Outside a Yvoke session, call `next(e)` and nothing else.** The mod loads in every Claude Code session
   of the user; only `/yvoke` makes a session a Yvoke session (P1-10, D-13). Every enforcing hook opens
   with these two lines, written in its own file:

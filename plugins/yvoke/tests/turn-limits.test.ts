@@ -10,6 +10,9 @@ const WRAP_UP =
   'Yvoke: this question has reached its turn limit. Do not call any more tools. Answer now with what you ' +
   'have found, and say plainly that the answer may be incomplete.'
 const CHECK_FAILED = 'Yvoke: the turn-limit check failed, so this tool was not run.'
+const POLICY_FAILED = 'Yvoke: the policy check failed, so this tool was not run.'
+const notAvailable = (tool: string) =>
+  `The tool "${tool}" is not available in this application. Use the yvoke knowledge-base tools instead.`
 const flag = (n: number) => `Yvoke: stopped at the turn limit (${n} model requests). The answer may be incomplete.`
 
 type World = {
@@ -17,13 +20,14 @@ type World = {
   failGet: string | null
   failSet: string | null
   toolsRun: string[]
+  failConnect: boolean
 }
 
 const address = (e: { plugin: string; key: string; id?: string }) =>
   e.id === undefined ? `${e.plugin}.${e.key}` : `${e.plugin}.${e.key}#${e.id}`
 
 function engine(on: On, start: { yvoke?: boolean; mode?: string } = {}): World {
-  const w: World = { state: new Map(), failGet: null, failSet: null, toolsRun: [] }
+  const w: World = { state: new Map(), failGet: null, failSet: null, toolsRun: [], failConnect: false }
   if (start.yvoke !== false) w.state.set('yvoke.yvokeSession', true)
   if (start.mode !== undefined) w.state.set('yvoke.setup', { area: 'OIM', mode: start.mode, playbook: null })
   on('state.get', (_$, e) => {
@@ -51,6 +55,11 @@ function engine(on: On, start: { yvoke?: boolean; mode?: string } = {}): World {
       stopReason: 'tool_use',
       usage: null,
     }
+  })
+  // The tool gate (P2-01) asks for the Yvoke server's name to know its tools.
+  on('mcp.connect', () => {
+    if (w.failConnect) throw new Error('connect failed')
+    return { value: { isConnected: true, server: 'plugin:yvoke:yvoke' } }
   })
   on('tool.call', (_$, e) => {
     w.toolsRun.push(e.tool)
@@ -242,6 +251,44 @@ describe('settings', () => {
     expect(kinds(late)).toEqual(['text', 'tool', 'input', 'stop'])
     expect(await callTool($)).toEqual({ result: 'from the engine' })
     expect(await complete($, 'long')).toMatchObject({ text: 'long' })
+  })
+})
+
+// One `tool.call` gate holds every tool rule (the engine takes one unmatched `tool.call` hook per plugin).
+// The turn limit is checked first, so at the limit the model is told to answer, never pointed to other tools.
+describe('with the tool policy', () => {
+  test('under the limit, a tool the policy refuses is refused by the policy', async ($, on) => {
+    const w = engine(on)
+
+    await step($, 0)
+    expect(await $.tool.call({ tool: 'Bash', command: 'ls' })).toMatchObject({ deny: notAvailable('Bash') })
+    expect(w.toolsRun).toEqual([])
+  })
+
+  test('at the limit, a tool the policy refuses gets the wrap-up message instead', async ($, on) => {
+    engine(on)
+
+    await runTo($, 22)
+    await step($, 23)
+    expect(await $.tool.call({ tool: 'Bash', command: 'ls' })).toMatchObject({ deny: WRAP_UP })
+  })
+
+  test('the turn-limit check fails: its own message, and the server is not asked', async ($, on) => {
+    const w = engine(on)
+
+    await step($, 0)
+    w.failGet = 'loopStep'
+    w.failConnect = true
+    expect(await callTool($)).toMatchObject({ deny: CHECK_FAILED })
+  })
+
+  test('the turn-limit check passes and the policy check fails: the policy message', async ($, on) => {
+    const w = engine(on)
+
+    await step($, 0)
+    w.failConnect = true
+    expect(await callTool($)).toMatchObject({ deny: POLICY_FAILED })
+    expect(w.toolsRun).toEqual([])
   })
 })
 
