@@ -76,7 +76,8 @@ for yvoke-web.
 5. **P0-02** CI, then **P0-03** contributor guide.
 6. In parallel: **P1-03** server client, **P1-10** `/yvoke` session start, **P1-09** clarifying questions,
    **P3-01** citation parser, **P6-03** reviewer verdict, **P2-05** compute tools.
-7. **P2-01**, then **P2-02**, then **P2-03**, in one thread: all three change the same `tool.call` hook.
+7. **P2-01**, **P2-03** and **P2-02**, in one thread: all three change the same `tool.call` hook. P2-03
+   (a pure function) came before P2-02, which waits for P1-08 (2026-10-21).
 
 **Wave 3: milestone M1.** **P1-02** (after P0-09), **P1-07** (after P1-01, P1-06), **P1-08** (after
 P1-10, P1-12), then **P2-06** and **P2-08**.
@@ -400,7 +401,7 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   those (plus the always-added three); one that declares none gets the default set (`DEFAULT_KB_TOOLS`).
   Scoping follows the session's playbook from P1-08, which never changes during the session. ⛔ P1-08
   - Done when: tests cover declared tools and no declaration.
-- [ ] **P2-03** `plugin` · S — **Re-namespacing.** Playbooks name tools by their base name (`search_corpus`).
+- [x] **P2-03** `plugin` · S — **Re-namespacing** ([#27](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/27)). Playbooks name tools by their base name (`search_corpus`).
   The mod maps each to the Yvoke server's real tool name, using the server P1-03 found (D-05 lists the
   forms). Do not port yvoke-desktop's fixed `MCP_TOOL_PREFIX`; port `qualifyTool`'s tests with the prefix
   supplied at run time. The built-ins `WebSearch`, `WebFetch` and `ToolSearch` are never prefixed. ⛔ P1-03
@@ -463,15 +464,16 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   users cannot disable it. The deny applies to the whole machine (see D-09). ⛔ D-09~~
   Dropped: no IT lockdown (D-09).
 
-- [ ] **P2-08** `plugin` · M — **Turn ceilings per question** (decided 2026-10-05). The mod counts the model
+- [x] **P2-08** `plugin` · M — **Turn ceilings per question** (decided 2026-10-05). The mod counts the model
   requests of each question per loop (`turn.step`, keyed by `turnId` and `agentId`) and enforces
-  configurable ceilings from `userConfig`: single agent 25, lead 60, each specialist and the reviewer 20
-  (yvoke-desktop's shipped values). At the ceiling it **delivers rather than discards**: further tool calls
+  configurable ceilings from `userConfig`: single agent 25, lead 60, each specialist and the reviewer 20, one
+  setting for all subagents (D-24; yvoke-desktop ships 25, 60 and 20, but hard-codes its reviewer at 6). At the ceiling it **delivers rather than discards**: further tool calls
   in that loop are denied with a message telling the model to answer now with what it has, and the answer
   is flagged (*stopped at the turn limit*) by a line under it. A specialist at its ceiling returns its
   partial answer to the lead. Fails closed ([requirements 1](requirements.md#1-principles-carried-over-from-yvoke-desktop)). Port the ceiling cases from yvoke-desktop's tests where
   they exist.
   - Done when: tests cover under the limit, at the limit for each role, the flag line, and a hook failure.
+  - Done: [#26](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/26); [spec](../../specs/turn-limits.md).
 
 ### Phase 3 — Citations
 

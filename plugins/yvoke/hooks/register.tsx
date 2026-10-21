@@ -3,8 +3,10 @@
 import type { Register } from 'claude-code'
 import { registerPolicy } from '../src/policy'
 import { registerSession } from '../src/session'
+import { registerTurnLimits } from '../src/turn-limits'
 
-export const register: Register = (on) => {
+export const register: Register = (on, options) => {
   registerSession(on)
   registerPolicy(on)
+  registerTurnLimits(on, options)
 }

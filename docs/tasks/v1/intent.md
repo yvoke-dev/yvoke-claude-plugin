@@ -1,6 +1,6 @@
 # Yvoke for Claude v1: intent
 
-**Author:** Eduard · **Status:** accepted (decisions D-01 to D-16 taken 2026-10-05 and 2026-10-06) · **Updated:** 2026-10-21 (D-26: v1 is Claude Code only)
+**Author:** Eduard · **Status:** accepted (decisions D-01 through D-26, taken 2026-10-05 to 2026-10-21) · **Updated:** 2026-10-21 (D-26: v1 is Claude Code only)
 
 Why we are building the plugin, who it is for, and what they will do with it. What the plugin must do is in
 [requirements.md](requirements.md), how it is built is in [design.md](design.md), and the work and its

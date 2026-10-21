@@ -49,6 +49,11 @@ and turn `devMode` off. In a terminal, pipe the values in instead:
 `echo '{"serverUrl":"https://<server>/mcp","devMode":"false"}' | claude plugin configure yvoke@yvoke --values-stdin`. The plugin then uses the normal sign-in. That sign-in (Entra ID) arrives with task P1-02; until then
 only a local server in mock mode works.
 
+**Turn limits.** Three more settings cap the model requests of one Yvoke question: `turnLimitSingle`
+(25), `turnLimitLead` (60) and `turnLimitAgent` (20, each specialist and the reviewer). At the limit the
+answer is still delivered, marked as stopped at the turn limit; `0` turns a limit off. Change them with
+`/plugin configure yvoke@yvoke`.
+
 **Quick look without installing:** `claude --plugin-dir plugins/yvoke` loads the plugin for one session.
 Use the steps above when you need it connected to a server.
 

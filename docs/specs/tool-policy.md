@@ -21,9 +21,16 @@
 - Built-in tools are decided without asking for the server's connection.
 - The mod's own tools (`mcp__yvoke__execute_code`) are refused by name, also when the Yvoke server is
   configured under the bare name `yvoke` and its tools share that prefix.
+- At the turn limit (P2-08, [turn-limits.md](turn-limits.md)) every call is refused with the turn-limit
+  message before this policy is checked.
 - If the check itself fails, the call is refused with *Yvoke: the policy check failed, so this tool was
   not run.* A failure beneath the gate, after the check let the call through, is passed on as it settled, the same
   as outside a Yvoke session.
+- A tool a playbook declares is named the way this session calls it: a bare name (`search_corpus`), yvoke-
+  desktop's `mcp__yvoke__search_corpus` and older aliases (`mcp__oim__…`) all become the Yvoke server's
+  tool (`mcp__plugin_yvoke_yvoke__search_corpus`, or the connector's), with exactly one prefix. `WebSearch`,
+  `WebFetch`, `ToolSearch` and `AskUserQuestion`, in any case, are never prefixed. Nothing uses this until
+  P2-02.
 - Not yet: the playbook's own tool list (P2-02), web tools under the web rules (P2-04), `execute_code`
   and the mod's own `Bash` call behind it (P2-05), delegation while a profile is active (P6-04).
 
@@ -32,7 +39,9 @@
 | Piece | Where |
 | --- | --- |
 | `tool.call` hook, `isAllowed`, `denied`, `POLICY_FAILED` | `plugins/yvoke/src/policy.ts` |
+| The plugin's only `tool.call` hook: its checks run in order, the turn limit (P2-08) first, then this policy | same file |
 | `serverToolPrefix(server)`: a server name → its tools' prefix, by the engine's rule | `plugins/yvoke/src/tool-names.ts` |
+| `qualifyTool(tool, serverPrefix)`: a playbook's tool name → the name the model calls (P2-03); `builtinTool(tool)` | `plugins/yvoke/src/tool-names.ts` |
 | Engine calls | `$.state.get` (the Yvoke flag), `$.mcp.connect('yvoke')` (MCP tools only) |
 
 The engine's naming rule, read from Claude Code 2.1.304: every character of the server name outside
@@ -46,8 +55,12 @@ tools granted.
   under a connector name and under the bare name; a look-alike server name; subagents; the server not connected; built-ins not
   waiting on the server; a failing check; a failure beneath the gate after the check, compared with the same call outside a
   Yvoke session.
-- `plugins/yvoke/tests/tool-names.test.ts`: the naming rule.
+- `plugins/yvoke/tests/tool-names.test.ts`: the naming rule; `builtinTool`; `qualifyTool` for the plugin
+  and a connector prefix (bare names, the current prefix, `mcp__yvoke__` and older aliases, one prefix
+  only, spaces before a prefix, built-ins and names that only look like one).
 
 ## History
 
 - P2-01 ([#23](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/23)): deny by default.
+- P2-03 ([#27](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/27)): `qualifyTool`, ready for the
+  playbook's tool list (P2-02).
