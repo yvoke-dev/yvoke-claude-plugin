@@ -22,7 +22,8 @@
 - The mod's own tools (`mcp__yvoke__execute_code`) are refused by name, also when the Yvoke server is
   configured under the bare name `yvoke` and its tools share that prefix.
 - If the check itself fails, the call is refused with *Yvoke: the policy check failed, so this tool was
-  not run.* A failure after the check let the call through is the tool's own and is passed on as such.
+  not run.* A failure beneath the gate, after the check let the call through, is passed on as it settled, the same
+  as outside a Yvoke session.
 - Not yet: the playbook's own tool list (P2-02), web tools under the web rules (P2-04), `execute_code`
   and the mod's own `Bash` call behind it (P2-05), delegation while a profile is active (P6-04).
 
@@ -43,7 +44,8 @@ tools granted.
 
 - `plugins/yvoke/tests/policy.test.ts`: outside a Yvoke session; each allowed and denied class; the server
   under a connector name and under the bare name; a look-alike server name; subagents; the server not connected; built-ins not
-  waiting on the server; a failing check; a tool failing after the check.
+  waiting on the server; a failing check; a failure beneath the gate after the check, compared with the same call outside a
+  Yvoke session.
 - `plugins/yvoke/tests/tool-names.test.ts`: the naming rule.
 
 ## History

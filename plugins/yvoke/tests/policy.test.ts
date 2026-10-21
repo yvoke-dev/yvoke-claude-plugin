@@ -155,16 +155,28 @@ describe('in a Yvoke session: denied', () => {
 })
 
 describe('fails closed', () => {
-  test('a failure after the gate let the call through is not reported as a refusal', async ($, on) => {
-    // Registered before the engine's own tool hook, so it is the one that answers this tool.
-    on('tool.call', { tool: 'mcp__plugin_yvoke_yvoke__search_corpus' }, () => {
+  test('a failure beneath the gate, after it let the call through, is passed on as it settled', async ($, on) => {
+    // A hook beneath the plugin that throws makes the call reject. Outside a Yvoke session the gate only
+    // calls next, so that rejection is the baseline the gate must pass on unchanged.
+    const throwing = () => {
       throw new Error('tool fault')
-    })
-    engine(on)
-    await yvokeSession($)
+    }
+    const settle = (tool: string) =>
+      call($, tool).then(
+        (answer) => ({ answer }),
+        (error: unknown) => ({ rejected: error instanceof Error ? error.message : String(error) }),
+      )
+    on('tool.call', { tool: 'mcp__plugin_yvoke_yvoke__search_corpus' }, throwing)
+    const w = engine(on)
 
-    const answer = await call($, 'mcp__plugin_yvoke_yvoke__search_corpus').catch((error: unknown) => ({ rejected: String(error) }))
-    expect(answer).not.toEqual({ deny: POLICY_FAILED })
+    await begin($)
+    const plain = await settle('mcp__plugin_yvoke_yvoke__search_corpus')
+    await typeYvoke($)
+    const yvoke = await settle('mcp__plugin_yvoke_yvoke__search_corpus')
+
+    expect(plain).toEqual({ rejected: expect.any(String) })
+    expect(yvoke).toEqual(plain)
+    expect(w.reached).toEqual([])
   })
 
   test('a connect that throws refuses the call', async ($, on) => {

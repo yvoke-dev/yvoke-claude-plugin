@@ -99,7 +99,7 @@ Each step: write the test, run `claude plugin test plugins/yvoke` and see it fai
 5. Fail closed: `$.mcp.connect` throws → `POLICY_FAILED`. (The test kit cannot stage a hook that overruns its
    10 s budget; the same was found in P1-07, [#17](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/17).
    The `.catch` answers a throw and an overrun alike.) Also: a failure beneath, after the gate let the call
-   through, is not reported as `POLICY_FAILED`.
+   through, settles exactly as the same call does outside a Yvoke session.
 6. **The mod's own `Bash` call moves to P2-05.** Nothing makes that call until P2-05 exists, so a test of
    the exception here would need a caller written only for the test, and code no test can drive is code
    no test proves. P2-05 adds the exception (origin `yvoke`, `Bash` only) with a test through its real
