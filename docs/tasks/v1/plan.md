@@ -275,7 +275,8 @@ a cloud session.
     [P1-01/plan.md](P1-01/plan.md) ([#6](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/6)).
 - [ ] **P1-02** `plugin` · S — **Connector configuration.** Ship the `.mcp.json` entry D-03 chose: server `yvoke`,
   the server URL setting, and the Entra client and callback port from P0-09. ⛔ P0-09
-  - The URL comes from `${user_config.serverUrl}` with the production URL as its default (D-14).   - P0-11 ships `serverUrl` with no default; this task adds the production default. Keep any
+  - The URL comes from `${user_config.serverUrl}` with the production URL as its default (D-14).
+  - P0-11 ships `serverUrl` with no default; this task adds the production default. Keep any
     `Authorization` header out of `.mcp.json`: it turns the OAuth sign-in off (P0-11).
   - Done when: a fresh machine with the plugin installed can call `search_corpus` after one sign-in.
 - [x] **P1-03** `plugin` · S — **One server client module** (`src/server.ts`) used by every feature:
