@@ -324,6 +324,15 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     is refused while that sandbox is off, and the route ships only if P0-12 shows the sandbox blocks all
     four escapes (environment secrets, files, child processes, network); otherwise P2-05 is dropped.
   - Delivered by: P0-12, P2-05.
+- [x] **D-25** `PO` · `plugin` — **Does the mod support a person's own install where an organization
+  manages Claude Code?** There, Claude Code passes over a user-installed plugin's hooks on
+  `prompt.compose`, the other prompt-building events and every `classic.*` event, but still runs its
+  `prompt.submit` (read from Claude Code 2.1.305; the validator warns about it). The playbook would load
+  and lock, yet never reach the model. A plugin cannot read its own tier, so no hook can tell.
+  - **Decided 2026-10-21 (Eduard): unsupported.** In an organization that manages Claude Code, the mod
+    must be installed the organization's way (managed settings or the MDM marketplace, P7-04). Outside
+    such an organization a person's own install runs every hook and is supported.
+  - Delivered by: P1-07 (spec), P7-04.
 
 ## 4. Notes for implementers
 

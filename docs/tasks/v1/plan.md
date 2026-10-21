@@ -655,6 +655,9 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
     same admin-only path on every machine, enabled in managed settings) for rollout once IT enforces policy.
     Only route D makes the mod the organization's, so it can run first (`prependPlugins`) and survives
     `allowManagedModsOnly`.
+  - D-25 (2026-10-21): where an organization manages Claude Code, a user's own install (route A) loses
+    the hooks that add the instructions, so pilot users there need route B or D. Check which route the
+    pilot machines are on, and whether route C counts as the organization's install.
 - [ ] **P7-11** `server` · S — **Per-user rate limit on `/mcp`** ([design 5.5](design.md#55-behaviour-to-fix-on-the-server)). Searches from AI clients are
   not rate-limited today; the plugin moves every consultant onto that route.
 - [ ] **P7-05** `plugin` · S — **User guide** (`docs/user-guide.md`): install, sign in, starting with `/yvoke`,
@@ -706,6 +709,7 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
 | --- | --- | --- |
 | Mod API changes between Claude Code releases | Mod stops loading or misbehaves after an update | Weekly CI against the latest release (P0-02); pinned minimum version (P7-07) |
 | IT sets `allowManagedModsOnly` | Mod does not load from Git or claude.ai sync | MDM-copied directory marketplace (P7-04) |
+| The organization manages Claude Code and a user installs the mod themselves | Instructions load but never reach the model (D-25) | Unsupported; install through managed settings (P7-04) |
 | Desktop surface lacks a UI feature the terminal has (e.g. link clicks) | Citation UX differs | Decided by spike P0-05; button-row fallback |
 | Connector sign-in does not work in Claude Code | No MVP | Spike P0-04 first; server-side auth work early |
 | Users cannot reach a private repo | Install and updates fail | Settled by D-02: the repo is public and holds no playbook text |

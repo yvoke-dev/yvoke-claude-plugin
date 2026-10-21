@@ -30,6 +30,9 @@
   fails, the system prompt is replaced by one section telling the model to reply only that Yvoke could not
   load its instructions.
 - Outside a Yvoke session neither hook changes anything, and the server is not called.
+- Not supported (D-25): a plugin a person installs themselves where an organization manages Claude Code.
+  There Claude Code runs the loading hook but not the one that adds the section, so the organization
+  installs the mod through managed settings instead (P7-04).
 
 | Load step | Calls | Time |
 | --- | --- | --- |

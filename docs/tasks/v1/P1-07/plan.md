@@ -155,7 +155,8 @@ Each step starts with a test, seen failing first.
 - **A person's own install where an organization manages Claude Code.** There the engine passes over
   a user-installed plugin's hooks on `prompt.compose` and `classic.SessionStart`, but still runs its
   `prompt.submit`. The load would then run and lock while the section is never added, so a Yvoke turn
-  would run without its instructions. Raised with Eduard on 2026-10-21 (review of #17).
+  would run without its instructions. Decided 2026-10-21 (D-25): that install is unsupported; the
+  organization installs the mod its own way (P7-04). The spec says so.
 - **Rejected: fetch in `prompt.compose`.** It fires on every request and cannot drop a question, so a
   failure could only be a refusal text, not the "question not sent" the task asks for.
 - **Rejected: save the text in `$.store` for `/resume`.** That is a cached copy (requirements 1 forbids
