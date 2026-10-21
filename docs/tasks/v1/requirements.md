@@ -43,7 +43,8 @@ same pull request.
   before any call, so a missing prompt never reaches the server as a name. Any failed fetch, an `ERROR:`
   answer included, drops the question with a `Yvoke Backend:` message and leaves the setup unlocked.
   (P1-01, P1-06, P1-07)
-- The plugin ships no playbook skills (D-26); the model cannot start a playbook by itself. (P1-08)
+- The plugin ships no playbook skills, so the model cannot start a playbook by itself; only the setup band
+  starts one. (D-26, P1-08)
 
 ### 2.2 Tool policy
 

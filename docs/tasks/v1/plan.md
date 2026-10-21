@@ -1,6 +1,7 @@
 # Yvoke for Claude v1: plan
 
-> **Status:** draft v5 · 2026-10-20 (re-checked against yvoke-web 1.3.0 and yvoke-desktop 1.3.0; see
+> **Status:** draft v6 · 2026-10-21 (v1 is Claude Code only, D-26). Draft v5 of 2026-10-20 re-checked
+> the plan against yvoke-web 1.3.0 and yvoke-desktop 1.3.0 (see
 > [Changes since 2026-10-06](#changes-in-yvoke-web-and-yvoke-desktop-since-2026-10-06)). Draft v4 of
 > 2026-10-05 split the plan into intent, requirements, design and this plan. How work moves through these documents is in [docs/sdlc.md](../../sdlc.md).
 > **What we are building:** one Claude plugin that brings Yvoke Desktop's capabilities into Claude, fully
@@ -660,7 +661,7 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
 
 ### Phase 8 — Chat and Cowork: after v1, to check later (D-26)
 
-Moved here on 2026-10-21 (D-26): v1 is Claude Code only. Nothing in this phase is planned; it is a list to
+Moved here on 2026-10-21 (D-26): v1 is Claude Code only. Nothing in this phase is scheduled; it is a list to
 check after v1. In Claude Code the mod reads playbooks live from the server, so the repository stores
 nothing about them. In Chat and Cowork no live listing is possible without a mod, which is what would make
 stubs, a generator and a sync job necessary. The generator built for P1-04 is in the history of
@@ -672,16 +673,12 @@ stubs, a generator and a sync job necessary. The generator built for P1-04 is in
   whether skill `disallowed-tools` has any effect outside Claude Code.
   - Command hooks keep no state between calls (no mod, no `$.state`). Check that a hook can work out the
     active playbook and whether the reviewer ran from the transcript at `transcript_path`, as P8-02 needs.
-  - Done when: findings feed D-26 and this phase.
-- [ ] **P1-04** `plugin` · M — **Skill generator** (`scripts/generate-skills.ts`), **for Chat and Cowork
-  only** (D-11). Reads the server's playbook catalogue (`prompts/list` with `_meta`) and writes one
-  `skills/<name>/SKILL.md` per playbook. In Claude Code the mod hides them (P1-08).
-  - Leaves out playbooks whose `targetAgent` is `orchestrator` or `reviewer`, and keeps `prototype` playbooks
-    out of the default set.
-  - The mod does not read these skills: in Claude Code it gets each playbook's `tools` and `codeExecution`
-    from `list_playbooks` (D-11).
-  - Port the relevant cases from yvoke-desktop's `promptMapping.test.ts` and `playbooks.test.ts`, including
-    the `_meta` vs `meta` regression.
+  - Done when: findings feed this phase (and may reopen D-26).
+- [ ] **P1-04** `plugin` · M — **Skill generator for Chat and Cowork.** Reads `list_playbooks` and
+  `list_areas` and writes one live stub `skills/<name>/SKILL.md` per playbook a user can pick (orchestrator,
+  reviewer and prototype playbooks left out). Built and then removed in
+  [#24](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/24) (commit `cf7147a`); how it worked and what
+  was left open is in [P1-04/plan.md](P1-04/plan.md). ⛔ P0-08
   - Done when: running it against the server produces a stable, reviewable diff.
 - [ ] **P1-05** `plugin` · S — **Catalogue sync job.** A scheduled GitHub Action runs P1-04 and opens a PR
   when playbooks change on the server.

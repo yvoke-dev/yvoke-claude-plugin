@@ -6,7 +6,8 @@ Yvoke knowledge base, and multi-agent investigations with enforced review.
 - **Claude Code** (the Claude Desktop app's **Code** tab and the terminal): full feature set, through a mod.
 - **Cowork** and **Chat**: not in v1; to check after v1.
 
-**Status:** scaffold. The plugin installs, loads and connects to a Yvoke server, but adds no behaviour yet.
+**Status:** early. `/yvoke` starts a Yvoke session, and in it the mod lets through only the tools a Yvoke
+answer may use. Picking a playbook and getting an answer from it come next (milestone M1).
 
 ## Use it locally
 
