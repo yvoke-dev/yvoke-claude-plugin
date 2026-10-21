@@ -54,7 +54,9 @@ smaller. With under 1 s left, it fails at once and asks to send the question aga
 
 For P1-08: the setup is locked exactly when `yvoke.instructions.sessionId` is the current session id.
 A `prompt.submit` hook that must act before the lock (P2-06's preflight) registers before
-`registerSystemPrompt(on)` in `hooks/register.tsx`.
+`registerSystemPrompt(on)` in `hooks/register.tsx`, and with a matcher (even `{}`): P1-07's
+`prompt.submit` and `prompt.compose` hooks are the mod's unmatched ones, and a second unmatched hook on
+the same event stops the module loading (design 4.4).
 
 ## Tests
 

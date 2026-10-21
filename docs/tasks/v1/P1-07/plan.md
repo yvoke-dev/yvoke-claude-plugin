@@ -112,7 +112,10 @@ rebases. `docs/tasks/v1/plan.md` gets one tick per task, same.
 `prompt.submit` load is the lock: once it has run, later questions of that session never reload. So any
 hook that must act on the first question before the setup locks, P2-06's preflight above all, registers
 **before** `registerSystemPrompt(on)`. Registered after it, the preflight would see the old playbook
-already loaded, and a **Switch to …** would change nothing.
+already loaded, and a **Switch to …** would change nothing. P1-07's `prompt.submit` and
+`prompt.compose` hooks are registered without a matcher, so another task's hook on either event (P2-06's
+preflight, P1-08's lock if it uses `prompt.submit`) needs a matcher, even `{}`, or the module stops
+loading (design 4.4, "One unmatched hook per event").
 
 ## Order of work
 
@@ -169,5 +172,5 @@ Each step starts with a test, seen failing first.
   untouched, new session reloads. Each hook test was seen failing against a mutation of the code it pins
   (catch removed, session-id check removed, order swapped, Yvoke check removed).
 - `npm run check`: docs, both `validate --strict` runs (the `calls:` line names no `$.fs`, `$.process`
-  or `$.http`), types, and `claude plugin test plugins/yvoke`: 88 pass, 0 fail on 2.1.305 (with P2-01 merged in), 27 Markdown
+  or `$.http`), types, and `claude plugin test plugins/yvoke`: 144 pass, 0 fail on 2.1.305 (with main at P2-03 and P2-08 merged in), 30 Markdown
 files.

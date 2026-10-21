@@ -324,6 +324,14 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     is refused while that sandbox is off, and the route ships only if P0-12 shows the sandbox blocks all
     four escapes (environment secrets, files, child processes, network); otherwise P2-05 is dropped.
   - Delivered by: P0-12, P2-05.
+- [x] **D-24** `PO` · `plugin` — **Which turn ceiling does the reviewer get?** The plan said 20 as
+  yvoke-desktop's value, but the desktop hard-codes its reviewer at 6 (`AgentService.ts`); its other
+  shipped ceilings are single agent 25, lead 60, specialist 20. A reviewer stopped at its ceiling cannot
+  call `submit_review`, and no verdict counts as a rejection (P6-03).
+  - **Decided 2026-10-20 (Eduard): 20, one setting (`turnLimitAgent`) for every subagent**, specialists
+    and reviewer alike. The mod need not tell the reviewer from a specialist, and a reviewer that runs out
+    of requests does not cause extra revision rounds as easily as at 6.
+  - Delivered by: P2-08.
 - [x] **D-25** `PO` · `plugin` — **Does the mod support a person's own install where an organization
   manages Claude Code?** There, Claude Code passes over a user-installed plugin's hooks on
   `prompt.compose` and `classic.SessionStart`, but still runs its `prompt.submit`
@@ -406,7 +414,10 @@ the same PR.
   or process. Import `test`, `expect` and `mock` from `claude-code/testing`. Hooks a test registers sit
   *beneath* the plugin and stand for the engine. A test answers each `$` call the plugin makes, and an
   answer to a `$` call that returns a value is `{ value }` (`on('session.turns', () => ({ value: 0 }))`).
-  A test's own `$` has no `$.state` or `$.store`, so observe them through behaviour or a stubbed store.
+  A test's own `$` has no `$.state` or `$.store`, so observe them through behaviour or stub them: hooks on
+  `state.get` / `state.set` (and `store.get` / `store.set`) beneath the plugin answer its calls (`state.get`
+  answers `{ value: { value, version } }`). A stubbed hook that throws is skipped and the kit answers
+  instead, so stage a failed read as an answer the plugin cannot use (P2-08).
   Stub the Yvoke server by hooking `mcp.call` in the test:
   `on('mcp.call', () => ({ value: { content: [{ type: 'text', text: '…' }], isError: false } }))` (like every `$` call, as `{ value }`; checked in P1-07). A test hook is cut at 10 s like a plugin's, so a plugin hook that overruns its *own* budget cannot be staged; test the `.catch` with a throw. UI tests mount on a
   surface the test names. Loop every UI test over `['terminal', 'desktop'] as const`.
@@ -451,6 +462,12 @@ the same PR.
   Tests cover the throw for each one. A hook that outruns its own budget cannot be staged in the test kit
   (it cuts the waits beneath the plugin at 10 s first), so a timeout is covered by a server that hangs past
   every budget and still never lets the action through.
+- **One unmatched hook per event in the whole mod.** A plugin's registrations nest in order (first
+  outermost), and a second `on(event, hook)` without a matcher stops the module loading (*registered twice
+  without a matcher*); a hook with a matcher, even `{}`, loads. For tool rules we still keep one hook: every
+  rule is a check inside the one `tool.call` gate in `src/policy.ts`, so their order and each failure
+  message are written in one place rather than implied by registration order: the turn limit (P2-08)
+  first, then the policy (P2-01). A later task adds its check there (found in P2-08's review).
 - **Outside a Yvoke session, call `next(e)` and nothing else.** The mod loads in every Claude Code session
   of the user; only `/yvoke` makes a session a Yvoke session (P1-10, D-13). Every enforcing hook opens
   with these two lines, written in its own file:
