@@ -8,7 +8,7 @@ tests cover the defaults (single agent, the area's default playbook), changing e
 question, the area reset, the switch to *Multi-agent* picking the area's default profile, the version shown,
 the version kept after the lock even when the server's playbook moves on to a newer one, the lock, the
 read-only line on `terminal` and `desktop`, `/clear`, `/resume`, and server down. Before it is ticked, a
-developer's machine confirms: the typed
+real, non-managed Claude Code install confirms: the typed
 text stays in the prompt box after `{ drop }` (else restore it with `$.prompt.fill`); `$.session.id` is the
 same after `/resume`; and the setup survives `/branch`.
 
@@ -204,6 +204,8 @@ Also seen: in manual permission mode, Claude Code asks the user before each of t
 - Risk: two Claude Code processes ending sessions in the same moment could swap `ended`; the branch
   then takes the other session's flag. Rejected alternatives: a time window (needs `$.clock.now` for a
   race of milliseconds), and reading the transcript (needs `$.fs`).
+- Not checked on a real 2.1.287: that `session.end` of the parent fires before the branch starts was
+  seen on a real 2.1.306 only. On 2.1.287 only the test kit covers it.
 
 ## Risks
 

@@ -409,7 +409,7 @@ export function registerSetup(on: On, options: PluginOptions) {
       try {
         await $.store.set(setupKey(await $.session.id()), after)
       } catch {
-        // The pick stands for this session; only /resume of an unlocked setup would miss it.
+        // The pick stands for this session; /resume or /branch of an unlocked setup would miss it.
       }
     }
     const area = cat.areas.find((a) => a.name === current.area) ?? cat.areas[0]!

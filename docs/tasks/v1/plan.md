@@ -342,7 +342,7 @@ a cloud session.
     before the first question, the area reset, the switch to *Multi-agent* picking the area's default
     profile, the version shown, the version kept after the lock even when the server's playbook moves on
     to a newer one, the lock, the read-only line on `terminal` and `desktop`, `/clear`,
-    `/resume`, and server down. Before it is ticked, a developer's machine confirms what P0-06 used to
+    `/resume`, and server down. Before it is ticked, a real, non-managed Claude Code install confirms what P0-06 used to
     (moved 2026-10-20): the typed
     text stays in the prompt box after `{ drop }` (else restore it with `$.prompt.fill`); `$.session.id`
     is the same after `/resume`; and the setup survives `/branch`.

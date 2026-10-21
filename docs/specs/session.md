@@ -34,7 +34,9 @@
 `/yvoke` saves to `$.store` before it sets the flag, so a session is never Yvoke now and plain after
 `/resume`. Claude Code starts a `/branch` with empty `$.state` and names no parent, but ends the parent
 just before (`session.end`), so the branch reads the flag of the session saved under `ended`. Every
-session writes `ended`, plain ones too, so a branch never takes an older Yvoke session for its parent.
+session writes `ended`, plain ones too, so a branch does not take an older Yvoke session for its parent.
+This assumes no other Claude Code process ends a session between the parent ending and the branch
+starting, and that the `ended` write succeeds; otherwise the branch takes the flag of the wrong session.
 How later hooks check the flag: [design 4.4](../tasks/v1/design.md#44-rules-that-are-easy-to-get-wrong).
 
 ## Tests
