@@ -8,7 +8,7 @@ tests cover the defaults (single agent, the area's default playbook), changing e
 question, the area reset, the switch to *Multi-agent* picking the area's default profile, the version shown,
 the version kept after the lock even when the server's playbook moves on to a newer one, the lock, the
 read-only line on `terminal` and `desktop`, `/clear`, `/resume`, and server down. Before it is ticked, a
-real, non-managed Claude Code install confirms: the typed
+real Claude Code install confirms (a non-managed one for `/resume` and `/branch`): the typed
 text stays in the prompt box after `{ drop }` (else restore it with `$.prompt.fill`); `$.session.id` is the
 same after `/resume`; and the setup survives `/branch`.
 
