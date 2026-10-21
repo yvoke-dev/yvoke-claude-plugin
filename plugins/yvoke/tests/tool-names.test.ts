@@ -1,5 +1,5 @@
-import { test, expect } from 'claude-code/testing'
-import { serverToolPrefix } from '../src/tool-names'
+import { test, expect, describe } from 'claude-code/testing'
+import { builtinTool, qualifyTool, serverToolPrefix } from '../src/tool-names'
 
 // P2-01: the engine names a server's tools `mcp__<server>__<tool>`, with the server's name normalized.
 // The rule was read from Claude Code 2.1.304: every character outside [a-zA-Z0-9_-] becomes `_`; for a
@@ -24,3 +24,68 @@ test('a claude.ai connector: runs of underscores collapse and the ends are trimm
 test('only a claude.ai connector collapses underscores', () => {
   expect(serverToolPrefix('my  server')).toBe('mcp__my__server__')
 })
+
+// P2-03: a playbook names its tools bare (`search_corpus`) or under whatever prefix was current when it was
+// written: yvoke-desktop's `mcp__yvoke__`, or the older `mcp__oim__`. Ported from yvoke-desktop's
+// `qualifyTool` tests, with the prefix supplied at run time instead of a fixed `MCP_TOOL_PREFIX`.
+
+describe('builtinTool', () => {
+  test('names the built-in in its own spelling, whatever the case', () => {
+    expect(builtinTool('WebSearch')).toBe('WebSearch')
+    expect(builtinTool('webfetch')).toBe('WebFetch')
+    expect(builtinTool('TOOLSEARCH')).toBe('ToolSearch')
+    expect(builtinTool('askuserquestion')).toBe('AskUserQuestion')
+  })
+
+  test('sees through a prefix and surrounding spaces', () => {
+    expect(builtinTool('mcp__oim__WebSearch')).toBe('WebSearch')
+    expect(builtinTool('mcp__custom_server__AskUserQuestion')).toBe('AskUserQuestion')
+    expect(builtinTool('  ToolSearch ')).toBe('ToolSearch')
+  })
+
+  test('a server tool is not a built-in', () => {
+    expect(builtinTool('search_corpus')).toBeUndefined()
+    expect(builtinTool('mcp__yvoke__search_corpus')).toBeUndefined()
+    expect(builtinTool('WebSearchExtra')).toBeUndefined()
+  })
+})
+
+for (const prefix of ['mcp__plugin_yvoke_yvoke__', 'mcp__claude_ai_yvoke__']) {
+  describe(`qualifyTool with ${prefix}`, () => {
+    test('prefixes a bare tool name', () => {
+      expect(qualifyTool('search_corpus', prefix)).toBe(`${prefix}search_corpus`)
+    })
+
+    test('leaves an already-current name alone', () => {
+      expect(qualifyTool(`${prefix}search_corpus`, prefix)).toBe(`${prefix}search_corpus`)
+    })
+
+    test("re-namespaces yvoke-desktop's prefix and an older alias instead of double-prefixing", () => {
+      expect(qualifyTool('mcp__yvoke__search_corpus', prefix)).toBe(`${prefix}search_corpus`)
+      expect(qualifyTool('mcp__oim__search_corpus', prefix)).toBe(`${prefix}search_corpus`)
+      expect(qualifyTool('mcp__custom_server__search_corpus', prefix)).toBe(`${prefix}search_corpus`)
+    })
+
+    test('produces exactly one prefix for every input spelling', () => {
+      for (const input of [
+        'search_corpus',
+        `${prefix}search_corpus`,
+        'mcp__yvoke__search_corpus',
+        'mcp__oim__search_corpus',
+        'mcp__legacy__search_corpus',
+        '  search_corpus  ',
+      ]) {
+        expect(qualifyTool(input, prefix).match(/mcp__/g)).toHaveLength(1)
+        expect(qualifyTool(input, prefix)).toBe(`${prefix}search_corpus`)
+      }
+    })
+
+    test('never prefixes a built-in, and gives its own spelling', () => {
+      expect(qualifyTool('WebSearch', prefix)).toBe('WebSearch')
+      expect(qualifyTool('webfetch', prefix)).toBe('WebFetch')
+      expect(qualifyTool('ToolSearch', prefix)).toBe('ToolSearch')
+      expect(qualifyTool('askuserquestion', prefix)).toBe('AskUserQuestion')
+      expect(qualifyTool('mcp__oim__WebSearch', prefix)).toBe('WebSearch')
+    })
+  })
+}
