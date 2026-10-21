@@ -360,7 +360,8 @@ export function registerSetup(on: On, options: PluginOptions) {
       // As above.
     }
     return entered
-  }).catch(() => ({ drop: DROP_FAILED }))
+  // Once the question has gone down, pass on what it settled to: a drop would say it was not sent.
+  }).catch((_$, e, next) => (next.called ? next(e) : { drop: DROP_FAILED }))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next): Promise<RenderElement> => {
     const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })

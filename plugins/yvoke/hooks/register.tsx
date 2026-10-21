@@ -1,6 +1,7 @@
 // The yvoke mod's entry point. Each feature lives in its own src/ module and adds one line here, so
 // parallel tasks do not collide.
 import type { Register } from 'claude-code'
+import { registerPolicy } from '../src/policy'
 import { registerSession } from '../src/session'
 import { registerSetup } from '../src/setup'
 
@@ -9,4 +10,5 @@ export const register: Register = (on, options) => {
   // made this a Yvoke session (the session's hook answers without calling further down).
   registerSetup(on, options)
   registerSession(on)
+  registerPolicy(on)
 }

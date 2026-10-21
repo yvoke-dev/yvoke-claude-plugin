@@ -146,6 +146,14 @@ Each step starts with a test, seen failing first.
 - **A lock that cannot be saved never drops the question.** After `next(e)` the question has entered;
   the status line and store writes are caught (found red on 2.1.287 only, whose test kit passes a test
   hook's throw on to the caller).
+- **The handover to P1-07 is tested when both are on one branch.** P1-07's thread found it cannot stage a
+  test of reading `yvoke.setup` from its side. Whichever of #17 and #22 merges second adds an engine test
+  that picks a non-default playbook in the band and asks a question, and checks that the stubbed
+  `get_playbook` call names that playbook. A local merge of the two branches already shows both
+  modules loading together.
+- **P2-01's `catch` form.** The question hook's `.catch` uses `next.called ? next(e) : { drop }` (design 4.4,
+  P2-01): once the question has gone down, the hook passes on what it settled to. P2-01's test that a
+  built-in never asks the server now counts from after `/yvoke`, since `/yvoke` loads the lists.
 - **Slash commands that reach the model lock too.** `prompt.submit` fires for a command only when it asks
   the model, which is a question like any other, as for P1-07.
 
