@@ -4,7 +4,7 @@ A Claude plugin that brings Yvoke Desktop's capabilities into Claude: playbook-s
 Yvoke knowledge base, and multi-agent investigations with enforced review.
 
 - **Claude Code** (the Claude Desktop app's **Code** tab and the terminal): full feature set, through a mod.
-- **Cowork** and **Chat**: live playbook stubs over the Yvoke connector, with fewer guarantees.
+- **Cowork** and **Chat**: not in v1; to check after v1.
 
 **Status:** scaffold. The plugin installs, loads and connects to a Yvoke server, but adds no behaviour yet.
 
@@ -52,19 +52,6 @@ only a local server in mock mode works.
 Use the steps above when you need it connected to a server.
 
 **Remove it:** `claude plugin uninstall yvoke@yvoke`, then `claude plugin marketplace remove yvoke`.
-
-## Regenerate the Chat and Cowork playbook skills
-
-`plugins/yvoke/skills/` holds one stub per playbook, generated from the server and never edited by hand
-([spec](docs/specs/skills.md)). With yvoke-web running in mock mode as in step 1 above:
-
-```sh
-npm run skills -- --dev-mode
-```
-
-It prints what it added, changed or removed. Against another server, pass `--url https://<server>/mcp`
-and put a bearer token in `YVOKE_TOKEN`. Review the diff before you commit it: the descriptions go into
-this public repository (D-22).
 
 ## Documents
 

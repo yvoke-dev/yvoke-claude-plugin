@@ -42,9 +42,8 @@ Run these before saying anything is done, and show the output. Each must pass.
 | Plugin and mod | `claude plugin validate --strict plugins/yvoke` | `√ Validation passed`, exits 0; the `calls:` line names no `$.fs`, `$.process` or `$.http` |
 | Types | `npm run typecheck` | `lay-types: OK (…)`, then nothing from `tsc`; exits 0 |
 | Tests | `claude plugin test plugins/yvoke` | `N pass`, `0 fail`, exits 1 on any failure |
-| Script tests | `npm run test:scripts` | `# pass N`, `# fail 0`, exits 1 on any failure |
 
-`npm run check` runs all six in this order. Run `npm install` once first, for TypeScript.
+`npm run check` runs all five in this order. Run `npm install` once first, for TypeScript.
 
 `npm run typecheck` is `node scripts/lay-types.mjs && tsc --noEmit`. Claude Code writes the mod API's type
 declarations only when it loads the mod from a folder, so the script loads it once in print mode, with no
@@ -52,8 +51,8 @@ sign-in and no model call, and waits for `plugins/yvoke/.claude-plugin/types/` t
 never committed. From 2.1.295 on, Claude Code writes the declarations only for a folder the session
 watches, so the script also sets `CLAUDE_CODE_PLUGIN_DIR_WATCH=1`; older releases write them without it,
 and the switch does no harm there.
-CI (`.github/workflows/ci.yml`) runs all six on every push and pull request, and every Monday: the docs and
-script-test rows once on Node 22, the plugin rows on Claude Code 2.1.287 (the oldest with mods) and on the latest release, with a fresh
+CI (`.github/workflows/ci.yml`) runs all five on every push and pull request, and every Monday: the plugin
+rows on Claude Code 2.1.287 (the oldest with mods) and on the latest release, with a fresh
 `CLAUDE_CONFIG_DIR`. It also fails when the `calls:` line names `$.fs`, `$.process` or `$.http`.
 
 If `claude plugin test` fails with "hooks modules are turned off", your own `~/.claude` has mods switched off

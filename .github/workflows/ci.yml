@@ -30,8 +30,6 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/check-docs.mjs
-      # The skill generator's tests need Node only, not Claude Code (P1-04).
-      - run: npm run test:scripts
 
   plugin:
     name: plugin (Claude Code ${{ matrix.claude-code }})

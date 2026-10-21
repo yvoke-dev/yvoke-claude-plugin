@@ -1,6 +1,12 @@
 # P1-04 Skill generator for Chat and Cowork
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** done
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** dropped from v1 (2026-10-21, D-26)
+
+> **Dropped from v1 on 2026-10-21 (D-26).** v1 is Claude Code only, where the mod reads playbooks live and
+> the repository stores nothing about them. The generator, its tests and the 16 stubs described below were
+> built and reviewed in [#24](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/24) (commit `cf7147a`)
+> and then removed from it. The task waits at the end of [plan.md](../plan.md), to check after v1. This
+> plan is kept as the record of what was built.
 
 **Done when** (from [plan.md](../plan.md)): running it against the server produces a stable, reviewable diff.
 
@@ -128,7 +134,7 @@ Each step starts with its tests, run red first.
 - **Descriptions are public.** The repo is public (D-02), and the stubs carry the server's descriptions,
   which D-04 accepted. Today's `oim-customers` description names two real environments
   (`iC Consult 1IM HQ environment`, `iC Consult Group IDM`) and `oim-field-qa` an internal Teams channel.
-  D-22 (below) keeps the served text; the generator commits what it is given, and every scheduled update arrives
+  D-22 of 2026-10-20 (below) kept the served text; the generator commits what it is given, and every scheduled update arrives
   as a pull request someone reads (P1-05).
 - **Chat or Cowork may refuse `disable-model-invocation`, or honour it.** If claude.ai refuses unknown
   frontmatter, the stubs do not load there; if it honours the field, Chat may not let the user start them
@@ -155,5 +161,5 @@ Each step starts with its tests, run red first.
 
 ## Decisions
 
-- **D-22 Descriptions in the public repo** (decided 2026-10-20, recorded in [design.md](../design.md)
-  section 3): the served descriptions, as they are, capped at 1,024 characters.
+- **Descriptions in the public repo** (decided 2026-10-20 as D-22, never merged): the served descriptions,
+  as they are, capped at 1,024 characters. Moot since D-26 removed the stubs.
