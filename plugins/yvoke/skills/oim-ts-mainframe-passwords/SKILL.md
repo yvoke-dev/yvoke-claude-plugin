@@ -12,4 +12,4 @@ This is the Yvoke playbook `oim-ts-mainframe-passwords` in the area OIM. Its ins
 
 1. Call the Yvoke connector's `get_system_prompt` tool with `name` set to `default-chat`. Its text is your base instructions.
 2. Call the Yvoke connector's `get_playbook` tool with `name` set to `oim-ts-mainframe-passwords`, and follow the `text` it returns. Where the two disagree, the playbook wins.
-3. If either call fails or returns a line starting with `ERROR:`, tell the user the Yvoke server could not be reached and stop. Do not answer from general knowledge.
+3. If either call fails or returns a line starting with `ERROR:`, stop and show the user that error as it is. Do not answer from general knowledge.

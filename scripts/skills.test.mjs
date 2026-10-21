@@ -66,6 +66,11 @@ test('leaves out orchestrator and reviewer playbooks, even though the server alr
   assert.deepEqual(kept.map((p) => p.name), ['oim-full'])
 })
 
+test('reads the role whatever its case, as the server does', () => {
+  const kept = selectPlaybooks([pb('a', 'Orchestrator'), pb('b', 'REVIEWER'), pb('c', 'Specialist')]).map((p) => p.name)
+  assert.deepEqual(kept, ['c'])
+})
+
 test('leaves out prototype playbooks', () => {
   const kept = selectPlaybooks(served.playbooks.map(readPlaybook)).map((p) => p.name)
   assert.deepEqual(kept, ['oim-db-history', 'oim-full'])
@@ -122,7 +127,7 @@ test('renders the stub for oim-db-history exactly', () => {
     '',
     '1. Call the Yvoke connector\'s `get_system_prompt` tool with `name` set to `oim-structured`. Its text is your base instructions.',
     '2. Call the Yvoke connector\'s `get_playbook` tool with `name` set to `oim-db-history`, and follow the `text` it returns. Where the two disagree, the playbook wins.',
-    '3. If either call fails or returns a line starting with `ERROR:`, tell the user the Yvoke server could not be reached and stop. Do not answer from general knowledge.',
+    '3. If either call fails or returns a line starting with `ERROR:`, stop and show the user that error as it is. Do not answer from general knowledge.',
     '',
   ].join('\n')
   assert.equal(renderStub(p, [oim]), expected)
@@ -147,6 +152,12 @@ test('cuts a long description at a word boundary to the 1,024-character limit', 
   const full = `Yvoke playbook (OIM): ${servedPlaybook('oim-full').description}`
   assert.ok(full.startsWith(d.slice(0, -1)), 'a prefix of the served text')
   assert.match(full.slice(d.length - 1), /^[\s,;:—-]/, 'cut where a word ends, trailing punctuation dropped')
+})
+
+test('a description with no space in the first 1,024 characters is cut at the limit', () => {
+  const d = stubDescription({ ...pb('a', 'specialist', false, null), description: 'x'.repeat(2000) })
+  assert.equal(d.length, 1024)
+  assert.ok(d.endsWith('x…'))
 })
 
 test('a description that fits is kept whole, with line breaks collapsed', () => {
@@ -189,4 +200,10 @@ test('refuses a catalogue with no playbook to generate, so a broken server never
   assert.throws(() => planSkills({ playbooks: [], areas: [] }), /no playbooks/)
   assert.throws(() => planSkills({ playbooks: [{ name: 'p', prototype: true }], areas: [] }), /no playbooks/)
   assert.throws(() => planSkills({ playbooks: 'oops', areas: [] }), /not a list/)
+})
+
+// Without the areas the stubs would quietly name the active default instead of an area's prompt.
+test('refuses a catalogue whose areas are missing or not a list', () => {
+  assert.throws(() => planSkills({ playbooks: [{ name: 'p' }] }), /areas is not a list/)
+  assert.throws(() => planSkills({ playbooks: [{ name: 'p' }], areas: {} }), /areas is not a list/)
 })

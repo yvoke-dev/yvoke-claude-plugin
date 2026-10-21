@@ -9,9 +9,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { writeSkills, fetchCatalogue } from './generate-skills.mjs'
+import { GENERATED_MARKER } from './skills.mjs'
 
 const script = fileURLToPath(new URL('./generate-skills.mjs', import.meta.url))
 const fixture = fileURLToPath(new URL('./fixtures/catalogue.json', import.meta.url))
+const stub = (body) => `---\nname: x\n---\n\n${GENERATED_MARKER}\n\n${body}\n`
 const tempDir = () => mkdtempSync(join(tmpdir(), 'yvoke-skills-'))
 const run = (args) => promisify(execFile)(process.execPath, [script, ...args]).then(
   (r) => ({ code: 0, ...r }),
@@ -23,24 +25,48 @@ const run = (args) => promisify(execFile)(process.execPath, [script, ...args]).t
 test('adds, changes and removes stub folders, and leaves an unchanged one alone', () => {
   const dir = tempDir()
   mkdirSync(join(dir, 'same'))
-  writeFileSync(join(dir, 'same', 'SKILL.md'), 'same\n')
+  writeFileSync(join(dir, 'same', 'SKILL.md'), stub('same'))
   mkdirSync(join(dir, 'edited'))
-  writeFileSync(join(dir, 'edited', 'SKILL.md'), 'old\n')
+  writeFileSync(join(dir, 'edited', 'SKILL.md'), stub('old'))
   mkdirSync(join(dir, 'gone'))
-  writeFileSync(join(dir, 'gone', 'SKILL.md'), 'gone\n')
+  writeFileSync(join(dir, 'gone', 'SKILL.md'), stub('gone'))
   writeFileSync(join(dir, 'notes.txt'), 'not a skill folder')
 
-  const report = writeSkills(dir, new Map([['edited', 'new\n'], ['fresh', 'fresh\n'], ['same', 'same\n']]))
+  const report = writeSkills(dir, new Map([['edited', stub('new')], ['fresh', stub('fresh')], ['same', stub('same')]]))
 
   assert.deepEqual(report, { added: ['fresh'], changed: ['edited'], removed: ['gone'] })
   assert.deepEqual(readdirSync(dir).sort(), ['edited', 'fresh', 'notes.txt', 'same'])
-  assert.equal(readFileSync(join(dir, 'edited', 'SKILL.md'), 'utf8'), 'new\n')
-  assert.equal(readFileSync(join(dir, 'fresh', 'SKILL.md'), 'utf8'), 'fresh\n')
+  assert.equal(readFileSync(join(dir, 'edited', 'SKILL.md'), 'utf8'), stub('new'))
+  assert.equal(readFileSync(join(dir, 'fresh', 'SKILL.md'), 'utf8'), stub('fresh'))
+})
+
+// A wrong --out (such as the repository root) must not cost anyone their files.
+test('never removes a folder it did not generate', () => {
+  const dir = tempDir()
+  mkdirSync(join(dir, 'src'))
+  writeFileSync(join(dir, 'src', 'main.ts'), 'code')
+  mkdirSync(join(dir, 'hand-made'))
+  writeFileSync(join(dir, 'hand-made', 'SKILL.md'), '---\nname: hand-made\n---\nWritten by a person.\n')
+
+  const report = writeSkills(dir, new Map([['a', stub('a')]]))
+
+  assert.deepEqual(report.removed, [])
+  assert.equal(readFileSync(join(dir, 'src', 'main.ts'), 'utf8'), 'code')
+  assert.ok(existsSync(join(dir, 'hand-made', 'SKILL.md')))
+})
+
+test('refuses to overwrite a SKILL.md it did not generate, and writes nothing', () => {
+  const dir = tempDir()
+  mkdirSync(join(dir, 'oim-full'))
+  writeFileSync(join(dir, 'oim-full', 'SKILL.md'), 'Written by a person.\n')
+  assert.throws(() => writeSkills(dir, new Map([['aaa', stub('a')], ['oim-full', stub('b')]])), /oim-full.*not generated/)
+  assert.equal(readFileSync(join(dir, 'oim-full', 'SKILL.md'), 'utf8'), 'Written by a person.\n')
+  assert.equal(existsSync(join(dir, 'aaa')), false)
 })
 
 test('creates the folder when it does not exist yet', () => {
   const dir = join(tempDir(), 'skills')
-  assert.deepEqual(writeSkills(dir, new Map([['a', 'a\n']])), { added: ['a'], changed: [], removed: [] })
+  assert.deepEqual(writeSkills(dir, new Map([['a', stub('a')]])), { added: ['a'], changed: [], removed: [] })
 })
 
 // --- The command line, from a saved catalogue -----------------------------------------------------
@@ -83,7 +109,7 @@ const catalogue = JSON.parse(readFileSync(fixture, 'utf8'))
 
 // A minimal streamable-HTTP MCP server: answers initialize, accepts the initialized notification, and
 // answers tools/call for list_playbooks and list_areas. `answer` can override one tool's text.
-async function mcpServer({ sse = false, answer = {}, status = 200 } = {}) {
+async function mcpServer({ sse = false, answer = {}, status = 200, stall = false } = {}) {
   const seen = []
   const server = createServer((req, res) => {
     let body = ''
@@ -91,6 +117,7 @@ async function mcpServer({ sse = false, answer = {}, status = 200 } = {}) {
     req.on('end', () => {
       const msg = JSON.parse(body)
       seen.push({ method: msg.method, tool: msg.params?.name, headers: req.headers })
+      if (stall) return // accepts the request and never answers
       if (status !== 200) { res.writeHead(status).end('denied'); return }
       if (msg.id === undefined) { res.writeHead(202).end(); return }
       let result
@@ -111,7 +138,7 @@ async function mcpServer({ sse = false, answer = {}, status = 200 } = {}) {
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   const url = `http://127.0.0.1:${server.address().port}/mcp`
-  return { url, seen, close: () => new Promise((resolve) => server.close(resolve)) }
+  return { url, seen, close: () => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve) }) }
 }
 
 for (const sse of [false, true]) {
@@ -159,6 +186,15 @@ test('an HTTP error is reported without the token', async () => {
       assert.ok(!e.message.includes('secret-token'))
       return true
     })
+  } finally { await s.close() }
+})
+
+test('a server that accepts the request and never answers times out', async () => {
+  const s = await mcpServer({ stall: true })
+  try {
+    const started = Date.now()
+    await assert.rejects(fetchCatalogue({ url: s.url, timeoutMs: 200 }), /did not answer initialize within 0\.2 s/)
+    assert.ok(Date.now() - started < 5000)
   } finally { await s.close() }
 })
 

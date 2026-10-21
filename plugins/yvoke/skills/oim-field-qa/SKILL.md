@@ -12,4 +12,4 @@ This is the Yvoke playbook `oim-field-qa` in the area OIM. Its instructions are 
 
 1. Call the Yvoke connector's `get_system_prompt` tool with `name` set to `oim-field-web`. Its text is your base instructions.
 2. Call the Yvoke connector's `get_playbook` tool with `name` set to `oim-field-qa`, and follow the `text` it returns. Where the two disagree, the playbook wins.
-3. If either call fails or returns a line starting with `ERROR:`, tell the user the Yvoke server could not be reached and stop. Do not answer from general knowledge.
+3. If either call fails or returns a line starting with `ERROR:`, stop and show the user that error as it is. Do not answer from general knowledge.
