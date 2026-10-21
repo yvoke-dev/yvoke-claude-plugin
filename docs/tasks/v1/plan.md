@@ -74,7 +74,8 @@ for yvoke-web.
 5. **P0-02** CI, then **P0-03** contributor guide.
 6. In parallel: **P1-03** server client, **P1-10** `/yvoke` session start, **P1-09** clarifying questions,
    **P3-01** citation parser, **P6-03** reviewer verdict, **P2-05** compute tools.
-7. **P2-01**, then **P2-02**, then **P2-03**, in one thread: all three change the same `tool.call` hook.
+7. **P2-01**, **P2-03** and **P2-02**, in one thread: all three change the same `tool.call` hook. P2-03
+   (a pure function) came before P2-02, which waits for P1-08 (2026-10-21).
 
 **Wave 3: milestone M1.** **P1-02** (after P0-09), **P1-07** (after P1-01, P1-06), **P1-08** (after
 P1-10, P1-12), then **P2-06**, **P2-08** and **P8-01**.
@@ -422,7 +423,7 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   those (plus the always-added three); one that declares none gets the default set (`DEFAULT_KB_TOOLS`).
   Scoping follows the session's playbook from P1-08, which never changes during the session. ⛔ P1-08
   - Done when: tests cover declared tools and no declaration.
-- [ ] **P2-03** `plugin` · S — **Re-namespacing.** Playbooks name tools by their base name (`search_corpus`).
+- [x] **P2-03** `plugin` · S — **Re-namespacing** ([#27](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/27)). Playbooks name tools by their base name (`search_corpus`).
   The mod maps each to the Yvoke server's real tool name, using the server P1-03 found (D-05 lists the
   forms). Do not port yvoke-desktop's fixed `MCP_TOOL_PREFIX`; port `qualifyTool`'s tests with the prefix
   supplied at run time. The built-ins `WebSearch`, `WebFetch` and `ToolSearch` are never prefixed. ⛔ P1-03
