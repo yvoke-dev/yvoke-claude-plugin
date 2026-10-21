@@ -21,6 +21,8 @@
 - Built-in tools are decided without asking for the server's connection.
 - The mod's own tools (`mcp__yvoke__execute_code`) are refused by name, also when the Yvoke server is
   configured under the bare name `yvoke` and its tools share that prefix.
+- At the turn limit (P2-08, [turn-limits.md](turn-limits.md)) every call is refused with the turn-limit
+  message before this policy is checked.
 - If the check itself fails, the call is refused with *Yvoke: the policy check failed, so this tool was
   not run.* A failure beneath the gate, after the check let the call through, is passed on as it settled, the same
   as outside a Yvoke session.
@@ -37,6 +39,7 @@
 | Piece | Where |
 | --- | --- |
 | `tool.call` hook, `isAllowed`, `denied`, `POLICY_FAILED` | `plugins/yvoke/src/policy.ts` |
+| The plugin's only `tool.call` hook: its checks run in order, the turn limit (P2-08) first, then this policy | same file |
 | `serverToolPrefix(server)`: a server name → its tools' prefix, by the engine's rule | `plugins/yvoke/src/tool-names.ts` |
 | `qualifyTool(tool, serverPrefix)`: a playbook's tool name → the name the model calls (P2-03); `builtinTool(tool)` | `plugins/yvoke/src/tool-names.ts` |
 | Engine calls | `$.state.get` (the Yvoke flag), `$.mcp.connect('yvoke')` (MCP tools only) |
