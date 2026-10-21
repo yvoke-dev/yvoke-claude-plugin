@@ -42,8 +42,8 @@ on the one `/mcp` server (one sign-in) and leave the in-app assistant's tool set
     publishes it; `RagService` never sees it, because it takes only the `List<ToolCallback>`.
   - A name already registered on one side is not registered again on the other (one shared name set).
 - The tools themselves, their descriptions and their behaviour do not change. Their descriptions already
-  say to call them only when a Yvoke playbook skill says so, which covers Chat and Cowork, where the model
-  does see them (D-04).
+  say to call them only when a Yvoke playbook skill says so. That would matter in Chat and Cowork, where
+  the model sees them, but those are out of v1 (D-26).
 - `spec/07_using_the_assistant_from_other_tools.md` says these tools are offered to connected clients
   only, never to the in-app assistant, and that a playbook naming one gets nothing for it.
 
