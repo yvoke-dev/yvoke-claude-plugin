@@ -133,9 +133,11 @@ needs one request to warn and one to answer.
 - `turn.complete`'s `{ text }` is shown *beneath* the answer, so the hook returns the flag line alone, not
   the answer plus the line.
 - **The two `tool.call` gates could not both be hooks.** After P2-01 merged, the module refused to load:
-  *on("tool.call") is registered twice without a matcher*. A plugin's registrations nest in order and a
-  repeat throws, so a matcher per gate would only move the problem to the next gate (P2-04, P2-05, P6-04).
-  The turn-limit check therefore moved into P2-01's gate as its first check (found in review). Tests pin
+  *on("tool.call") is registered twice without a matcher*. A second hook with a matcher (even `{}`) would
+  load, but then the order of the two gates and which one's `.catch` answers a failure would follow from
+  registration order in `register.tsx`, unseen in either file. The turn-limit check therefore moved into
+  P2-01's gate as its first check, so the order and each failure message are written in one place (found
+  in review). Tests pin
   the order: at the limit a tool the policy refuses gets the wrap-up message; a failed turn-limit check
   gives its own message without asking for the server; a failed policy check under the limit gives
   `POLICY_FAILED`.
@@ -146,9 +148,9 @@ needs one request to warn and one to answer.
 
 Each step: write the test, run it and see it fail, then the code, then `npm run check`.
 
-1. **Rules.** `ceilings` (defaults, 0 = off, 1 → 2, non-numbers → default) and `ceilingFor` for main
+1. **Rules.** `limitsFrom` (defaults, 0 = off, 1 → 2, non-numbers → default) and `limitFor` for main
    single, main multi-agent, subagent; `isWrapUp` / `isLast` at `n − 3`, `n − 2`, `n − 1`, `n`.
-2. **Outside a Yvoke session** all three hooks pass `next(e)` untouched: a step past any ceiling keeps its
+2. **Outside a Yvoke session** the hooks and the gate's check pass `next(e)` untouched: a step past any ceiling keeps its
    tool chunks, a tool call reaches the engine, `turn.complete` adds nothing.
 3. **Under the limit** (single agent, step index 0 and 22 of 25): chunks unchanged, tool call runs.
 4. **At the limit, single agent 25**: after step index 23, the tool call is denied with the wrap-up text;

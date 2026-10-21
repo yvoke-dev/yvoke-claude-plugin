@@ -451,11 +451,12 @@ the same PR.
   ```
 
   Tests cover the throw and the timeout path for each one.
-- **One hook per event in the whole mod.** A plugin's registrations nest in order (first outermost), and a
-  second `on(event, hook)` without a matcher stops the module loading (*registered twice without a
-  matcher*). Every tool rule is therefore a check inside the one `tool.call` gate in `src/policy.ts`, in a
-  fixed order, each with its own failure message: the turn limit (P2-08) first, then the policy (P2-01).
-  A later task adds its check there rather than a hook of its own (found in P2-08's review).
+- **One unmatched hook per event in the whole mod.** A plugin's registrations nest in order (first
+  outermost), and a second `on(event, hook)` without a matcher stops the module loading (*registered twice
+  without a matcher*); a hook with a matcher, even `{}`, loads. For tool rules we still keep one hook: every
+  rule is a check inside the one `tool.call` gate in `src/policy.ts`, so their order and each failure
+  message are written in one place rather than implied by registration order: the turn limit (P2-08)
+  first, then the policy (P2-01). A later task adds its check there (found in P2-08's review).
 - **Outside a Yvoke session, call `next(e)` and nothing else.** The mod loads in every Claude Code session
   of the user; only `/yvoke` makes a session a Yvoke session (P1-10, D-13). Every enforcing hook opens
   with these two lines, written in its own file:
