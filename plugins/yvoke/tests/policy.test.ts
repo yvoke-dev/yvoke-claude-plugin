@@ -147,10 +147,12 @@ describe('in a Yvoke session: denied', () => {
   test('a built-in never waits on the server', async ($, on) => {
     const w = engine(on)
     await yvokeSession($)
+    // /yvoke itself loads the setup band's lists from the server (P1-08); count from after it.
+    const before = w.connects
 
     await call($, 'Bash', { command: 'ls' })
     await call($, 'ToolSearch')
-    expect(w.connects).toBe(0)
+    expect(w.connects).toBe(before)
   })
 })
 

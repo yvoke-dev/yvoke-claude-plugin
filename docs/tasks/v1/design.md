@@ -324,6 +324,16 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     is refused while that sandbox is off, and the route ships only if P0-12 shows the sandbox blocks all
     four escapes (environment secrets, files, child processes, network); otherwise P2-05 is dropped.
   - Delivered by: P0-12, P2-05.
+- [x] **D-20** `PO` · `plugin` — **What does a resumed session do when its playbook has a newer version?**
+  The setup records the version it locked with, but yvoke-web keeps no old playbook text, so a session
+  resumed after the playbook was saved again can only fetch the new text.
+  - **Decided 2026-10-20 (Eduard): carry on with the new version.** On `/resume` the setup line and the
+    status line move to the new version, and the user is told once. Within one session nothing changes:
+    the text is fetched once, at the lock.
+  - **Extended 2026-10-21 (Eduard, review of #22): `/branch` too.** A branch has a new session id, so its
+    first question also fetches the server's current text; the line, the status line and the toast follow
+    the same rule.
+  - Delivered by: P1-08.
 - [x] **D-24** `PO` · `plugin` — **Which turn ceiling does the reviewer get?** The plan said 20 as
   yvoke-desktop's value, but the desktop hard-codes its reviewer at 6 (`AgentService.ts`); its other
   shipped ceilings are single agent 25, lead 60, specialist 20. A reviewer stopped at its ceiling cannot
@@ -431,7 +441,8 @@ the same PR.
 | Rewrite a tool's input (WebSearch domains) | `next({ ...e, allowed_domains: [ … ] })` | The tool's arguments sit flat on `e`, beside `tool` (there is no `e.input`). Managed hooks run again on the rewritten call. |
 | Gate a prompt | `on('prompt.submit', h)` → `{ drop: reason }` | The reason is shown to the user. Whether the draft stays is checked in P1-08; `$.prompt.fill` restores it. |
 | Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Cached until `$.ui.invalidate('prompt.compose')`; the text is fixed per session, so one fetch at lock. |
-| Session setup band | `ui.render` on `{ component: 'AbovePrompt' }` with `Select`s from `$.ui.resolve(e)` | `mobile` has no `Select`: show the read-only line there. |
+| Hide playbook skills in Claude Code | `on('skill.prompt', h)` → `{ text }` | Not used in v1: the plugin ships no skills (D-26). On 2.1.287 the input is only `{ skill, text }`; 2.1.304 adds `frontmatter`, `source` and `pluginName`. |
+| Session setup band | `ui.render` on `{ component: 'AbovePrompt' }` with `Select`s from `$.ui.resolve(e)` | Raised on terminal and desktop only. A `Text` keeps no `key`, so tests find it by its text. A write of `$.state` the hook read redraws it. |
 | Mod commands | `$.command.register({ name, description })` in `session.start`, answered by `command.run` | No `:` in names. Register last or in `try`/`catch`. |
 | Compute tools | `$.tool.register(…)` + `tool.call` on `mcp__yvoke__<name>` | Register when `/yvoke` starts the Yvoke session, and again when `/resume` or `/branch` restores one (P1-10), so they are listed on the first question. A registered tool cannot be withdrawn, so after `/clear` it stays listed in the plain session; every call is refused there, as when the sandbox is off or the playbook declares `codeExecution: false` (P2-05). |
 | Subagents | `$.agent.register` (`yvoke:<name>`), `$.agent.spawn`, `agent.spawn` (`{ deny }`, `parentAgentId`), `agent.offer` (`{ isOffered: false }`) | |
@@ -456,7 +467,7 @@ the same PR.
   ```ts
   // Once the hook has called next, the tool may have run: pass on what it settled to (P2-01).
   on('tool.call', enforcePolicy).catch(($, e, next) => (next.called ? next(e) : { deny: 'Yvoke: the policy check failed, so this tool was not run.' }))
-  on('prompt.submit', lockSetup).catch(() => ({ drop: 'Yvoke Backend: the session could not be set up, so the question was not sent.' }))
+  on('prompt.submit', lockSetup).catch(($, e, next) => (next.called ? next(e) : { drop: 'Yvoke Backend: the session could not be set up, so the question was not sent.' }))
   ```
 
   Tests cover the throw and the timeout path for each one.
@@ -466,6 +477,10 @@ the same PR.
   rule is a check inside the one `tool.call` gate in `src/policy.ts`, so their order and each failure
   message are written in one place rather than implied by registration order: the turn limit (P2-08)
   first, then the policy (P2-01). A later task adds its check there (found in P2-08's review).
+  For other events, a module that hooks an event another module already hooks unmatched gives its own a
+  catch-all matcher (`{ source: /^(clear|resume|fork)$/ }`, `{ text: /^/ }`; checked on 2.1.304, P1-08). A
+  hook that answers without `next(e)` hides the ones beneath it, which is why `registerSetup` comes before
+  `registerSession`.
 - **Outside a Yvoke session, call `next(e)` and nothing else.** The mod loads in every Claude Code session
   of the user; only `/yvoke` makes a session a Yvoke session (P1-10, D-13). Every enforcing hook opens
   with these two lines, written in its own file:
