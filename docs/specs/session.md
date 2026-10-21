@@ -18,9 +18,9 @@
 - `/clear` ends a Yvoke session. `/resume` restores what the resumed session was: Yvoke if it was started
   with `/yvoke`, plain otherwise, whatever the session it was resumed from. If the saved entry cannot be
   read, the resumed session is plain. `/branch` keeps a Yvoke session.
-- What a Yvoke session enforces applies only in a Yvoke session: the tool rules are in
-  [tool-policy.md](tool-policy.md), and the system prompt carries the server's instructions
-  ([system-prompt.md](system-prompt.md)); the setup band arrives with a later task.
+- What a Yvoke session enforces applies only in a Yvoke session: the setup band is in [setup.md](setup.md),
+  the tool rules in [tool-policy.md](tool-policy.md), and the system prompt carries the server's
+  instructions ([system-prompt.md](system-prompt.md)).
 
 ## Interfaces
 
@@ -39,7 +39,7 @@
 - `plugins/yvoke/tests/session.test.ts`: a session without `/yvoke` (a tool call and a prompt pass
   through), `/yvoke` before the first question, after it and twice, `/clear`, `/resume` of a Yvoke and of
   a plain session, `/branch` of both, a failed save, and a failed read on `/resume`.
-- Not yet checked on a real Claude Code: autocomplete next to the plugin's `/yvoke:<skill>` skills, whether
+- Not yet checked on a real Claude Code: how `/yvoke` autocompletes, whether
   `/yvoke` itself counts as a turn, and `$.state` on `/branch` (P0-06).
 
 ## History

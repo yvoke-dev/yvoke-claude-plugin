@@ -16,8 +16,10 @@
   (`scope: 'session'`): the base instructions, a `---` line between blank lines (`\n\n---\n\n`, as web
   chat joins them), then the playbook text. Claude Code's own
   sections stay before it. The playbook comes last, so it wins a conflict.
-- Until the setup band exists (P1-08), the setup is area **OIM**, single agent, and the playbook `list_areas`
-  names as that area's default (`oim-full` today). In multi-agent mode only the base instructions are added.
+- The area, mode and playbook come from the setup band ([setup.md](setup.md)), which saves them in
+  `yvoke.setup` before the question goes down. With no setup saved, the session runs on area **OIM**,
+  single agent, and the playbook `list_areas` names as that area's default. In multi-agent mode only the
+  base instructions are added.
 - If loading fails, the question is not sent and the user sees why, as the server client words it, for
   example `Yvoke Backend: ERROR: playbook 'oim-ful' not found.`, or, when the server is not connected,
   `Yvoke Backend:` followed by Claude Code's own sentence (and *Run /mcp and sign in to yvoke.* when it
@@ -37,7 +39,7 @@
 | Load step | Calls | Time |
 | --- | --- | --- |
 | Setup names its playbook | `list_areas` and `get_playbook` together, then `get_system_prompt` | two rounds |
-| Setup has no playbook (today) | `list_areas`, then `get_playbook` (the area's default), then `get_system_prompt` | three rounds |
+| No setup saved | `list_areas`, then `get_playbook` (the area's default), then `get_system_prompt` | three rounds |
 | Multi-agent mode | `list_areas`, then `get_system_prompt` | two rounds |
 
 Each round waits at most 8 s (the server client's limit) or what the hook has left less 1.5 s, whichever is
@@ -52,8 +54,9 @@ smaller. With under 1 s left, it fails at once and asks to send the question aga
 | `$.state` `yvoke.setup` = `{ area, mode, playbook }` (playbook null = the area's default), read here, written by P1-08 | same |
 | Server tools `list_areas` (`defaultPlaybook`, `defaultSystemPrompt`, `systemPrompts`), `get_playbook(name)` (`systemPrompt`, `text`), `get_system_prompt(name?)` | through `callYvoke` ([server-client.md](server-client.md)) |
 
-For P1-08: the setup is locked exactly when `yvoke.instructions.sessionId` is the current session id.
-A `prompt.submit` hook that must act before the lock (P2-06's preflight) registers before
+The setup band locks its own setup (`lockedSessionId`); it does not read `yvoke.instructions`. Its
+`prompt.submit` hook is registered first, so it wraps this one: a failure here passes back through it, and
+the user sees its drop message. A `prompt.submit` hook that must act before the lock (P2-06's preflight) registers before
 `registerSystemPrompt(on)` in `hooks/register.tsx`, and with a matcher (even `{}`): P1-07's
 `prompt.submit` and `prompt.compose` hooks are the mod's unmatched ones, and a second unmatched hook on
 the same event stops the module loading (design 4.4).
@@ -67,7 +70,10 @@ the same event stops the module loading (design 4.4).
 - `plugins/yvoke/tests/system-prompt.test.ts`, through the engine: P1-08's `yvoke.setup` deciding what
   loads (a test hook answers the read), a plain session, first question,
   later questions, server down then back, no playbook text, a server that does not answer, a new session
-  id, and a throw in each hook (fails closed).
+  id, and a throw in each hook (fails closed). The whole mod is loaded, so the server stub also answers
+  the setup band's `list_playbooks`; the tests count only the calls made after `/yvoke`. A throw in this
+  `prompt.submit` hook reaches the user as the setup band's drop, since its `.catch` sits outside this
+  one; the test fails if both `.catch`es are removed, not if only this one is.
 - Not checkable in the test kit: a plugin hook that overruns its own 10 s budget (the kit cuts the waits
   beneath it first). The `.catch` it would reach is the one the throw tests reach.
 - Not yet checked on a real Claude Code (P0-06): that the first answer already sees the section, and

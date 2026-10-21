@@ -11,7 +11,7 @@
   event, tool calls included, reaches Claude Code unchanged: see [session.md](session.md).
 - The plugin has one MCP server, `yvoke` (HTTP), so its tools are named `mcp__plugin_yvoke_yvoke__<tool>`.
   Its address is the setting `serverUrl`.
-- Five settings (`userConfig`), set with `claude plugin install yvoke@yvoke --config KEY=VALUE` or
+- Six settings (`userConfig`), set with `claude plugin install yvoke@yvoke --config KEY=VALUE` or
   `/plugin configure yvoke@yvoke`, and stored in the user's `settings.json`, never in the repository:
   - `serverUrl`: the Yvoke MCP endpoint. No default yet (P1-02 adds production). While it is unset the
     `yvoke` server does not connect ("URL is unset or invalid"); the mod still loads.
@@ -19,6 +19,8 @@
     mock mode accepts `true` in place of a sign-in; any other server ignores it. Off, the normal OAuth
     sign-in applies. `.mcp.json` sets no `Authorization` header, because Claude Code turns the OAuth
     sign-in off whenever one is set.
+  - `showPrototypes`, off by default: on, the setup band also offers prototype areas and playbooks
+    ([setup.md](setup.md)).
   - `turnLimitSingle` (25), `turnLimitLead` (60), `turnLimitAgent` (20): the turn ceilings per question,
     see [turn-limits.md](turn-limits.md).
 - How to run it against a local yvoke-web: [README, "Use it locally"](../../README.md#use-it-locally).
@@ -29,7 +31,7 @@
 | --- | --- |
 | Marketplace manifest | `.claude-plugin/marketplace.json` |
 | Plugin manifest: name, version, `$.state` contract | `plugins/yvoke/.claude-plugin/plugin.json` |
-| Settings `serverUrl`, `devMode`, `turnLimitSingle`, `turnLimitLead`, `turnLimitAgent` | `userConfig` in `plugins/yvoke/.claude-plugin/plugin.json` |
+| Settings `serverUrl`, `devMode`, `showPrototypes`, `turnLimitSingle`, `turnLimitLead`, `turnLimitAgent` | `userConfig` in `plugins/yvoke/.claude-plugin/plugin.json` |
 | MCP server `yvoke` | `plugins/yvoke/.mcp.json` |
 | Dev-mode header on the server | yvoke-web `SecurityConfig.mcpBearerTokenResolver` (mock mode only) |
 | Hooks module list | `plugins/yvoke/hooks/hooks.json` |

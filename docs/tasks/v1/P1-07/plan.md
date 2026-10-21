@@ -34,6 +34,12 @@ session area's `defaultSystemPrompt`, else the active default (no name). Then ex
 drops the question. Base and playbook are joined with `\n\n---\n\n` instead of a blank line. So the order is
 `list_areas` (with `get_playbook` when the setup names one), `get_playbook`, then `get_system_prompt`.
 
+**Changed on 2026-10-21: P1-08 merged first.** Its setup band now writes `yvoke.setup` and wraps this
+`prompt.submit` hook (it registers first). The engine tests answer its `list_playbooks` and count only the
+calls after `/yvoke`. A throw in this hook now reaches the user as the band's drop message, so that test
+checks for any `Yvoke Backend: … so the question was not sent.` drop. The section below describes the
+time before P1-08 and still holds when no setup is saved.
+
 ## Until P1-08: the setup comes from the area's defaults
 
 P1-08 (the setup band) is not built yet. Until it is, the setup is fixed:
@@ -172,5 +178,5 @@ Each step starts with a test, seen failing first.
   untouched, new session reloads. Each hook test was seen failing against a mutation of the code it pins
   (catch removed, session-id check removed, order swapped, Yvoke check removed).
 - `npm run check`: docs, both `validate --strict` runs (the `calls:` line names no `$.fs`, `$.process`
-  or `$.http`), types, and `claude plugin test plugins/yvoke`: 144 pass, 0 fail on 2.1.305 (with main at P2-03 and P2-08 merged in), 30 Markdown
+  or `$.http`), types, and `claude plugin test plugins/yvoke`: 192 pass, 0 fail on 2.1.305 (with main at P1-08 merged in), 33 Markdown
 files.
