@@ -88,7 +88,7 @@ After M1: Phase 3 (P3-02 after P0-05), Phase 6 (after P0-07), then Phase 7 and t
 P1-10 are done. Next, in this order:
 
 1. **P1-08** setup band, now: area selection comes first in every Yvoke session, and the area carries the
-   default playbook and the default multi-agent profile. It no longer waits for spike P0-06: the four
+   default playbook and the default multi-agent profile. It no longer waits for spike P0-06: the three
    checks P0-06 held for it (`/resume`, `/branch`, the typed text after `{ drop }`) move into
    P1-08 and are run on a developer's machine before it is ticked.
 2. **P1-07** finished against the playbook's own system prompt (see its entry), in parallel with P1-08.

@@ -79,8 +79,8 @@ on, as in yvoke-web's picker.
 
 The server keeps no old playbook text (yvoke-web spec 02 "Not supported": saving overwrites in place).
 Within one session nothing moves: P1-07 fetches the text once, and the line keeps the locked version even
-when the server's list moves on. After `/resume`, P1-07 fetches again and gets whatever the server has now.
-**Eduard chose to carry on with the new version**: on `/resume` of a locked session the mod reloads the
+when the server's list moves on. After `/resume` or `/branch`, P1-07 fetches again and gets whatever the server has now.
+**Eduard chose to carry on with the new version**: on `/resume` (and, since his 2026-10-21 review, `/branch`) of a locked session the mod reloads the
 lists, and when the playbook's version differs from the locked one it updates `setup.version`, the line
 and the status line to the new version, and tells the user once (a toast: *oim-full moved from v3 to v4
 since the setup was locked; answers from now on use v4.*). A playbook the server no longer has is not a
@@ -97,8 +97,9 @@ D-20.
 | `plugins/yvoke/.claude-plugin/plugin.json` | `showPrototypes` setting |
 | `plugins/yvoke/tests/setup-rules.test.ts` | new: the pure functions |
 | `plugins/yvoke/tests/setup.test.ts` | new: the hooks through the engine, both surfaces |
-| `docs/specs/setup.md`, `docs/specs/README.md`, `docs/specs/session.md` | new spec, index line, one line in session |
+| `docs/specs/setup.md`, `docs/specs/README.md`, `docs/specs/session.md`, `docs/specs/packaging.md` | new spec, index line, one line in session, the `showPrototypes` setting |
 | `docs/tasks/v1/plan.md`, `design.md` | tick P1-08 (after the machine checks); D-20 and D-26 in this PR, with the release plan changes D-26 needs (also in #24); 4.3 rows if the API differs |
+| `README.md`, `intent.md`, `requirements.md`, `docs/tasks/v1/P1-04/plan.md` | D-26's changes, copied from #24 so either PR can merge first |
 
 ## Order of work
 
