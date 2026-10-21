@@ -422,7 +422,7 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   those (plus the always-added three); one that declares none gets the default set (`DEFAULT_KB_TOOLS`).
   Scoping follows the session's playbook from P1-08, which never changes during the session. ⛔ P1-08
   - Done when: tests cover declared tools and no declaration.
-- [ ] **P2-03** `plugin` · S — **Re-namespacing.** Playbooks name tools by their base name (`search_corpus`).
+- [x] **P2-03** `plugin` · S — **Re-namespacing** ([#27](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/27)). Playbooks name tools by their base name (`search_corpus`).
   The mod maps each to the Yvoke server's real tool name, using the server P1-03 found (D-05 lists the
   forms). Do not port yvoke-desktop's fixed `MCP_TOOL_PREFIX`; port `qualifyTool`'s tests with the prefix
   supplied at run time. The built-ins `WebSearch`, `WebFetch` and `ToolSearch` are never prefixed. ⛔ P1-03

@@ -1,6 +1,6 @@
 # P2-03 Re-namespacing
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** done
 
 Playbooks name their tools by base name (`search_corpus`), or under whatever prefix was current when they
 were written: yvoke-desktop's `mcp__yvoke__search_corpus`, or the older `mcp__oim__search_corpus`. The mod
