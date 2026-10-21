@@ -1,13 +1,14 @@
 # P1-08 Session setup: area, mode, playbook
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** done
+**Regression test:** f1bc1b8
 
 **Done when** (from [plan.md](../plan.md#phase-1--knowledge-base-base-instructions-and-playbooks-mvp)):
 tests cover the defaults (single agent, the area's default playbook), changing each select before the first
 question, the area reset, the switch to *Multi-agent* picking the area's default profile, the version shown,
 the version kept after the lock even when the server's playbook moves on to a newer one, the lock, the
 read-only line on `terminal` and `desktop`, `/clear`, `/resume`, and server down. Before it is ticked, a
-developer's machine confirms: the typed
+real Claude Code install confirms (a non-managed one for `/resume` and `/branch`): the typed
 text stays in the prompt box after `{ drop }` (else restore it with `$.prompt.fill`); `$.session.id` is the
 same after `/resume`; and the setup survives `/branch`.
 
@@ -170,7 +171,41 @@ Findings go in this plan's *Results* section; a check that fails reopens the ste
 
 ## Results
 
-Not run yet.
+Run 2026-10-21 on Claude Code 2.1.306.
+
+1. **Typed text after `{ drop }`: passes** (Eduard's Mac, terminal). The question is dropped with the
+   server's message and `test question` stays in the prompt box, so no `$.prompt.fill` is needed.
+2. **`/resume`: passes** (cloud sandbox, interactive terminal under tmux, a stub Yvoke server). The
+   session id is the same before and after (`0e2c40a3…`), the locked line *OIM · Single agent ·
+   oim-quick v2* comes back, and with the stub's playbook bumped D-20 moves it to v3 and toasts once.
+   Not run on Eduard's Mac: his Claude Code belongs to a Team organization, so the built-in
+   `cc-plugin-sec-default` passes over a self-installed plugin's `classic.SessionStart` (D-25). A local
+   `managed-settings.json` does not help there, because the organization's remote managed settings
+   take its place once they arrive.
+3. **`/branch`: failed, fixed, passes** (cloud sandbox). First run: The branch gets a new session id, but Claude Code starts it
+   with **empty `$.state`**, and its `classic.SessionStart` (`source: 'fork'`) names no parent session.
+   So the Yvoke flag (P1-10) and the setup are both lost and the branch is a plain session. The test kit
+   keeps `$.state` across a fork, which is why the engine tests passed. `session.end` fires for the
+   parent just before the fork, with its id. After the fix below, the same steps show the locked line
+   *OIM · Single agent · oim-quick v3* in the branch (`1f44a132…`), and `/yvoke` there answers *This is
+   already a Yvoke session.*
+
+Also seen: in manual permission mode, Claude Code asks the user before each of the mod's own
+`list_areas` and `list_playbooks` calls; in auto mode it does not.
+
+## Fix for check 3 (bug, agreed with Eduard 2026-10-21)
+
+- **Regression test first** (`tests/branch.test.ts`): the test's engine empties `$.state` at the fork, as
+  Claude Code does, and the branch must still be a Yvoke session with the locked setup.
+- `src/session.ts`: on `session.end`, save `{ sessionId }` of the ending session under the store key
+  `ended` (every session, so a plain one overwrites a Yvoke one). On a fork, when `$.state` has no flag,
+  read the flag from `session:<ended id>`.
+- `src/setup.ts`: on a fork, when `$.state` has no setup, read it from `setup:<ended id>`.
+- Risk: two Claude Code processes ending sessions in the same moment could swap `ended`; the branch
+  then takes the other session's flag. Rejected alternatives: a time window (needs `$.clock.now` for a
+  race of milliseconds), and reading the transcript (needs `$.fs`).
+- Not checked on a real 2.1.287: that `session.end` of the parent fires before the branch starts was
+  seen on a real 2.1.306 only. On 2.1.287 only the test kit covers it.
 
 ## Risks
 

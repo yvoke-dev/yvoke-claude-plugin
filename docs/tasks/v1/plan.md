@@ -320,8 +320,9 @@ a cloud session.
     (falls back to the area default), no area default (active default), and an `ERROR:` from
     `get_system_prompt` (dropped).
   - Delivered in [#17](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/17); plan in
-    [P1-07/plan.md](P1-07/plan.md). Until P1-08, the setup is OIM, single agent, the area's default playbook.
-- [ ] **P1-08** `plugin` · M — **Session setup: area, mode, playbook** (D-11).
+    [P1-07/plan.md](P1-07/plan.md). The setup comes from P1-08's band; with none saved, OIM, single agent,
+    the area's default playbook.
+- [x] **P1-08** `plugin` · M — **Session setup: area, mode, playbook** (D-11) ([#22](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/22), [#29](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/29)).
   - In a new Yvoke session a band above the prompt (`ui.render` on `AbovePrompt`) shows three `Select`s
     (D-18): **area** (default OIM), **mode** (*Single agent* or *Multi-agent*; default *Single agent*) and
     then **playbook** for single agent (default the area's default playbook; `oim-full` for OIM) or
@@ -344,7 +345,7 @@ a cloud session.
     before the first question, the area reset, the switch to *Multi-agent* picking the area's default
     profile, the version shown, the version kept after the lock even when the server's playbook moves on
     to a newer one, the lock, the read-only line on `terminal` and `desktop`, `/clear`,
-    `/resume`, and server down. Before it is ticked, a developer's machine confirms what P0-06 used to
+    `/resume`, and server down. Before it is ticked, a real Claude Code install (a non-managed one for `/resume` and `/branch`) confirms what P0-06 used to
     (moved 2026-10-20): the typed
     text stays in the prompt box after `{ drop }` (else restore it with `$.prompt.fill`); `$.session.id`
     is the same after `/resume`; and the setup survives `/branch`.

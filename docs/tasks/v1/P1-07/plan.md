@@ -178,5 +178,5 @@ Each step starts with a test, seen failing first.
   untouched, new session reloads. Each hook test was seen failing against a mutation of the code it pins
   (catch removed, session-id check removed, order swapped, Yvoke check removed).
 - `npm run check`: docs, both `validate --strict` runs (the `calls:` line names no `$.fs`, `$.process`
-  or `$.http`), types, and `claude plugin test plugins/yvoke`: 192 pass, 0 fail on 2.1.305 (with main at P1-08 merged in), 33 Markdown
+  or `$.http`), types, and `claude plugin test plugins/yvoke`: 194 pass, 0 fail on 2.1.305 (with main at P1-08 and #29 merged in), 33 Markdown
 files.
