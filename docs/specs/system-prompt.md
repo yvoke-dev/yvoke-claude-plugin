@@ -62,13 +62,12 @@ A `prompt.submit` hook that must act before the lock (P2-06's preflight) registe
   which base prompt (listed by its own area, only by another area, by none, no area default) and the
   dropped `ERROR:`, a setup with and without a playbook, multi-agent, server down, unknown playbook, a missing area or default playbook,
   unreadable answers, empty texts, and the time budget per round.
-- `plugins/yvoke/tests/system-prompt.test.ts`, through the engine: a plain session, first question,
+- `plugins/yvoke/tests/system-prompt.test.ts`, through the engine: P1-08's `yvoke.setup` deciding what
+  loads (a test hook answers the read), a plain session, first question,
   later questions, server down then back, no playbook text, a server that does not answer, a new session
   id, and a throw in each hook (fails closed).
 - Not checkable in the test kit: a plugin hook that overruns its own 10 s budget (the kit cuts the waits
   beneath it first). The `.catch` it would reach is the one the throw tests reach.
-- Not covered through the engine: reading `yvoke.setup` (the kit's `$` cannot write `$.state`); P1-08's
-  tests cover it once its band writes the key.
 - Not yet checked on a real Claude Code (P0-06): that the first answer already sees the section, and
   whether subagent prompts also pass through `prompt.compose`.
 

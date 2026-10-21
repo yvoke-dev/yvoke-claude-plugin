@@ -49,10 +49,9 @@ other: `Yvoke Backend: area 'OIM' has no default playbook.`
 
 **How P1-08 hands over its choice.** P1-08's band will write what the user picked to a `$.state` key
 `yvoke.setup` (`{ area, mode, playbook }`). P1-07 reads that key when it is set and uses the defaults
-above only when it is not, so P1-08 adds no code here. The test kit's `$` cannot write `$.state`, so no engine test here can
-stage the key; `system-prompt-load.test.ts` covers a setup passed in, and P1-08's own engine tests cover
-the hand-over once its band writes the key (a band choice, then the first question asks for that
-playbook). P1-08 also needs to know when the setup is
+above only when it is not, so P1-08 adds no code here. The test kit's `$` cannot write `$.state`, but a
+test hook can answer the plugin's read of the key, so an engine test pins the hand-over: with a
+multi-agent setup in `yvoke.setup`, the first question asks for no playbook. P1-08 also needs to know when the setup is
 locked; it reads that off P1-07's key below ("instructions loaded for this session"). The setup is then
 locked exactly when the fetch worked, which is what requirements 2.1 asks ("a failed fetch … leaves the
 setup unlocked"). In multi-agent mode P1-07 adds no playbook text; the lead's prompt comes with the
@@ -106,7 +105,7 @@ profiles (P6-01).
 | `docs/tasks/v1/design.md` | 4.3 row (`prompt.compose` is not cached); 4.2 and 4.4 (test answers to `$.mcp.call` are `{ value }`, overrun cannot be staged) |
 
 Shared with threads running now: `hooks/register.tsx` and `types/index.d.ts` each get one line from
-several tasks (P1-09, P3-01, P6-03, P2-05). Those merge without real conflicts; whoever merges second
+several tasks (P1-09, P3-01, P6-03, P2-05, P2-06). Those merge without real conflicts; whoever merges second
 rebases. `docs/tasks/v1/plan.md` gets one tick per task, same.
 
 **Hook order.** Hooks on one event run in `register.tsx` order, the first outermost. P1-07's
@@ -126,8 +125,9 @@ Each step starts with a test, seen failing first.
    default playbook, a `get_playbook` answer that is not JSON or has no `text`; each returns its
    `Yvoke Backend:` error.
 3. Budget: the second call's timeout comes from what is left; too little left fails at once.
-4. `prompt.submit` hook through the engine (stub `mcp.connect`/`mcp.call`, `session.id`, `state`):
-   a plain session passes untouched and calls nothing; first question loads and enters; a failed load
+4. `prompt.submit` hook through the engine (stub `mcp.connect`/`mcp.call` and `session.id`; the real
+   `$.state`, with a test hook answering the read of `yvoke.setup`): a setup in that key decides what
+   loads; a plain session passes untouched and calls nothing; first question loads and enters; a failed load
    drops with the message and a second question tries again; a loaded session does not call the server
    again; a new session id loads again.
 5. `prompt.compose` hook: section appended last as `session` in a loaded Yvoke session; nothing added in a
@@ -169,5 +169,5 @@ Each step starts with a test, seen failing first.
   untouched, new session reloads. Each hook test was seen failing against a mutation of the code it pins
   (catch removed, session-id check removed, order swapped, Yvoke check removed).
 - `npm run check`: docs, both `validate --strict` runs (the `calls:` line names no `$.fs`, `$.process`
-  or `$.http`), types, and `claude plugin test plugins/yvoke`: 62 pass, 0 fail on 2.1.305 (87 once P2-01 was merged in; 62 on 2.1.303
-in Eduard's review).
+  or `$.http`), types, and `claude plugin test plugins/yvoke`: 88 pass, 0 fail on 2.1.305 (with P2-01 merged in), 27 Markdown
+files.

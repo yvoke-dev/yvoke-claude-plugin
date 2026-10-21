@@ -96,6 +96,21 @@ test('the first question loads the instructions, then the question is sent with 
   expect(await compose($)).toEqual([...CORE, OURS])
 })
 
+test("P1-08's choice in yvoke.setup decides what loads: multi-agent asks for no playbook", async ($, on) => {
+  const w = engine(on)
+  // The test's `$` cannot write `$.state`, but a hook here answers the plugin's read of the key.
+  on('state.get', { plugin: 'yvoke', key: 'setup' }, () => ({
+    value: { value: { area: 'OIM', mode: 'oim-team', playbook: null }, version: 1 },
+  }))
+  await begin($)
+  await yvoke($)
+
+  expect(await ask($, 'one')).toEqual({ text: 'one' })
+
+  expect(w.server.calls).toEqual(['list_areas', 'get_system_prompt'])
+  expect(await compose($)).toEqual([...CORE, { ...OURS, text: 'BASE' }])
+})
+
 test('later questions use what was loaded and do not call the server again', async ($, on) => {
   const w = engine(on)
   await begin($)

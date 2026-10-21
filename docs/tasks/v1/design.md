@@ -326,8 +326,8 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
   - Delivered by: P0-12, P2-05.
 - [x] **D-25** `PO` · `plugin` — **Does the mod support a person's own install where an organization
   manages Claude Code?** There, Claude Code passes over a user-installed plugin's hooks on
-  `prompt.compose`, the other prompt-building events and every `classic.*` event, but still runs its
-  `prompt.submit` (read from Claude Code 2.1.305; the validator warns about it). The playbook would load
+  `prompt.compose` and `classic.SessionStart`, but still runs its `prompt.submit`
+  (`claude plugin validate --strict` warns about exactly these two for this mod on 2.1.303). The playbook would load
   and lock, yet never reach the model. A plugin cannot read its own tier, so no hook can tell.
   - **Decided 2026-10-21 (Eduard): unsupported.** In an organization that manages Claude Code, the mod
     must be installed the organization's way (managed settings or the MDM marketplace, P7-04). Outside
