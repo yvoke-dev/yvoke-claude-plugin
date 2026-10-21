@@ -319,7 +319,7 @@ a cloud session.
     playbook prompt its own area lists, one only another area lists (still used), one no area lists
     (falls back to the area default), no area default (active default), and an `ERROR:` from
     `get_system_prompt` (dropped).
-- [ ] **P1-08** `plugin` · M — **Session setup: area, mode, playbook** (D-11).
+- [x] **P1-08** `plugin` · M — **Session setup: area, mode, playbook** (D-11) ([#22](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/22), [#29](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/29)).
   - In a new Yvoke session a band above the prompt (`ui.render` on `AbovePrompt`) shows three `Select`s
     (D-18): **area** (default OIM), **mode** (*Single agent* or *Multi-agent*; default *Single agent*) and
     then **playbook** for single agent (default the area's default playbook; `oim-full` for OIM) or

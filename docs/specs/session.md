@@ -50,3 +50,4 @@ How later hooks check the flag: [design 4.4](../tasks/v1/design.md#44-rules-that
 ## History
 
 - P1-10 ([#12](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/12)): the `/yvoke` session start.
+- P1-08 ([#29](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/29)): `/branch` keeps a Yvoke session although Claude Code empties `$.state`.

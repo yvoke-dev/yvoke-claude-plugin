@@ -76,3 +76,4 @@
 ## History
 
 - P1-08 ([#22](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/22)): the setup band.
+- P1-08 ([#29](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/29)): the setup survives `/branch` with empty `$.state`.
