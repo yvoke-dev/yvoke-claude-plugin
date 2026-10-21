@@ -331,6 +331,14 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     first question also fetches the server's current text; the line, the status line and the toast follow
     the same rule.
   - Delivered by: P1-08.
+- [x] **D-24** `PO` · `plugin` — **Which turn ceiling does the reviewer get?** The plan said 20 as
+  yvoke-desktop's value, but the desktop hard-codes its reviewer at 6 (`AgentService.ts`); its other
+  shipped ceilings are single agent 25, lead 60, specialist 20. A reviewer stopped at its ceiling cannot
+  call `submit_review`, and no verdict counts as a rejection (P6-03).
+  - **Decided 2026-10-20 (Eduard): 20, one setting (`turnLimitAgent`) for every subagent**, specialists
+    and reviewer alike. The mod need not tell the reviewer from a specialist, and a reviewer that runs out
+    of requests does not cause extra revision rounds as easily as at 6.
+  - Delivered by: P2-08.
 - [x] **D-26** `PO` — **Do Chat and Cowork stay in v1?** D-10 gave them live playbook stubs: one generated
   `SKILL.md` per playbook (name, description, and the instruction to fetch the playbook), kept current by a
   sync job. Building it (P1-04, [#24](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/24)) showed the
@@ -414,7 +422,10 @@ the same PR.
   or process. Import `test`, `expect` and `mock` from `claude-code/testing`. Hooks a test registers sit
   *beneath* the plugin and stand for the engine. A test answers each `$` call the plugin makes, and an
   answer to a `$` call that returns a value is `{ value }` (`on('session.turns', () => ({ value: 0 }))`).
-  A test's own `$` has no `$.state` or `$.store`, so observe them through behaviour or a stubbed store.
+  A test's own `$` has no `$.state` or `$.store`, so observe them through behaviour or stub them: hooks on
+  `state.get` / `state.set` (and `store.get` / `store.set`) beneath the plugin answer its calls (`state.get`
+  answers `{ value: { value, version } }`). A stubbed hook that throws is skipped and the kit answers
+  instead, so stage a failed read as an answer the plugin cannot use (P2-08).
   Stub the Yvoke server by hooking `mcp.call` in the test:
   `on('mcp.call', () => ({ content: [{ type: 'text', text: '…' }], isError: false }))`. UI tests mount on a
   surface the test names. Loop every UI test over `['terminal', 'desktop'] as const`.
@@ -457,6 +468,16 @@ the same PR.
   ```
 
   Tests cover the throw and the timeout path for each one.
+- **One unmatched hook per event in the whole mod.** A plugin's registrations nest in order (first
+  outermost), and a second `on(event, hook)` without a matcher stops the module loading (*registered twice
+  without a matcher*); a hook with a matcher, even `{}`, loads. For tool rules we still keep one hook: every
+  rule is a check inside the one `tool.call` gate in `src/policy.ts`, so their order and each failure
+  message are written in one place rather than implied by registration order: the turn limit (P2-08)
+  first, then the policy (P2-01). A later task adds its check there (found in P2-08's review).
+  For other events, a module that hooks an event another module already hooks unmatched gives its own a
+  catch-all matcher (`{ source: /^(clear|resume|fork)$/ }`, `{ text: /^/ }`; checked on 2.1.304, P1-08). A
+  hook that answers without `next(e)` hides the ones beneath it, which is why `registerSetup` comes before
+  `registerSession`.
 - **Outside a Yvoke session, call `next(e)` and nothing else.** The mod loads in every Claude Code session
   of the user; only `/yvoke` makes a session a Yvoke session (P1-10, D-13). Every enforcing hook opens
   with these two lines, written in its own file:
@@ -474,12 +495,6 @@ the same PR.
   generated data such as a playbook map can be a `.ts` module. JSX compiles against the global `h`.
 - **No `$.fs`, `$.process` or `$.http`** unless a decision says so (section 2). Reach yvoke-web only through
   `$.mcp.call`, so the connector's sign-in is the only credential.
-- **One hook per event per plugin, unless it has a matcher.** The engine refuses a module that registers
-  the same event twice without a matcher (checked on 2.1.304, P1-08), and every `src/` module shares one
-  plugin. A module that hooks an event another module already hooks unmatched gives its own a matcher,
-  catch-all if need be (`{ source: /^(clear|resume|fork)$/ }`, `{ text: /^/ }`). Hooks on one event run in
-  the order `hooks/register.tsx` registers them, the first outermost; a hook that answers without
-  `next(e)` hides the ones beneath it, which is why `registerSetup` comes before `registerSession`.
 - **Never log tokens or full answers** with `$.ui.log`; the debug log is something users attach to tickets.
 - **`e` is frozen.** Rewrite with `next({ ...e, x })`.
 

@@ -11,6 +11,7 @@ request that changes the behaviour updates the spec in the same change (see [../
 | [session.md](session.md) | What makes a session a Yvoke session: `/yvoke`, `/clear`, `/resume`, `/branch` |
 | [setup.md](setup.md) | The setup band: area, mode and playbook, locked on the first question |
 | [tool-policy.md](tool-policy.md) | Which tools the model may use in a Yvoke session, and the refusal it gets otherwise |
+| [turn-limits.md](turn-limits.md) | The turn ceilings per question and what happens at the limit |
 
 What v1 is meant to do is in [../tasks/v1/requirements.md](../tasks/v1/requirements.md).
 

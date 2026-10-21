@@ -7,6 +7,10 @@
 //   session it locked in, null before the first question (P1-08). Written only by src/setup.ts; P1-07
 //   reads area, mode and playbook.
 // catalogue: the areas and playbooks the band offers, or why they could not be loaded (P1-08).
+// loopStep: a family, one member per loop (`id`: the subagent's id, or `main`): the turn and request it
+//   stands at and its ceiling, or null when its ceiling is off (P2-08). Written only by
+//   src/turn-limits.ts. YvokeState gives the member's value, which is what `$.state.get` with an `id`
+//   answers; PluginState marks the key as a family.
 export type YvokeSetup = {
   area: string
   mode: 'single' | 'multi'
@@ -31,10 +35,20 @@ export type YvokeCatalogue =
     }
   | { ok: false; error: string }
 
-export type YvokeState = { yvokeSession: boolean; setup: YvokeSetup | null; catalogue: YvokeCatalogue | null }
+export type YvokeState = {
+  yvokeSession: boolean
+  setup: YvokeSetup | null
+  catalogue: YvokeCatalogue | null
+  loopStep: { turnId: string; index: number; n: number } | null
+}
 
 declare module 'claude-code' {
   interface PluginState {
-    yvoke: { yvokeSession: boolean; setup: YvokeSetup | null; catalogue: YvokeCatalogue | null }
+    yvoke: {
+      yvokeSession: boolean
+      setup: YvokeSetup | null
+      catalogue: YvokeCatalogue | null
+      loopStep: StateFamily<{ turnId: string; index: number; n: number } | null>
+    }
   }
 }

@@ -26,6 +26,24 @@
       "title": "Show prototype areas and playbooks",
       "description": "On: the Yvoke setup band also offers areas and playbooks the server marks as prototypes.",
       "default": false
+    },
+    "turnLimitSingle": {
+      "type": "number",
+      "title": "Turn limit, single agent",
+      "description": "The most model requests a single-agent Yvoke question may make. At the limit the model is told to answer with what it has, and the answer is marked as stopped at the turn limit. 0 turns the limit off.",
+      "default": 25
+    },
+    "turnLimitLead": {
+      "type": "number",
+      "title": "Turn limit, lead (multi-agent)",
+      "description": "The most model requests the lead may make for one question in a multi-agent Yvoke session. 0 turns the limit off.",
+      "default": 60
+    },
+    "turnLimitAgent": {
+      "type": "number",
+      "title": "Turn limit, specialists and reviewer",
+      "description": "The most model requests each specialist or reviewer run may make. At the limit it reports what it has found so far. 0 turns the limit off.",
+      "default": 20
     }
   }
 }
