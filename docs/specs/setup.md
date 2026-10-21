@@ -30,7 +30,8 @@
   cached list.
 - `/clear` ends the setup with the session. `/resume` brings back the setup the resumed session had,
   locked or not; if it cannot be read, the session has none. `/branch` keeps the setup, locked in the new
-  session. The status line is cleared on each of the three and set again only for a locked setup, so it
+  session; Claude Code starts a branch with empty `$.state`, so it is read from the session that just
+  ended ([session.md](session.md)). The status line is cleared on each of the three and set again only for a locked setup, so it
   never shows a session's setup under another session.
 - After `/resume` or `/branch` of a locked session whose playbook the server has saved again, the setup
   carries on with the server's version: the line and the status line show it, and a toast says once *oim-full moved
@@ -68,9 +69,9 @@
   `/resume` locked, moved on (D-20), unlocked, plain or unreadable, `/branch` (and moved on), the status
   line cleared on `/resume` of a plain or unlocked session, a hook failure, a lock that
   cannot be saved, and prototypes on. Run on Claude Code 2.1.287 and latest.
-- Not checkable in the test kit; checked on a developer's machine before P1-08 is ticked (see its plan):
-  the typed text after a dropped question, the session id after `/resume`, and
-  the setup after `/branch`.
+- `plugins/yvoke/tests/branch.test.ts`: the setup after `/branch` with `$.state` emptied.
+- Checked outside the test kit on Claude Code 2.1.306 (P1-08's plan, *Results*): the typed text stays
+  after a dropped question, the session id is the same after `/resume`, and the setup survives `/branch`.
 
 ## History
 

@@ -1,6 +1,6 @@
 # P1-08 Session setup: area, mode, playbook
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** done
 **Regression test:** f1bc1b8
 
 **Done when** (from [plan.md](../plan.md#phase-1--knowledge-base-base-instructions-and-playbooks-mvp)):
@@ -182,11 +182,13 @@ Run 2026-10-21 on Claude Code 2.1.306.
    `cc-plugin-sec-default` passes over a self-installed plugin's `classic.SessionStart` (D-25). A local
    `managed-settings.json` does not help there, because the organization's remote managed settings
    take its place once they arrive.
-3. **`/branch`: fails** (cloud sandbox). The branch gets a new session id, but Claude Code starts it
+3. **`/branch`: failed, fixed, passes** (cloud sandbox). First run: The branch gets a new session id, but Claude Code starts it
    with **empty `$.state`**, and its `classic.SessionStart` (`source: 'fork'`) names no parent session.
    So the Yvoke flag (P1-10) and the setup are both lost and the branch is a plain session. The test kit
    keeps `$.state` across a fork, which is why the engine tests passed. `session.end` fires for the
-   parent just before the fork, with its id.
+   parent just before the fork, with its id. After the fix below, the same steps show the locked line
+   *OIM · Single agent · oim-quick v3* in the branch (`1f44a132…`), and `/yvoke` there answers *This is
+   already a Yvoke session.*
 
 Also seen: in manual permission mode, Claude Code asks the user before each of the mod's own
 `list_areas` and `list_playbooks` calls; in auto mode it does not.
