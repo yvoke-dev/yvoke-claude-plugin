@@ -38,7 +38,7 @@
 - `plugins/yvoke/tests/session.test.ts`: a session without `/yvoke` (a tool call and a prompt pass
   through), `/yvoke` before the first question, after it and twice, `/clear`, `/resume` of a Yvoke and of
   a plain session, `/branch` of both, a failed save, and a failed read on `/resume`.
-- Not yet checked on a real Claude Code: autocomplete next to the plugin's `/yvoke:<skill>` skills, whether
+- Not yet checked on a real Claude Code: how `/yvoke` autocompletes, whether
   `/yvoke` itself counts as a turn, and `$.state` on `/branch` (P0-06).
 
 ## History

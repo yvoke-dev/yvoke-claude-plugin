@@ -43,7 +43,8 @@ same pull request.
   before any call, so a missing prompt never reaches the server as a name. Any failed fetch, an `ERROR:`
   answer included, drops the question with a `Yvoke Backend:` message and leaves the setup unlocked.
   (P1-01, P1-06, P1-07)
-- Playbook skills are not offered in Claude Code; the model cannot start a playbook by itself. (P1-08)
+- The plugin ships no playbook skills, so the model cannot start a playbook by itself; only the setup band
+  starts one. (D-26, P1-08)
 
 ### 2.2 Tool policy
 
@@ -91,20 +92,21 @@ same pull request.
 ## 3. Capability per surface
 
 Every Yvoke Desktop capability, where it lands, and which tasks deliver it. Chapters refer to
-`yvoke-desktop/spec/`. "After v1" follows D-07, D-08 and D-10.
+`yvoke-desktop/spec/`. "After v1" follows D-07, D-08 and D-26. v1 is Claude Code only (D-26, 2026-10-21):
+the Cowork and Chat columns say what could come after v1, not what v1 delivers.
 
 | Yvoke Desktop capability | Spec | Claude Code (mod) | Cowork | Chat | Tasks |
 | --- | --- | --- | --- | --- | --- |
-| Knowledge-base tools (search, sections, graph, records) | 2 | ✅ connector | ✅ | ✅ | P0-09, P1-02 |
-| Base instructions from the server | 2 | ✅ | ✅ stub fetches them | ✅ stub fetches them | P1-01, P1-07, P8-01 |
-| Playbooks (pick, `/` autocomplete, sticky per conversation) | 1, 2 | ✅ setup band, fixed per session (D-11) | ✅ live stubs | ✅ live stubs | P1-04 – P1-08, P1-12, P8-01 |
+| Knowledge-base tools (search, sections, graph, records) | 2 | ✅ connector | after v1 | after v1 | P0-09, P1-02 |
+| Base instructions from the server | 2 | ✅ | after v1, stub fetches them | after v1, stub fetches them | P1-01, P1-07, P8-01 |
+| Playbooks (pick, `/` autocomplete, sticky per conversation) | 1, 2 | ✅ setup band, fixed per session (D-11) | after v1, live stubs | after v1, live stubs | P1-06 – P1-08, P1-12; after v1 P1-04, P1-05, P8-01 |
 | Playbook required for a single-agent question | 1 | ✅ (the default `oim-full` applies) | — | — | P1-08 |
 | Playbook preflight check | 1, 2 | ✅ | — | — | P2-06 |
 | Deny by default; no shell | 2 | ✅ | after v1 (hooks) | n/a | P2-01, P8-02 |
 | Per-playbook tool scoping | 2 | ✅ | after v1 (hooks) | server only | P2-02, P2-03, P8-02 |
 | Safe compute tools | 2 | ✅ | — | — | P2-05 |
 | Domain-restricted web search/fetch, WAF hosts refused | 2, 6 | ✅ | after v1 (hooks) | — | P2-04, P8-02 |
-| Clarifying questions | 1, 2 | ✅ native `AskUserQuestion` | ✅ native | ✅ in text | P1-09 |
+| Clarifying questions | 1, 2 | ✅ native `AskUserQuestion` | after v1, native | after v1, in text | P1-09 |
 | Clickable citations → cited passage panel | 1 | ✅ | after v1 | after v1, links only | P3-01 – P3-04, P8-04 |
 | Rate an answer (👍/👎, comment required on 👎) | 1, 7 | after v1, with sync (D-08) | — | after v1 (MCP App) | P4-01 – P4-04, P8-03 |
 | Conversations synced to the Yvoke account | 4, 7 | after v1 (D-07) | — | — | Phase 5 |
