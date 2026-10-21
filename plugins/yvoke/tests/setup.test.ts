@@ -413,6 +413,48 @@ test('/resume of a plain session, or a store that cannot be read: no setup', asy
   expect(await lineOf(ui)).toBeUndefined()
 })
 
+test('the status line does not outlive its session: /resume of a plain or unlocked session clears it', async ($, on) => {
+  const w = engine(on, {
+    store: new Map<string, unknown>([
+      ['session:plain', {}],
+      ['session:unlocked', { yvoke: true }],
+      ['setup:unlocked', { ...LOCKED, lockedSessionId: null }],
+    ]),
+  })
+  await begin($)
+  await yvoke($)
+  await ask($, 'q')
+  expect(w.status.at(-1)).toBe(LINE)
+
+  w.sessionId = 'plain'
+  await $.classic.SessionStart({ source: 'resume', session_id: 'plain' })
+  expect(w.status.at(-1)).toBeUndefined()
+
+  w.sessionId = 'session-a'
+  await $.classic.SessionStart({ source: 'resume', session_id: 'session-a' })
+  expect(w.status.at(-1)).toBe(LINE)
+
+  w.sessionId = 'unlocked'
+  await $.classic.SessionStart({ source: 'resume', session_id: 'unlocked' })
+  expect(w.status.at(-1)).toBeUndefined()
+})
+
+test('/branch with a newer playbook on the server: the branch moves to it and says so once (D-20)', async ($, on) => {
+  const w = engine(on)
+  await begin($)
+  await yvoke($)
+  await ask($, 'q')
+  w.server.playbooks = [playbook('oim-full', { version: 4 })]
+
+  w.sessionId = 'session-b'
+  await $.classic.SessionStart({ source: 'fork', session_id: 'session-b' })
+  const ui = await band($, 'terminal')
+  expect(await lineOf(ui)).toBe('OIM · Single agent · oim-full v4')
+  expect(w.status.at(-1)).toBe('OIM · Single agent · oim-full v4')
+  expect(w.toasts).toEqual(['oim-full moved from v3 to v4 since this session started; answers from now on use v4.'])
+  expect(w.store.get('setup:session-b')).toMatchObject({ version: 4, lockedSessionId: 'session-b' })
+})
+
 test('/branch keeps a locked setup in the new session', async ($, on) => {
   const w = engine(on)
   await begin($)

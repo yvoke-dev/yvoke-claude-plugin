@@ -331,6 +331,9 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
   - **Decided 2026-10-20 (Eduard): carry on with the new version.** On `/resume` the setup line and the
     status line move to the new version, and the user is told once. Within one session nothing changes:
     the text is fetched once, at the lock.
+  - **Extended 2026-10-21 (Eduard, review of #22): `/branch` too.** A branch has a new session id, so its
+    first question also fetches the server's current text; the line, the status line and the toast follow
+    the same rule.
   - Delivered by: P1-08.
 
 ## 4. Notes for implementers

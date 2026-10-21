@@ -258,10 +258,10 @@ export function registerSetup(on: On, options: PluginOptions) {
   on('classic.SessionStart', { source: /^(clear|resume|fork)$/ }, async ($, e, next) => {
     // The session's hook beneath decides whether this is a Yvoke session (P1-10); its answer comes first.
     const started = await next(e)
-    if (e.source === 'clear') {
-      await $.ui.status(undefined)
-      return started
-    }
+    // The status line is one per plugin and stays until replaced: clear it for every new session, and let
+    // a locked setup set it again below.
+    await $.ui.status(undefined)
+    if (e.source === 'clear') return started
     let saved: Setup | null = null
     if (e.source === 'resume') {
       // As P1-10: nothing first, so a store read that fails leaves the resumed session without a setup.
@@ -296,8 +296,9 @@ export function registerSetup(on: On, options: PluginOptions) {
     )
     if (saved && saved.lockedSessionId !== null) {
       let shown = saved
-      // D-20: a resumed session carries on with the playbook version the server has now.
-      const moved = e.source === 'resume' && catalogue.ok ? movedOn(saved, catalogue.catalogue) : null
+      // D-20: a resumed or branched session carries on with the playbook version the server has now. Both
+      // have a new session id to P1-07, so their first question fetches the server's current text.
+      const moved = catalogue.ok ? movedOn(saved, catalogue.catalogue) : null
       if (moved) {
         shown = moved.setup
         await $.state.set({ plugin: 'yvoke', key: 'setup' }, shown)
@@ -459,5 +460,6 @@ export function registerSetup(on: On, options: PluginOptions) {
     const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
     if (isYvoke !== true || !isYvokeSkill(e)) return next(e)
     return { text: SKILL_POINTER }
-  }).catch(() => ({ text: SKILL_POINTER }))
+    // Fails closed for Yvoke's own skills only: anyone else's skill, in any session, passes on.
+  }).catch((_$, e, next) => (isYvokeSkill(e) ? { text: SKILL_POINTER } : next(e)))
 }

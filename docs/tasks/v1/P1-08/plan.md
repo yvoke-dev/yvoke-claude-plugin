@@ -67,7 +67,7 @@ on, as in yvoke-web's picker.
   (fails closed). Locked means `lockedSessionId === $.session.id()`; `/clear` empties `$.state`, so it
   cannot carry over.
 - **The band.** `ui.render` on `{ component: 'AbovePrompt' }`, only in a Yvoke session and only on
-  `terminal` and `desktop` (mobile has no `Select`: the read-only line only). Not locked: the three
+  `terminal` and `desktop` (`AbovePrompt` is raised on those two only, design 4.3). Not locked: the three
   `Select`s, each `onSelect` writing through `pick`. Locked: one `Text` line. It passes while
   `hasSurvey` is true. It draws nothing outside a Yvoke session.
 - **Skills.** `skill.prompt` with `pluginName === 'yvoke'` in a Yvoke session answers `{ text }` with the
@@ -76,7 +76,7 @@ on, as in yvoke-web's picker.
   `setup` already; whoever merges second rebases.
 - **`plugin.json`**: `userConfig.showPrototypes` (boolean, default false).
 - **Store size.** The entry stays a few hundred bytes per session. Pruning old `session:` entries (left to
-  this task by P1-10) is not needed yet at that size; it is noted in the spec instead.
+  this task by P1-10) is not needed yet at that size; `setup.md` says so.
 - Nothing is logged with `$.ui.log`.
 
 ## Decided: the version after `/resume` (D-20, Eduard 2026-10-20)
@@ -116,14 +116,14 @@ Each step starts with a test, seen failing first.
 3. Loading hooks with a stubbed server (`on('mcp.call', …)`): `/yvoke` loads once; a plain session calls
    nothing; server down shows the error and Retry; Retry loads again.
 4. The band on `terminal` and `desktop`: selects before the lock, the line after, nothing in a plain
-   session, the line only on `mobile`.
+   session.
 5. `prompt.submit`: the lock after an entered question; no lock after a drop beneath; dropped with no
    catalogue; a throw drops (fails closed); a plain session passes untouched; the version kept after the
    lock when the server's list moves on to a newer one.
 6. `/clear`, `/resume` (locked setup restored, store read failing leaves it unlocked and reloads), `/branch`
    (copied to the new id).
 7. `skill.prompt`: replaced in a Yvoke session, untouched in a plain one and for another plugin's skill.
-8. D-20: `/resume` of a locked session whose playbook moved on updates the version and the line and
+8. D-20: `/resume` or `/branch` of a locked session whose playbook moved on updates the version and the line and
    toasts once; same version, no toast; a toast is not repeated on a second resume.
 9. Register the line, write the spec, run the checks, then the machine checks below.
 
@@ -154,6 +154,10 @@ Each step starts with a test, seen failing first.
 - **P2-01's `catch` form.** The question hook's `.catch` uses `next.called ? next(e) : { drop }` (design 4.4,
   P2-01): once the question has gone down, the hook passes on what it settled to. P2-01's test that a
   built-in never asks the server now counts from after `/yvoke`, since `/yvoke` loads the lists.
+- **Review of #22 (Eduard, 2026-10-21).** The status line is now cleared on every `/clear`, `/resume` and
+  `/branch` and set again only for a locked setup (it outlived its session on `/resume` of a plain or
+  unlocked one). D-20 also applies to `/branch`, which fetches the playbook afresh under its new id.
+  `skill.prompt`'s `.catch` answers the pointer only for Yvoke's own skills and passes others on.
 - **Slash commands that reach the model lock too.** `prompt.submit` fires for a command only when it asks
   the model, which is a question like any other, as for P1-07.
 
@@ -179,9 +183,11 @@ Not run yet.
 
 - **The lock depends on hook order only in its timing.** If P1-07's hook sits beneath this one, `next(e)`
   includes its fetch and a failed fetch is a `drop`: no lock. If it sits above, a drop never reaches this
-  hook: no lock either. Both orders tested with a stand-in hook.
-- **A select picked while the question is being sent.** `onSelect` checks the lock first, so a pick after
-  the lock is ignored.
+  hook: no lock either. Only the first order is tested (a test's hooks sit beneath the plugin, so a
+  stand-in for P1-07 is always beneath); the second follows from the engine not calling a hook beneath a
+  drop.
+- **A select picked while the question is being sent.** `pick` returns a locked setup unchanged, so a pick
+  after the lock is ignored.
 - **Rejected: lock on P1-07's `yvoke.instructions` key**, as the coordinator's note suggested. It couples
   P1-08 to an unmerged module and gives no lock until P1-07 lands; the `next(e)` result gives the same
   answer with no coupling.
