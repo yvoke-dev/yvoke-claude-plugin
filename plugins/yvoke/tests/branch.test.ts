@@ -64,6 +64,9 @@ function engine(on: On): World {
   on('mcp.call', (_$, e) => {
     if (e.tool === 'list_areas') return { value: text(JSON.stringify(AREAS)) }
     if (e.tool === 'list_playbooks') return { value: text(JSON.stringify(PLAYBOOKS)) }
+    // P1-07's calls, when its module is loaded too: answer them so a question can enter.
+    if (e.tool === 'get_playbook') return { value: text(JSON.stringify({ name: e.args.name, text: 'PLAYBOOK' })) }
+    if (e.tool === 'get_system_prompt') return { value: text('BASE') }
     return { value: text(`ERROR: no tool ${e.tool}`) }
   })
   on('prompt.submit', (_$, e) => {

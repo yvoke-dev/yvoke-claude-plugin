@@ -298,7 +298,7 @@ a cloud session.
     a known playbook, and an unknown name answered with an `ERROR:` body.
   - Delivered in [yvoke-web#4](https://github.com/yvoke-dev/yvoke-web/pull/4); plan in
     [P1-06/plan.md](P1-06/plan.md) ([#8](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/8)).
-- [ ] **P1-07** `plugin` · M — **System prompt from the server.** When the session's setup locks (P1-08),
+- [x] **P1-07** `plugin` · M — **System prompt from the server.** When the session's setup locks (P1-08),
   the mod fetches the base instructions and, in single-agent mode, the playbook's text (P1-06), and serves
   them from a `prompt.compose` hook as one `scope: 'session'` section: base instructions plus the playbook
   text, **base instructions first and the playbook after them** (decided 2026-10-05, as in yvoke-desktop:
@@ -319,6 +319,9 @@ a cloud session.
     playbook prompt its own area lists, one only another area lists (still used), one no area lists
     (falls back to the area default), no area default (active default), and an `ERROR:` from
     `get_system_prompt` (dropped).
+  - Delivered in [#17](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/17); plan in
+    [P1-07/plan.md](P1-07/plan.md). The setup comes from P1-08's band; with none saved, OIM, single agent,
+    the area's default playbook.
 - [x] **P1-08** `plugin` · M — **Session setup: area, mode, playbook** (D-11) ([#22](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/22), [#29](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/29)).
   - In a new Yvoke session a band above the prompt (`ui.render` on `AbovePrompt`) shows three `Select`s
     (D-18): **area** (default OIM), **mode** (*Single agent* or *Multi-agent*; default *Single agent*) and
@@ -451,6 +454,10 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   - Fails open on every error, including a reply with `isAnswered: false`: `$.model.complete` reports a
     Claude API failure that way rather than by rejecting. Runs once per session, on the first question.
     Port `playbookValidation.test.ts`.
+  - Its `prompt.submit` hook registers before `registerSystemPrompt(on)` (P1-07), whose load locks the
+    setup: registered after it, the old playbook is already loaded and a switch changes nothing. It
+    registers with a matcher (even `{}`), since P1-07's `prompt.submit` hook is the mod's unmatched one
+    and a second unmatched hook stops the module loading (design 4.4).
   - Shows that the check is running (`$.ui.status` or the band above the prompt) while it waits, so a slow
     model does not look like a frozen app. Time spent inside `$.model.complete` does not count against a
     hook's 10-second limit.
@@ -637,6 +644,9 @@ Rating needs the server's message id, so it starts once turns sync (P5-01, P5-02
     same admin-only path on every machine, enabled in managed settings) for rollout once IT enforces policy.
     Only route D makes the mod the organization's, so it can run first (`prependPlugins`) and survives
     `allowManagedModsOnly`.
+  - D-25 (2026-10-21): where an organization manages Claude Code, a user's own install (route A) loses
+    the hooks that add the instructions, so pilot users there need route B or D. Check which route the
+    pilot machines are on, and whether route C counts as the organization's install.
 - [ ] **P7-11** `server` · S — **Per-user rate limit on `/mcp`** ([design 5.5](design.md#55-behaviour-to-fix-on-the-server)). Searches from AI clients are
   not rate-limited today; the plugin moves every consultant onto that route.
 - [ ] **P7-05** `plugin` · S — **User guide** (`docs/user-guide.md`): install, sign in, starting with `/yvoke`,
@@ -711,6 +721,7 @@ stubs, a generator and a sync job necessary. The generator built for P1-04 is in
 | --- | --- | --- |
 | Mod API changes between Claude Code releases | Mod stops loading or misbehaves after an update | Weekly CI against the latest release (P0-02); pinned minimum version (P7-07) |
 | IT sets `allowManagedModsOnly` | Mod does not load from Git or claude.ai sync | MDM-copied directory marketplace (P7-04) |
+| The organization manages Claude Code and a user installs the mod themselves | Instructions load but never reach the model (D-25) | Unsupported; install through managed settings (P7-04) |
 | Desktop surface lacks a UI feature the terminal has (e.g. link clicks) | Citation UX differs | Decided by spike P0-05; button-row fallback |
 | Connector sign-in does not work in Claude Code | No MVP | Spike P0-04 first; server-side auth work early |
 | Users cannot reach a private repo | Install and updates fail | Settled by D-02: the repo is public and holds no playbook text |

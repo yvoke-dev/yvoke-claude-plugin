@@ -19,7 +19,8 @@
   with `/yvoke`, plain otherwise, whatever the session it was resumed from. If the saved entry cannot be
   read, the resumed session is plain. `/branch` keeps a Yvoke session.
 - What a Yvoke session enforces applies only in a Yvoke session: the setup band is in [setup.md](setup.md),
-  the tool rules in [tool-policy.md](tool-policy.md); the system prompt arrives with a later task.
+  the tool rules in [tool-policy.md](tool-policy.md), and the system prompt carries the server's
+  instructions ([system-prompt.md](system-prompt.md)).
 
 ## Interfaces
 

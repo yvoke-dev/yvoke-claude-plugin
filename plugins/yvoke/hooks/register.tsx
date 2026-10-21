@@ -5,6 +5,7 @@ import { registerPolicy } from '../src/policy'
 import { registerSession } from '../src/session'
 import { registerSetup } from '../src/setup'
 import { registerTurnLimits } from '../src/turn-limits'
+import { registerSystemPrompt } from '../src/system-prompt'
 
 export const register: Register = (on, options) => {
   // Setup first: its /yvoke hook sits above the session's, so it loads the lists once the session's has
@@ -13,4 +14,5 @@ export const register: Register = (on, options) => {
   registerSession(on)
   registerPolicy(on)
   registerTurnLimits(on, options)
+  registerSystemPrompt(on)
 }
