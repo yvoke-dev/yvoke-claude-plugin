@@ -29,18 +29,27 @@
 | Flag `$.state` `yvoke.yvokeSession` (boolean), written only by `session.ts` | contract in `plugins/yvoke/types/index.d.ts` |
 | Saved copy: `$.store` key `session:<session id>` → `{ yvoke: true }` | written by `/yvoke` and on `/branch` |
 | `/clear`, `/resume`, `/branch` | `classic.SessionStart` with `source` `clear`, `resume`, `fork` |
+| Last session that ended: `$.store` key `ended` → `{ sessionId }` | written on every `session.end`; read on `/branch` |
 
 `/yvoke` saves to `$.store` before it sets the flag, so a session is never Yvoke now and plain after
-`/resume`. How later hooks check the flag: [design 4.4](../tasks/v1/design.md#44-rules-that-are-easy-to-get-wrong).
+`/resume`. Claude Code starts a `/branch` with empty `$.state` and names no parent, but ends the parent
+just before (`session.end`), so the branch reads the flag of the session saved under `ended`. Every
+session writes `ended`, plain ones too, so a branch does not take an older Yvoke session for its parent.
+This assumes no other Claude Code process ends a session between the parent ending and the branch
+starting, and that the `ended` write succeeds; otherwise the branch takes the flag of the wrong session.
+How later hooks check the flag: [design 4.4](../tasks/v1/design.md#44-rules-that-are-easy-to-get-wrong).
 
 ## Tests
 
 - `plugins/yvoke/tests/session.test.ts`: a session without `/yvoke` (a tool call and a prompt pass
   through), `/yvoke` before the first question, after it and twice, `/clear`, `/resume` of a Yvoke and of
   a plain session, `/branch` of both, a failed save, and a failed read on `/resume`.
+- `plugins/yvoke/tests/branch.test.ts`: `/branch` with `$.state` emptied, as Claude Code does it (found by
+  P1-08's machine check on 2.1.306): a Yvoke session and its setup carry over, a plain one stays plain.
 - Not yet checked on a real Claude Code: how `/yvoke` autocompletes, whether
-  `/yvoke` itself counts as a turn, and `$.state` on `/branch` (P0-06).
+  `/yvoke` itself counts as a turn (P0-06).
 
 ## History
 
 - P1-10 ([#12](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/12)): the `/yvoke` session start.
+- P1-08 ([#29](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/29)): `/branch` keeps a Yvoke session although Claude Code empties `$.state`.
