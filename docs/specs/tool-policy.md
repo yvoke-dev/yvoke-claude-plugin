@@ -54,7 +54,7 @@ tools granted.
   Yvoke session.
 - `plugins/yvoke/tests/tool-names.test.ts`: the naming rule; `builtinTool`; `qualifyTool` for the plugin
   and a connector prefix (bare names, the current prefix, `mcp__yvoke__` and older aliases, one prefix
-  only, spaces, built-ins).
+  only, spaces before a prefix, built-ins and names that only look like one).
 
 ## History
 

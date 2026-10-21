@@ -21,7 +21,8 @@ connector's):
 | `mcp__yvoke__search_corpus` (yvoke-desktop's prefix) | `mcp__plugin_yvoke_yvoke__search_corpus` |
 | `mcp__oim__search_corpus` (an older alias) | `mcp__plugin_yvoke_yvoke__search_corpus` |
 | `mcp__plugin_yvoke_yvoke__search_corpus` (already current) | unchanged |
-| `  search_corpus  ` | trimmed, then as above |
+| `  search_corpus  `, ` mcp__oim__search_corpus` | trimmed first, then as above (the desktop strips first, so it would keep a padded prefix; trimming first is more lenient) |
+| `web_search_corpus` (looks like a built-in) | `mcp__plugin_yvoke_yvoke__web_search_corpus` |
 | `WebSearch`, `webfetch`, `ToolSearch`, `AskUserQuestion`, also behind a prefix (`mcp__oim__WebSearch`) | the built-in's own spelling, never prefixed |
 
 - Any leading `mcp__<alias>__` is replaced, never added to: the result carries exactly one prefix. This is
