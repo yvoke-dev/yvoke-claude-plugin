@@ -415,7 +415,7 @@ the same PR.
 
 | Plan uses | API (2.1.289) | Notes |
 | --- | --- | --- |
-| Deny a tool | `on('tool.call', h)` → `{ deny: reason }` | `e.tool` is the full name; `e.agentId` set for subagents. Managed `PreToolUse` hooks run first. |
+| Deny a tool | `on('tool.call', h)` → `{ deny: reason }` | `e.tool` is the full name; `e.agentId` set for subagents. Managed `PreToolUse` hooks run first. The model's calls arrive with `next.origin.plugin` `engine`; a call the mod makes with `$.tool.call` skips only the calling hook, and the mod's other `tool.call` hooks see it with origin `yvoke` (2.1.304, P2-01). |
 | Rewrite a tool's input (WebSearch domains) | `next({ ...e, allowed_domains: [ … ] })` | The tool's arguments sit flat on `e`, beside `tool` (there is no `e.input`). Managed hooks run again on the rewritten call. |
 | Gate a prompt | `on('prompt.submit', h)` → `{ drop: reason }` | The reason is shown to the user. Whether the draft stays is checked in P1-08; `$.prompt.fill` restores it. |
 | Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Not cached: it fires for every request (2.1.293 cannot invalidate it), so the hook only reads `$.state`; the text is fetched once per session id in `prompt.submit` (P1-07). |
@@ -443,7 +443,8 @@ the same PR.
   as if it were not there. Every enforcing hook therefore gets a `.catch` with the safe answer (1 s grace):
 
   ```ts
-  on('tool.call', enforcePolicy).catch(() => ({ deny: 'Yvoke: the policy check failed, so this tool was not run.' }))
+  // Once the hook has called next, the tool may have run: pass on what it settled to (P2-01).
+  on('tool.call', enforcePolicy).catch(($, e, next) => (next.called ? next(e) : { deny: 'Yvoke: the policy check failed, so this tool was not run.' }))
   on('prompt.submit', lockSetup).catch(() => ({ drop: 'Yvoke Backend: the session could not be set up, so the question was not sent.' }))
   ```
 
