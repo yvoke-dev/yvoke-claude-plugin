@@ -438,7 +438,9 @@ the same PR.
   on('prompt.submit', lockSetup).catch(() => ({ drop: 'Yvoke Backend: the session could not be set up, so the question was not sent.' }))
   ```
 
-  Tests cover the throw and the timeout path for each one.
+  Tests cover the throw for each one. A hook that outruns its own budget cannot be staged in the test kit
+  (it cuts the waits beneath the plugin at 10 s first), so a timeout is covered by a server that hangs past
+  every budget and still never lets the action through.
 - **Outside a Yvoke session, call `next(e)` and nothing else.** The mod loads in every Claude Code session
   of the user; only `/yvoke` makes a session a Yvoke session (P1-10, D-13). Every enforcing hook opens
   with these two lines, written in its own file:

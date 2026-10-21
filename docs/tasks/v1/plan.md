@@ -468,6 +468,8 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
   - Fails open on every error, including a reply with `isAnswered: false`: `$.model.complete` reports a
     Claude API failure that way rather than by rejecting. Runs once per session, on the first question.
     Port `playbookValidation.test.ts`.
+  - Its `prompt.submit` hook registers before `registerSystemPrompt(on)` (P1-07), whose load locks the
+    setup: registered after it, the old playbook is already loaded and a switch changes nothing.
   - Shows that the check is running (`$.ui.status` or the band above the prompt) while it waits, so a slow
     model does not look like a frozen app. Time spent inside `$.model.complete` does not count against a
     hook's 10-second limit.

@@ -19,8 +19,9 @@
 - Until the setup band exists (P1-08), the setup is area **OIM**, single agent, and the playbook `list_areas`
   names as that area's default (`oim-full` today). In multi-agent mode only the base instructions are added.
 - If loading fails, the question is not sent and the user sees why, as the server client words it, for
-  example `Yvoke Backend: ERROR: playbook 'oim-ful' not found.` or `Yvoke Backend: yvoke is not
-  connected.` The next question tries again. Nothing is cached as a fallback.
+  example `Yvoke Backend: ERROR: playbook 'oim-ful' not found.`, or, when the server is not connected,
+  `Yvoke Backend:` followed by Claude Code's own sentence (and *Run /mcp and sign in to yvoke.* when it
+  needs a sign-in). The next question tries again. Nothing is cached as a fallback.
 - The text is loaded once per session id. Later questions reuse it, even if the playbook changes on the
   server. `/clear`, `/resume` and `/branch` start a new session id, so that session loads again on its first
   question.
@@ -49,6 +50,8 @@ smaller. With under 1 s left, it fails at once and asks to send the question aga
 | Server tools `list_areas` (`defaultPlaybook`, `defaultSystemPrompt`, `systemPrompts`), `get_playbook(name)` (`systemPrompt`, `text`), `get_system_prompt(name?)` | through `callYvoke` ([server-client.md](server-client.md)) |
 
 For P1-08: the setup is locked exactly when `yvoke.instructions.sessionId` is the current session id.
+A `prompt.submit` hook that must act before the lock (P2-06's preflight) registers before
+`registerSystemPrompt(on)` in `hooks/register.tsx`.
 
 ## Tests
 
@@ -61,6 +64,8 @@ For P1-08: the setup is locked exactly when `yvoke.instructions.sessionId` is th
   id, and a throw in each hook (fails closed).
 - Not checkable in the test kit: a plugin hook that overruns its own 10 s budget (the kit cuts the waits
   beneath it first). The `.catch` it would reach is the one the throw tests reach.
+- Not covered through the engine: reading `yvoke.setup` (the kit's `$` cannot write `$.state`); P1-08's
+  tests cover it once its band writes the key.
 - Not yet checked on a real Claude Code (P0-06): that the first answer already sees the section, and
   whether subagent prompts also pass through `prompt.compose`.
 
