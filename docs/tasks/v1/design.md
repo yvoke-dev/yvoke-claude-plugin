@@ -165,6 +165,8 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     plugin's own `.mcp.json` entry (fixed server name, so the mod knows its tool prefix), signing in through
     the "Yvoke for Claude" Entra client (P0-09, section 5.2). Chat and Cowork use an organization claude.ai
     connector with the same URL, which the D-10 stubs need. One URL, so users with both see one set of tools.
+  - **After v1 (D-26, 2026-10-21):** v1 is Claude Code only, so only the `.mcp.json` entry ships. The
+    organization connector comes back only with Chat and Cowork.
   - Depends on: P0-04 findings.
   - Blocks: P1-01, P1-02.
 - [x] **D-04** `PO` — **Playbooks: live or copied?** Live: skill stubs (name and description only) are
@@ -182,15 +184,16 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
   - **After v1 (D-26, 2026-10-21):** no stubs ship in v1, so nothing about playbooks is stored in the
     repository at all.
   - Blocks: P1-04, P1-05.
-- [x] **D-05** `plugin` — **Naming.** The plugin name is user-facing (`/yvoke:<skill>`) and prefixes the
+- [x] **D-05** `plugin` — **Naming.** The plugin name is user-facing (plugin skills and commands would be `/yvoke:<name>`) and prefixes the
   mod's own tools (`mcp__<plugin>__<tool>`). The server's tool names differ by how it is reached: a server
   in the plugin's `.mcp.json` is `plugin:<plugin>:<server>` with tools `mcp__plugin_<plugin>_<server>__<tool>`;
   a claude.ai connector gets a connector-specific name (in the Desktop Code tab, `mcp__<uuid>__<tool>`).
   Neither collides with the mod's tools, so the plugin can simply be named `yvoke`.
   🔍 Confirm the names on each surface (P0-04).
   - **Decided 2026-10-05 (Eduard): plugin `yvoke`, server `yvoke` in `.mcp.json`.** Claude Code tool names are
-    `mcp__plugin_yvoke_yvoke__<tool>` (e.g. `mcp__plugin_yvoke_yvoke__search_corpus`); commands are
-    `/yvoke:<name>`. Do not rename after rollout: users' permission rules use these names.
+    `mcp__plugin_yvoke_yvoke__<tool>` (e.g. `mcp__plugin_yvoke_yvoke__search_corpus`); plugin skills and
+    commands would be `/yvoke:<name>`, though v1 ships none (D-26; the mod's commands are `/yvoke` and
+    `/yvoke-<name>`). Do not rename after rollout: users' permission rules use these names.
   - Blocks: P2-04, P2-05.
 - [x] **D-06** `PO` · `plugin` — **Multi-agent profiles: registered live by the mod (`$.agent.register`)
   or generated into `agents/*.md`?** Live keeps the server as source of truth and works only in Claude Code;
@@ -265,9 +268,9 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
 - [x] **D-14** `PO` · `plugin` — **Is the server URL fixed in `.mcp.json`, or a setting?** A developer needs
   to point the plugin at a local yvoke-web (P0-11).
   - **Decided 2026-10-05 (Eduard): a setting.** `.mcp.json` reads the URL from `${user_config.serverUrl}`,
-    which defaults to the production URL. A developer sets `http://localhost:<port>/mcp`. Chat and Cowork
-    use the organization connector (D-03), not the plugin's `.mcp.json`, so the setting does not affect
-    them. The server keeps the name `yvoke`, so tool names (D-05) stay the same.
+    which defaults to the production URL. A developer sets `http://localhost:<port>/mcp`. After v1, Chat and
+    Cowork would use the organization connector (D-03, D-26), not the plugin's `.mcp.json`, so the setting
+    would not affect them. The server keeps the name `yvoke`, so tool names (D-05) stay the same.
   - **Dev sign-in, decided 2026-10-06 (Eduard) in P0-11:** a `devMode` switch in `userConfig`, not a dev
     token. The plugin always sends `X-Yvoke-Dev-Mode: true|false`; yvoke-web accepts `true` only in mock
     mode. It cannot be an `Authorization` header: Claude Code turns the OAuth sign-in off whenever
@@ -342,7 +345,7 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
 - [x] **D-26** `PO` — **Do Chat and Cowork stay in v1?** D-10 gave them live playbook stubs: one generated
   `SKILL.md` per playbook (name, description, and the instruction to fetch the playbook), kept current by a
   sync job. Building it (P1-04, [#24](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/24)) showed the
-  cost: a generator and a sync job only to keep copies of server data in the repository, and the playbook
+  cost: a generator and a planned sync job only to keep copies of server data in the repository, and the playbook
   descriptions published in a public repository.
   - **Decided 2026-10-21 (Eduard): drop Chat and Cowork from v1.** v1 is Claude Code only, where the mod
     reads everything live from the server and the repository stores nothing about playbooks. The plugin
