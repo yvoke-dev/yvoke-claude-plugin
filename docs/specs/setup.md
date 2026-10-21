@@ -34,7 +34,7 @@
   never shows a session's setup under another session.
 - After `/resume` or `/branch` of a locked session whose playbook the server has saved again, the setup
   carries on with the server's version: the line and the status line show it, and a toast says once *oim-full moved
-  from v3 to v4 since this session started; answers from now on use v4.* (D-20).
+  from v3 to v4 since the setup was locked; answers from now on use v4.* (D-20).
 - A question that entered the session is never reported as dropped, even when saving the lock fails;
   the lock then holds for this session, and `/resume` finds the setup unlocked.
 - The saved setups (`setup:<session id>`) are a few hundred bytes each, in the plugin's 4 MiB store. They

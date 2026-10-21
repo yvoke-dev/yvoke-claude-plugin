@@ -75,7 +75,7 @@ on, as in yvoke-web's picker.
   this task by P1-10) is not needed yet at that size; `setup.md` says so.
 - Nothing is logged with `$.ui.log`.
 
-## Decided: the version after `/resume` (D-20, Eduard 2026-10-20)
+## Decided: the version after `/resume` and `/branch` (D-20, Eduard 2026-10-20 and 2026-10-21)
 
 The server keeps no old playbook text (yvoke-web spec 02 "Not supported": saving overwrites in place).
 Within one session nothing moves: P1-07 fetches the text once, and the line keeps the locked version even
@@ -83,7 +83,7 @@ when the server's list moves on. After `/resume`, P1-07 fetches again and gets w
 **Eduard chose to carry on with the new version**: on `/resume` of a locked session the mod reloads the
 lists, and when the playbook's version differs from the locked one it updates `setup.version`, the line
 and the status line to the new version, and tells the user once (a toast: *oim-full moved from v3 to v4
-since this session started; answers from now on use v4.*). A playbook the server no longer has is not a
+since the setup was locked; answers from now on use v4.*). A playbook the server no longer has is not a
 version change: P1-07's fetch fails and drops the question as it does today. Recorded in `design.md` as
 D-20.
 
@@ -98,7 +98,7 @@ D-20.
 | `plugins/yvoke/tests/setup-rules.test.ts` | new: the pure functions |
 | `plugins/yvoke/tests/setup.test.ts` | new: the hooks through the engine, both surfaces |
 | `docs/specs/setup.md`, `docs/specs/README.md`, `docs/specs/session.md` | new spec, index line, one line in session |
-| `docs/tasks/v1/plan.md`, `design.md` | tick P1-08 (after the machine checks); D-20 in this PR; 4.3 rows if the API differs |
+| `docs/tasks/v1/plan.md`, `design.md` | tick P1-08 (after the machine checks); D-20 and D-26 in this PR, with the release plan changes D-26 needs (also in #24); 4.3 rows if the API differs |
 
 ## Order of work
 

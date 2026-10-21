@@ -294,7 +294,7 @@ export function registerSetup(on: On, options: PluginOptions) {
         await $.state.set({ plugin: 'yvoke', key: 'setup' }, shown)
         await $.store.set(setupKey(e.session_id), shown)
         await $.ui.toast(
-          `${shown.playbook} moved from v${moved.from} to v${moved.to} since this session started; ` +
+          `${shown.playbook} moved from v${moved.from} to v${moved.to} since the setup was locked; ` +
             `answers from now on use v${moved.to}.`,
         )
       }

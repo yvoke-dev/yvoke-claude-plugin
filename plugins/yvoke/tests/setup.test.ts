@@ -375,7 +375,7 @@ test('/resume with a newer playbook on the server: the setup moves to it and say
 
   const ui = await band($, 'terminal')
   expect(await lineOf(ui)).toBe('OIM · Single agent · oim-quick v4')
-  expect(w.toasts).toEqual(['oim-quick moved from v2 to v4 since this session started; answers from now on use v4.'])
+  expect(w.toasts).toEqual(['oim-quick moved from v2 to v4 since the setup was locked; answers from now on use v4.'])
   expect(w.store.get('setup:old')).toMatchObject({ version: 4 })
 
   await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
@@ -450,7 +450,7 @@ test('/branch with a newer playbook on the server: the branch moves to it and sa
   const ui = await band($, 'terminal')
   expect(await lineOf(ui)).toBe('OIM · Single agent · oim-full v4')
   expect(w.status.at(-1)).toBe('OIM · Single agent · oim-full v4')
-  expect(w.toasts).toEqual(['oim-full moved from v3 to v4 since this session started; answers from now on use v4.'])
+  expect(w.toasts).toEqual(['oim-full moved from v3 to v4 since the setup was locked; answers from now on use v4.'])
   expect(w.store.get('setup:session-b')).toMatchObject({ version: 4, lockedSessionId: 'session-b' })
 })
 
