@@ -1,6 +1,6 @@
 # P3-01 Citation marker parser
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
 
 **Done when** (from [plan.md](../plan.md)): the parser is ported from yvoke-desktop's `citationRehype.ts`
 and its tests, and tests cover:
