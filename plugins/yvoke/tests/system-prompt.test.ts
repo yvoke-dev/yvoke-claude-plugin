@@ -194,9 +194,10 @@ test('a throw in prompt.submit drops the question (fails closed)', async ($, on)
   const w = engine(on)
   await begin($)
   await yvoke($, w)
-  // P1-08's hook, the outer one, asks for the session id first; P1-07's ask is the one that throws.
-  // The drop that reaches the user is P1-08's wording, since the failure passes back through its hook.
-  w.idCallsLeft = 1
+  // The preflight check (P2-06) and the setup band (P1-08), the outer hooks, ask for the session id first;
+  // P1-07's ask is the third, the one that throws. The drop that reaches the user is the setup band's
+  // wording: the mod's outermost hook on prompt.submit answers for failures beneath it (design 4.4).
+  w.idCallsLeft = 2
 
   expect(await ask($, 'one')).toEqual({ drop: expect.stringMatching(/^Yvoke Backend: .*so the question was not sent\.$/) })
   expect(w.entered).toEqual([])

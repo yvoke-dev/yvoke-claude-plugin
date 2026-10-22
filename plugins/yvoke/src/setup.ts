@@ -15,8 +15,15 @@ export type Mode = 'single' | 'multi'
 /**
  * `tools`: the tool names the playbook declares (P2-02); null when it declares none, which yvoke-web sends as
  * an empty list; `'unreadable'` when the value is there but is not a list of names, so nothing is granted.
+ * `title` and `description` are what the preflight check lists for each candidate (P2-06).
  */
-export type PlaybookEntry = { name: string; version: number; tools: string[] | null | 'unreadable' }
+export type PlaybookEntry = {
+  name: string
+  version: number
+  tools: string[] | null | 'unreadable'
+  title: string
+  description: string
+}
 export type AreaEntry = {
   name: string
   title: string
@@ -53,7 +60,15 @@ type RawArea = {
   defaultProfile?: unknown
   profiles?: unknown
 }
-type RawPlaybook = { name: string; area?: unknown; prototype?: unknown; version?: unknown; tools?: unknown }
+type RawPlaybook = {
+  name: string
+  area?: unknown
+  prototype?: unknown
+  version?: unknown
+  tools?: unknown
+  title?: unknown
+  description?: unknown
+}
 
 const objectsWithName = (text: string): Record<string, unknown>[] | null => {
   let parsed: unknown
@@ -97,6 +112,8 @@ export const toCatalogue = (
         name: p.name,
         version: typeof p.version === 'number' ? p.version : 1,
         tools: declared(p),
+        title: typeof p.title === 'string' && p.title.trim() !== '' ? p.title.trim() : p.name,
+        description: typeof p.description === 'string' ? p.description.trim() : '',
       }))
     const profiles = strings(a.profiles)
     return {

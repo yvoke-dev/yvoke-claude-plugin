@@ -17,6 +17,8 @@
   selects the area's default profile; switching back selects the default playbook.
 - Prototype areas and playbooks are hidden unless the `showPrototypes` setting is on. A default the band
   does not show falls back to the area's first playbook or profile.
+- Before the setup locks, the first question may get the playbook preflight check, which can switch the
+  playbook ([preflight.md](preflight.md)); the setup then locks with the playbook switched to.
 - The first question that enters the session **locks** the setup. Just typing accepts the defaults. From
   then on the band shows one read-only line, *OIM · Single agent · oim-full v3*, and the status line
   shows the same. Nothing can change it; a different setup is `/clear`, then `/yvoke`.
@@ -50,17 +52,17 @@
 | Rules (catalogue, defaults, picks, read-only line, D-20) and hooks | `plugins/yvoke/src/setup.ts` |
 | Band | `ui.render` on `AbovePrompt` (terminal and desktop); `Select` keys `yvoke-area`, `yvoke-mode`, `yvoke-playbook`, `yvoke-profile`; Button `yvoke-retry` |
 | Loading | `command.run` on `yvoke`, `classic.SessionStart` (`resume`, `fork`), Retry, or a question with no lists |
-| Lock | `prompt.submit` (matcher `{ text: /^/ }`, so it can sit beside another module's unmatched hook) |
-| `$.state` `yvoke.setup` | `{ area, mode: 'single' \| 'multi', playbook, version, profile, lockedSessionId }`; P1-07 reads area, mode and playbook |
-| `$.state` `yvoke.catalogue` | the lists as the band shows them, or the error; each playbook carries the `tools` it declares, null when it declares none (an empty list or no field), `'unreadable'` when the server sent something else, which the tool gate reads ([tool-policy.md](tool-policy.md), P2-02) |
+| Lock | `prompt.submit` (matcher `{ text: /^/ }`, so it can sit beside another module's unmatched hook), beneath the preflight check's |
+| `$.state` `yvoke.setup` | `{ area, mode: 'single' \| 'multi', playbook, version, profile, lockedSessionId }`; P1-07 reads area, mode and playbook; the preflight check writes it on a switch |
+| `$.state` `yvoke.catalogue` | the lists as the band shows them, or the error; each playbook carries the `tools` it declares, null when it declares none (an empty list or no field), `'unreadable'` when the server sent something else, which the tool gate reads ([tool-policy.md](tool-policy.md), P2-02), and its `title` and `description` for the preflight check (P2-06) |
 | `$.store` `setup:<session id>` | the setup, saved on every pick, before a question goes down, and at the lock |
 | Setting `showPrototypes` | `plugin.json` `userConfig`, boolean, default off |
 | Server tools | `list_areas`, `list_playbooks` (through [server-client.md](server-client.md)) |
 
 ## Tests
 
-- `plugins/yvoke/tests/setup-rules.test.ts`: reading the lists (versions, prototypes, fallbacks, empty
-  and unreadable answers), defaults, each pick, the area reset, the switch to multi-agent, the lock
+- `plugins/yvoke/tests/setup-rules.test.ts`: reading the lists (versions, titles and descriptions, prototypes,
+  fallbacks, empty and unreadable answers), defaults, each pick, the area reset, the switch to multi-agent, the lock
   guard, the modes offered, the read-only line with its version, and D-20.
 - `plugins/yvoke/tests/setup.test.ts`, on `terminal` and `desktop`: a plain session, the defaults,
   changing playbook and area, the lock and its line and status line, just typing, the version kept after
@@ -77,3 +79,5 @@
 
 - P1-08 ([#22](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/22)): the setup band.
 - P1-08 ([#29](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/29)): the setup survives `/branch` with empty `$.state`.
+- P2-06 ([#30](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/30)): the catalogue keeps each playbook's title and
+  description; the preflight check runs before the lock.

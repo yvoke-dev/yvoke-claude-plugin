@@ -13,11 +13,22 @@ import { callYvoke, TIMEOUT_MS, type ServerAnswer, type ServerIo } from './serve
 /** What a session runs on. `mode` is `single` or a multi-agent profile's name; `playbook` null = default. */
 export type Setup = { area: string; mode: string; playbook: string | null }
 
-/** Instructions loaded for one session; text kept under another session's id is never served. */
-export type Loaded = { sessionId: string; text: string }
+/**
+ * Instructions loaded for one session and one setup (`loadedFor`). Text kept under another session's id is
+ * never served; text loaded for another setup is loaded again before a question goes down, since a question
+ * dropped beneath this hook leaves the setup open to another pick.
+ */
+export type Loaded = { sessionId: string; loadedFor: string; text: string }
 
 export const SINGLE_AGENT = 'single'
 export const DEFAULT_SETUP: Setup = { area: 'OIM', mode: SINGLE_AGENT, playbook: null }
+
+/** What a load depends on: the area, mode, playbook and its version, and the profile. */
+type Versioned = Setup & { version?: number | null; profile?: string | null }
+export const loadedFor = (setup: Versioned | null): string => {
+  const s: Versioned = setup ?? DEFAULT_SETUP
+  return JSON.stringify([s.area, s.mode, s.playbook, s.version ?? null, s.profile ?? null])
+}
 
 /** What a round of server calls leaves of the hook's budget for the rest of the hook. */
 export const MARGIN_MS = 1_500
@@ -165,9 +176,10 @@ export function registerSystemPrompt(on: On) {
 
     const sessionId = await $.session.id()
     const { value: loaded } = await $.state.get({ plugin: 'yvoke', key: 'instructions' })
-    if (loaded?.sessionId === sessionId) return next(e)
-
     const { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
+    const key = loadedFor(setup ?? null)
+    if (loaded?.sessionId === sessionId && loaded.loadedFor === key) return next(e)
+
     const io: ServerIo = {
       connect: (server) => $.mcp.connect(server),
       call: (server, tool, args) => $.mcp.call(server, tool, args),
@@ -175,7 +187,7 @@ export function registerSystemPrompt(on: On) {
     }
     const answer = await loadInstructions(io, setup ?? null, () => next.budget.remainingMs)
     if (!answer.ok) return { drop: answer.error }
-    await $.state.set({ plugin: 'yvoke', key: 'instructions' }, { sessionId, text: answer.text })
+    await $.state.set({ plugin: 'yvoke', key: 'instructions' }, { sessionId, loadedFor: key, text: answer.text })
     return next(e)
   }).catch(($, e, next) => (next.called ? next(e) : { drop: DROP_FAILED }))
 

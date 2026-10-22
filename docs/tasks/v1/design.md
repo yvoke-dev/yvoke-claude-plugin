@@ -70,7 +70,7 @@ A single-agent question in Claude Code:
    The area comes first. The mode starts at *Single agent* with the area's default playbook; switching to
    multi-agent selects the area's default profile (D-18).
 3. The user sends a question. If the area has two or more playbooks and the chosen one is not the area's
-   default, the preflight check may suggest another one; it fails open (P2-06).
+   default, the preflight check may suggest another one in a dialog (D-27); it fails open (P2-06).
 4. The setup locks and shows read-only, also in the status line (D-11).
 5. `prompt.compose` serves base instructions (`get_system_prompt`) followed by the playbook (`get_playbook`),
    separated by `---`. Which base instructions is decided from data, before any call: the playbook's own
@@ -369,6 +369,13 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     ships no skills. P0-08, P1-04, P1-05 and P8-01 move to the end of [plan.md](plan.md), to check after
     v1, with P8-02 to P8-04. The generator built for P1-04 stays in #24's history should they return.
   - Supersedes: D-10; D-04 now applies only after v1.
+- [x] **D-27** `PO` · `plugin` — **How does the preflight check offer its suggestion?** The plan entry
+  said a band with **Switch to …** / **Send anyway**. The `prompt.submit` hook holding the question can wait on
+  `$.ui.ask` (Claude Code's own question dialog) but not on a band button, which is pressed in a later
+  `ui.render` handler; a band would mean dropping the question and resending it after the press.
+  - **Decided 2026-10-22 (Eduard): the dialog.** The question waits in it; **Switch to …** or **Send anyway**
+    sends it at once, and dismissing it counts as **Send anyway** (the check fails open).
+  - Delivered by: P2-06.
 
 ## 4. Notes for implementers
 
@@ -457,7 +464,7 @@ the same PR.
 | Deny a tool | `on('tool.call', h)` → `{ deny: reason }` | `e.tool` is the full name; `e.agentId` set for subagents. Managed `PreToolUse` hooks run first. The model's calls arrive with `next.origin.plugin` `engine`; a call the mod makes with `$.tool.call` skips only the calling hook, and the mod's other `tool.call` hooks see it with origin `yvoke` (2.1.304, P2-01). |
 | Rewrite a tool's input (WebSearch domains) | `next({ ...e, allowed_domains: [ … ] })` | The tool's arguments sit flat on `e`, beside `tool` (there is no `e.input`). Managed hooks run again on the rewritten call. |
 | Gate a prompt | `on('prompt.submit', h)` → `{ drop: reason }` | The reason is shown to the user. Whether the draft stays is checked in P1-08; `$.prompt.fill` restores it. |
-| Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Not cached: it fires for every request (2.1.293 cannot invalidate it), so the hook only reads `$.state`; the text is fetched once per session id in `prompt.submit` (P1-07). |
+| Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Not cached: it fires for every request (2.1.293 cannot invalidate it), so the hook only reads `$.state`; the text is fetched once per session id and setup in `prompt.submit` (P1-07). |
 | Hide playbook skills in Claude Code | `on('skill.prompt', h)` → `{ text }` | Not used in v1: the plugin ships no skills (D-26). On 2.1.287 the input is only `{ skill, text }`; 2.1.304 adds `frontmatter`, `source` and `pluginName`. |
 | Session setup band | `ui.render` on `{ component: 'AbovePrompt' }` with `Select`s from `$.ui.resolve(e)` | Raised on terminal and desktop only. A `Text` keeps no `key`, so tests find it by its text. A write of `$.state` the hook read redraws it. |
 | Mod commands | `$.command.register({ name, description })` in `session.start`, answered by `command.run` | No `:` in names. Register last or in `try`/`catch`. |
@@ -468,7 +475,8 @@ the same PR.
 | `/clear`, `/resume`, `/branch` | `classic.SessionStart` (`source`: `startup`, `resume`, `clear`, `compact`, `fork`); `session.end` (`reason`, `sessionId`) | `session.start` fires once per process, not after `/clear`. `/branch` ends the parent (`session.end`), then starts the fork with empty `$.state` and no parent id; the test kit keeps the state (2.1.306, P1-08). |
 | Yvoke session (D-13) | `/yvoke` via `$.command.register`; a flag in `$.state`, and in `$.store` under `$.session.id` | `$.state` does not survive `/clear`, which is what ends a Yvoke session. Restore the flag on `classic.SessionStart` with `source` `resume` or `fork`. |
 | Server calls | `callYvoke(io, tool, args)` from `src/server.ts`, over `$.mcp.connect`, `$.mcp.call` and `$.clock.sleep` | Any connected server, connectors included; `$.mcp.connect` only for the plugin's own `.mcp.json` entries. The hook builds `io` from `$` itself, since `$` cannot cross an import ([spec](../../specs/server-client.md)). |
-| Preflight model call | `$.model.complete({ model, prompt, timeoutMs })` | Never rejects for provider errors; check `isAnswered`. Uses the user's quota. |
+| Preflight model call | `$.model.complete({ model, system, prompt, maxTokens, effort, timeoutMs })` | Never rejects for provider errors; check `isAnswered` (a timeout resolves `aborted`). Rejects only for a request the engine refuses to send. Uses the user's quota; its time does not count against the hook's budget. The session's model is `$.session.model()`. A test answers it with `on('model.complete', …)` → `{ value }` (2.1.287, 2.1.306, P2-06). |
+| Ask the user from a hook | `$.ui.ask(question, { header, options })` | Claude Code's AskUserQuestion dialog, as a `tool.call` of `AskUserQuestion` (the gate allows it). Resolves the label or text typed under *Other*; rejects when dismissed and in `-p`. Its wait does not count against the hook's budget. A test answers it with `on('tool.call', { tool: 'AskUserQuestion' }, …)` → `{ result: { questions: [], answers: { [question]: label } } }` (P2-06, D-27). |
 | Session values | `$.state` (declared in `types/index.d.ts` under `PluginState.yvoke`) | Survives hot reload, not `/clear`. Module variables do not survive a reload. |
 | Persistent values | `$.store` | One JSON file per plugin, 4 MiB total, shared by all open sessions: one key per session or turn. |
 | Status line / toast | `$.ui.status(text)`, `$.ui.toast(text)` | |
@@ -500,6 +508,14 @@ the same PR.
   catch-all matcher (`{ source: /^(clear|resume|fork)$/ }`, `{ text: /^/ }`; checked on 2.1.304, P1-08). A
   hook that answers without `next(e)` hides the ones beneath it, which is why `registerSetup` comes before
   `registerSession`.
+- **On one event, the mod's outermost hook speaks for all of it.** A `$` call that fails in a hook beneath
+  (the setup band's, the instructions') is answered by the outermost hook's `.catch`, and a `next(e)` from
+  that `.catch` skips the failing hooks, letting the question through bare (checked on 2.1.306, P2-06). So
+  the outermost `prompt.submit` hook, the preflight check, catches its own failures inside its body and
+  always calls `next(e)` itself, and its `.catch` drops with the setup band's message
+  (`next.called ? next(e) : { drop }`). It registers first because the setup band locks the copy of the
+  setup it read before the question went down: a hook that changes the setup on the first question sits
+  above `registerSetup`, not merely above `registerSystemPrompt`.
 - **Outside a Yvoke session, call `next(e)` and nothing else.** The mod loads in every Claude Code session
   of the user; only `/yvoke` makes a session a Yvoke session (P1-10, D-13). Every enforcing hook opens
   with these two lines, written in its own file:

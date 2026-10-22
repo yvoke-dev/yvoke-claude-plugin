@@ -24,11 +24,15 @@
   example `Yvoke Backend: ERROR: playbook 'oim-ful' not found.`, or, when the server is not connected,
   `Yvoke Backend:` followed by Claude Code's own sentence (and *Run /mcp and sign in to yvoke.* when it
   needs a sign-in). The next question tries again. Nothing is cached as a fallback.
-- The text is loaded once per session id. Later questions reuse it, even if the playbook changes on the
-  server. `/clear`, `/resume` and `/branch` start a new session id, so that session loads again on its first
-  question.
-- Fails closed: if the hook that loads the instructions fails, the question is dropped with *Yvoke Backend:
-  the instructions could not be loaded, so the question was not sent.* If the hook that adds the section
+- The text is loaded once per session id and setup (area, mode, playbook and version, profile). Later
+  questions reuse it, even if the playbook changes on the server. `/clear`, `/resume` and `/branch` start a
+  new session id, so that session loads again on its first question. If a hook beneath drops the first
+  question after the text loaded and the user then picks another playbook in the band, the question sent
+  again loads the new playbook's text.
+- Fails closed: if the hook that loads the instructions throws, the question is dropped. The user sees the
+  setup band's message, *Yvoke Backend: the session could not be set up, so the question was not sent.*,
+  not this hook's own *the instructions could not be loaded*, because the mod's outermost hook on
+  `prompt.submit` answers for the hooks beneath it (design 4.4). If the hook that adds the section
   fails, the system prompt is replaced by one section telling the model to reply only that Yvoke could not
   load its instructions.
 - Outside a Yvoke session neither hook changes anything, and the server is not called.
@@ -50,14 +54,16 @@ smaller. With under 1 s left, it fails at once and asks to send the question aga
 | Piece | Where |
 | --- | --- |
 | `prompt.submit` hook (loads, or drops the question) and `prompt.compose` hook (adds the section) | `plugins/yvoke/src/system-prompt.ts` |
-| `$.state` `yvoke.instructions` = `{ sessionId, text }`, written only by `system-prompt.ts` | contract in `plugins/yvoke/types/index.d.ts` |
+| `$.state` `yvoke.instructions` = `{ sessionId, loadedFor, text }` (`loadedFor`: the setup it was loaded for), written only by `system-prompt.ts` | contract in `plugins/yvoke/types/index.d.ts` |
 | `$.state` `yvoke.setup` = `{ area, mode, playbook }` (playbook null = the area's default), read here, written by P1-08 | same |
 | Server tools `list_areas` (`defaultPlaybook`, `defaultSystemPrompt`, `systemPrompts`), `get_playbook(name)` (`systemPrompt`, `text`), `get_system_prompt(name?)` | through `callYvoke` ([server-client.md](server-client.md)) |
 
 The setup band locks its own setup (`lockedSessionId`); it does not read `yvoke.instructions`. Its
-`prompt.submit` hook is registered first, so it wraps this one: a failure here passes back through it, and
-the user sees its drop message. A `prompt.submit` hook that must act before the lock (P2-06's preflight) registers before
-`registerSystemPrompt(on)` in `hooks/register.tsx`, and with a matcher (even `{}`): P1-07's
+`prompt.submit` hook is registered before this one, so it wraps it, and the preflight check's
+([preflight.md](preflight.md)) wraps both: a failure here passes back through them, and the user sees the
+setup band's drop message. A `prompt.submit` hook that must act before the lock registers before
+`registerSetup` in `hooks/register.tsx` (the setup band locks the copy of the setup it read before the
+question went down), and with a matcher (even `{}`): P1-07's
 `prompt.submit` and `prompt.compose` hooks are the mod's unmatched ones, and a second unmatched hook on
 the same event stops the module loading (design 4.4).
 
@@ -72,8 +78,10 @@ the same event stops the module loading (design 4.4).
   later questions, server down then back, no playbook text, a server that does not answer, a new session
   id, and a throw in each hook (fails closed). The whole mod is loaded, so the server stub also answers
   the setup band's `list_playbooks`; the tests count only the calls made after `/yvoke`. A throw in this
-  `prompt.submit` hook reaches the user as the setup band's drop, since its `.catch` sits outside this
-  one; the test fails if both `.catch`es are removed, not if only this one is.
+  `prompt.submit` hook reaches the user as the setup band's drop, since the mod's outermost `.catch` on
+  `prompt.submit` (the preflight check's) answers for it. Any one of the three `.catch`es (the preflight
+  check's, the setup band's, this hook's) keeps the question dropped, so the test fails only if all three
+  are removed.
 - Not checkable in the test kit: a plugin hook that overruns its own 10 s budget (the kit cuts the waits
   beneath it first). The `.catch` it would reach is the one the throw tests reach.
 - Not yet checked on a real Claude Code (P0-06): that the first answer already sees the section, and
@@ -83,3 +91,5 @@ the same event stops the module loading (design 4.4).
 
 - P1-07 ([#17](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/17)): instructions from the server,
   including a playbook's own system prompt and the `---` join from yvoke-web 1.3.0.
+- P2-06 ([#30](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/30)): the text is loaded per session
+  id and setup (`loadedFor`); a throw in the loading hook reaches the user as the setup band's message.

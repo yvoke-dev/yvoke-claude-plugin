@@ -35,8 +35,9 @@ same pull request.
   **profile** (default: the area's default profile) (D-18). The area comes first and the other two follow it. The lists and defaults come live from the server; prototypes are hidden unless enabled. Playbooks show with their version (*oim-full v3*). (P1-08, P1-12)
 - Sending the first question locks the setup. From then on the band and the status line show it read-only.
   `/resume` and `/branch` keep it. (P1-08)
-- On a single-agent session's first question, when the area has at least two playbooks, a preflight check
-  may offer **Switch to …** or **Send anyway**. The area's default playbook skips the check. Any error lets the question through. (P2-06)
+- On a single-agent session's first question, when the area offers another playbook besides its default, a
+  preflight check may offer **Switch to …** or **Send anyway** in Claude Code's question dialog (D-27). The
+  area's default playbook skips the check and is never suggested. Any error lets the question through. (P2-06)
 - The system prompt is the server's base instructions followed by the playbook's text, separated by a `---`
   line, fetched when the setup locks. The base instructions are the playbook's own system prompt when any
   area lists it, else the area's default, else the active default; which one is decided from `list_areas`
