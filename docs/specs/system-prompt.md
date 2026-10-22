@@ -91,3 +91,5 @@ the same event stops the module loading (design 4.4).
 
 - P1-07 ([#17](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/17)): instructions from the server,
   including a playbook's own system prompt and the `---` join from yvoke-web 1.3.0.
+- P2-06 ([#30](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/30)): the text is loaded per session
+  id and setup (`loadedFor`); a throw in the loading hook reaches the user as the setup band's message.
