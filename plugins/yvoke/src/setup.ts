@@ -6,6 +6,7 @@
 // be tested without the engine.
 import type { ElementConstructor, On, PluginOptions, RenderElement, SelectProps } from 'claude-code'
 import { callYvoke, type ServerIo } from './server'
+import { ENDED, endedId } from './session'
 
 /** Multi-agent mode is offered once Phase 6 is built. Until then only single agent runs. */
 export const MULTI_AGENT_READY = false
@@ -265,6 +266,11 @@ export function registerSetup(on: On, options: PluginOptions) {
     if (e.source === 'resume') {
       const stored = await $.store.get(setupKey(e.session_id))
       saved = isSetup(stored) ? stored : null
+    } else if (!saved) {
+      // Claude Code starts a /branch with empty $.state: take the setup of the session that just ended.
+      const parent = endedId(await $.store.get(ENDED))
+      const stored = parent === undefined ? undefined : await $.store.get(setupKey(parent))
+      saved = isSetup(stored) ? stored : null
     }
     // The setup belongs to the session it is in now: /branch gives it a new id.
     if (saved && saved.lockedSessionId !== null) saved = { ...saved, lockedSessionId: e.session_id }
@@ -403,7 +409,7 @@ export function registerSetup(on: On, options: PluginOptions) {
       try {
         await $.store.set(setupKey(await $.session.id()), after)
       } catch {
-        // The pick stands for this session; only /resume of an unlocked setup would miss it.
+        // The pick stands for this session; /resume or /branch of an unlocked setup would miss it.
       }
     }
     const area = cat.areas.find((a) => a.name === current.area) ?? cat.areas[0]!

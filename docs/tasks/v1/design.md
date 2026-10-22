@@ -342,6 +342,15 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     and reviewer alike. The mod need not tell the reviewer from a specialist, and a reviewer that runs out
     of requests does not cause extra revision rounds as easily as at 6.
   - Delivered by: P2-08.
+- [x] **D-25** `PO` · `plugin` — **Does the mod support a person's own install where an organization
+  manages Claude Code?** There, Claude Code passes over a user-installed plugin's hooks on
+  `prompt.compose` and `classic.SessionStart`, but still runs its `prompt.submit`
+  (`claude plugin validate --strict` warns about exactly these two for this mod on 2.1.303). The playbook would load
+  and lock, yet never reach the model. A plugin cannot read its own tier, so no hook can tell.
+  - **Decided 2026-10-21 (Eduard): unsupported.** In an organization that manages Claude Code, the mod
+    must be installed the organization's way (managed settings or the MDM marketplace, P7-04). Outside
+    such an organization a person's own install runs every hook and is supported.
+  - Delivered by: P1-07 (spec), P7-04.
 - [x] **D-26** `PO` — **Do Chat and Cowork stay in v1?** D-10 gave them live playbook stubs: one generated
   `SKILL.md` per playbook (name, description, and the instruction to fetch the playbook), kept current by a
   sync job. Building it (P1-04, [#24](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/24)) showed the
@@ -430,7 +439,7 @@ the same PR.
   answers `{ value: { value, version } }`). A stubbed hook that throws is skipped and the kit answers
   instead, so stage a failed read as an answer the plugin cannot use (P2-08).
   Stub the Yvoke server by hooking `mcp.call` in the test:
-  `on('mcp.call', () => ({ content: [{ type: 'text', text: '…' }], isError: false }))`. UI tests mount on a
+  `on('mcp.call', () => ({ value: { content: [{ type: 'text', text: '…' }], isError: false } }))` (like every `$` call, as `{ value }`; checked in P1-07). A test hook is cut at 10 s like a plugin's, so a plugin hook that overruns its *own* budget cannot be staged; test the `.catch` with a throw. UI tests mount on a
   surface the test names. Loop every UI test over `['terminal', 'desktop'] as const`.
 
 ### 4.3 Plan concept → mod API
@@ -440,7 +449,7 @@ the same PR.
 | Deny a tool | `on('tool.call', h)` → `{ deny: reason }` | `e.tool` is the full name; `e.agentId` set for subagents. Managed `PreToolUse` hooks run first. The model's calls arrive with `next.origin.plugin` `engine`; a call the mod makes with `$.tool.call` skips only the calling hook, and the mod's other `tool.call` hooks see it with origin `yvoke` (2.1.304, P2-01). |
 | Rewrite a tool's input (WebSearch domains) | `next({ ...e, allowed_domains: [ … ] })` | The tool's arguments sit flat on `e`, beside `tool` (there is no `e.input`). Managed hooks run again on the rewritten call. |
 | Gate a prompt | `on('prompt.submit', h)` → `{ drop: reason }` | The reason is shown to the user. Whether the draft stays is checked in P1-08; `$.prompt.fill` restores it. |
-| Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Cached until `$.ui.invalidate('prompt.compose')`; the text is fixed per session, so one fetch at lock. |
+| Base instructions + playbook (D-11) | `on('prompt.compose', h)`: append `{ id, text, scope: 'session' }` | `prompt.section` cannot add a section. Not cached: it fires for every request (2.1.293 cannot invalidate it), so the hook only reads `$.state`; the text is fetched once per session id in `prompt.submit` (P1-07). |
 | Hide playbook skills in Claude Code | `on('skill.prompt', h)` → `{ text }` | Not used in v1: the plugin ships no skills (D-26). On 2.1.287 the input is only `{ skill, text }`; 2.1.304 adds `frontmatter`, `source` and `pluginName`. |
 | Session setup band | `ui.render` on `{ component: 'AbovePrompt' }` with `Select`s from `$.ui.resolve(e)` | Raised on terminal and desktop only. A `Text` keeps no `key`, so tests find it by its text. A write of `$.state` the hook read redraws it. |
 | Mod commands | `$.command.register({ name, description })` in `session.start`, answered by `command.run` | No `:` in names. Register last or in `try`/`catch`. |
@@ -448,7 +457,7 @@ the same PR.
 | Subagents | `$.agent.register` (`yvoke:<name>`), `$.agent.spawn`, `agent.spawn` (`{ deny }`, `parentAgentId`), `agent.offer` (`{ isOffered: false }`) | |
 | End of turn | `turn.complete`: `answer`, `reason`, `isAborted`, `agentId`, `usage` | Returning `{ text }` shows a line *under* the answer; the record never changes. |
 | Re-prompt | `$.prompt.submit` | Queues a new turn once idle; never `await` it inside `turn.complete`. |
-| `/clear`, `/resume`, `/branch` | `classic.SessionStart` (`source`: `startup`, `resume`, `clear`, `compact`, `fork`); `session.end` (`reason`, `sessionId`) | `session.start` fires once per process, not after `/clear`. |
+| `/clear`, `/resume`, `/branch` | `classic.SessionStart` (`source`: `startup`, `resume`, `clear`, `compact`, `fork`); `session.end` (`reason`, `sessionId`) | `session.start` fires once per process, not after `/clear`. `/branch` ends the parent (`session.end`), then starts the fork with empty `$.state` and no parent id; the test kit keeps the state (2.1.306, P1-08). |
 | Yvoke session (D-13) | `/yvoke` via `$.command.register`; a flag in `$.state`, and in `$.store` under `$.session.id` | `$.state` does not survive `/clear`, which is what ends a Yvoke session. Restore the flag on `classic.SessionStart` with `source` `resume` or `fork`. |
 | Server calls | `callYvoke(io, tool, args)` from `src/server.ts`, over `$.mcp.connect`, `$.mcp.call` and `$.clock.sleep` | Any connected server, connectors included; `$.mcp.connect` only for the plugin's own `.mcp.json` entries. The hook builds `io` from `$` itself, since `$` cannot cross an import ([spec](../../specs/server-client.md)). |
 | Preflight model call | `$.model.complete({ model, prompt, timeoutMs })` | Never rejects for provider errors; check `isAnswered`. Uses the user's quota. |
@@ -470,7 +479,9 @@ the same PR.
   on('prompt.submit', lockSetup).catch(($, e, next) => (next.called ? next(e) : { drop: 'Yvoke Backend: the session could not be set up, so the question was not sent.' }))
   ```
 
-  Tests cover the throw and the timeout path for each one.
+  Tests cover the throw for each one. A hook that outruns its own budget cannot be staged in the test kit
+  (it cuts the waits beneath the plugin at 10 s first), so a timeout is covered by a server that hangs past
+  every budget and still never lets the action through.
 - **One unmatched hook per event in the whole mod.** A plugin's registrations nest in order (first
   outermost), and a second `on(event, hook)` without a matcher stops the module loading (*registered twice
   without a matcher*); a hook with a matcher, even `{}`, loads. For tool rules we still keep one hook: every
