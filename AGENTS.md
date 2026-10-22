@@ -9,6 +9,7 @@ You are building **Yvoke for Claude**, a Claude plugin with a Claude Code mod. R
 - The current release: [docs/tasks/v1/](docs/tasks/v1/plan.md). Read its `design.md` section 4 ("Notes for
   implementers") before you pick up a task.
 - What is already built: [docs/specs/](docs/specs/README.md).
+- Running the mod while you work on it: [docs/contributing.md](docs/contributing.md).
 - Reference implementation: [`yvoke-dev/yvoke-desktop`](https://github.com/yvoke-dev/yvoke-desktop). Its
   `spec/` says what a feature is for; its `tests/` say exactly how it behaves. Server:
   [`yvoke-dev/yvoke-web`](https://github.com/yvoke-dev/yvoke-web).
