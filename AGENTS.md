@@ -47,8 +47,11 @@ Run these before saying anything is done, and show the output. Each must pass.
 `npm run check` runs all five in this order. Run `npm install` once first, for TypeScript.
 
 `npm run typecheck` is `node scripts/lay-types.mjs && tsc --noEmit`. Claude Code writes the mod API's type
-declarations only when it loads the mod, so the script loads it once in print mode, with no sign-in and no
-model call, and waits for `plugins/yvoke/.claude-plugin/types/` to appear. That folder is never committed.
+declarations only when it loads the mod from a folder, so the script loads it once in print mode, with no
+sign-in and no model call, and waits for `plugins/yvoke/.claude-plugin/types/` to appear. That folder is
+never committed. From 2.1.295 on, Claude Code writes the declarations only for a folder the session
+watches, so the script also sets `CLAUDE_CODE_PLUGIN_DIR_WATCH=1`; older releases write them without it,
+and the switch does no harm there.
 CI (`.github/workflows/ci.yml`) runs all five on every push and pull request, and every Monday: the plugin
 rows on Claude Code 2.1.287 (the oldest with mods) and on the latest release, with a fresh
 `CLAUDE_CONFIG_DIR`. It also fails when the `calls:` line names `$.fs`, `$.process` or `$.http`.

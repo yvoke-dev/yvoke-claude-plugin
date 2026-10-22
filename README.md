@@ -4,9 +4,10 @@ A Claude plugin that brings Yvoke Desktop's capabilities into Claude: playbook-s
 Yvoke knowledge base, and multi-agent investigations with enforced review.
 
 - **Claude Code** (the Claude Desktop app's **Code** tab and the terminal): full feature set, through a mod.
-- **Cowork** and **Chat**: live playbook stubs over the Yvoke connector, with fewer guarantees.
+- **Cowork** and **Chat**: not in v1; to check after v1.
 
-**Status:** scaffold. The plugin installs, loads and connects to a Yvoke server, but adds no behaviour yet.
+**Status:** early. `/yvoke` starts a Yvoke session, and in it the mod lets through only the tools a Yvoke
+answer may use. Picking a playbook and getting an answer from it come next (milestone M1).
 
 ## Use it locally
 
@@ -47,6 +48,11 @@ machine. Checked with Claude Code 2.1.291.
 and turn `devMode` off. In a terminal, pipe the values in instead:
 `echo '{"serverUrl":"https://<server>/mcp","devMode":"false"}' | claude plugin configure yvoke@yvoke --values-stdin`. The plugin then uses the normal sign-in. That sign-in (Entra ID) arrives with task P1-02; until then
 only a local server in mock mode works.
+
+**Turn limits.** Three more settings cap the model requests of one Yvoke question: `turnLimitSingle`
+(25), `turnLimitLead` (60) and `turnLimitAgent` (20, each specialist and the reviewer). At the limit the
+answer is still delivered, marked as stopped at the turn limit; `0` turns a limit off. Change them with
+`/plugin configure yvoke@yvoke`.
 
 **Quick look without installing:** `claude --plugin-dir plugins/yvoke` loads the plugin for one session.
 Use the steps above when you need it connected to a server. To work on the mod with reload-on-save, see
