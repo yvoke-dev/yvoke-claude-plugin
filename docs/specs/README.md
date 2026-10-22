@@ -6,6 +6,7 @@ request that changes the behaviour updates the spec in the same change (see [../
 
 | Spec | What it covers |
 | --- | --- |
+| [citations.md](citations.md) | Which citation markers in a reply are recognised, and what is left alone |
 | [packaging.md](packaging.md) | The marketplace, the plugin and how it is installed |
 | [server-client.md](server-client.md) | How the mod calls the Yvoke server and reports its failures |
 | [session.md](session.md) | What makes a session a Yvoke session: `/yvoke`, `/clear`, `/resume`, `/branch` |
