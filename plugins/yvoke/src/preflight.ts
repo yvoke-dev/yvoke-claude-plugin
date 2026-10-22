@@ -154,14 +154,17 @@ export function registerPreflight(on: On) {
       const { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
       const { value: catalogue } = await $.state.get({ plugin: 'yvoke', key: 'catalogue' })
       const { value: checked } = await $.state.get({ plugin: 'yvoke', key: 'preflight' })
+      // Claude Code 2.1.287 has neither field (its prompt.submit carries no slash commands); later
+      // releases add both.
+      const marks = e as { command?: unknown; isMeta?: unknown }
       const check = shouldCheck({
         setup: setup ?? null,
         catalogue: catalogue ?? null,
         sessionId,
         checked: checked ?? null,
         text: e.text,
-        isCommand: e.command !== undefined,
-        isMeta: e.isMeta === true,
+        isCommand: marks.command !== undefined,
+        isMeta: marks.isMeta === true,
       })
       if (!check || !setup || !catalogue?.ok) return
       // Recorded first: a question dropped further down and sent again is not checked twice.
