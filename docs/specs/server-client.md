@@ -39,7 +39,7 @@
 | Engine calls a caller makes for it | `$.mcp.connect`, `$.mcp.call`, `$.clock.sleep` |
 | Server tools it is used with | yvoke-web's MCP tools, for example `get_system_prompt`, `list_playbooks`, `get_playbook` |
 
-The plugin-control tools (`get_system_prompt`, `list_areas`, `list_playbooks`, `get_playbook`) are served
+The client-only tools (`get_system_prompt`, `list_areas`, `list_playbooks`, `get_playbook`) are served
 to MCP clients only. yvoke-web's own assistant never gets them, and its playbook editor does not offer them
 (P1-13, D-23).
 
@@ -54,5 +54,5 @@ to MCP clients only. yvoke-web's own assistant never gets them, and its playbook
 ## History
 
 - P1-03 ([#13](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/13)): the client.
-- P1-13 ([yvoke-web#23](https://github.com/yvoke-dev/yvoke-web/pull/23)): the plugin-control tools are kept
+- P1-13 ([yvoke-web#23](https://github.com/yvoke-dev/yvoke-web/pull/23)): the client-only tools are kept
   out of yvoke-web's in-app assistant.

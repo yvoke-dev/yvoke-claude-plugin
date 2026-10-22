@@ -365,7 +365,7 @@ a cloud session.
   - Done when: tests cover a session without `/yvoke`, `/yvoke` before the first question, `/yvoke` after it,
     `/yvoke` twice, `/clear`, `/resume`, and `/branch`.
 - P1-11 was never assigned.
-- [x] **P1-13** `server` · S — **Keep plugin-control tools away from models that should not call them**
+- [x] **P1-13** `server` · S — **Keep client-only tools away from models that should not call them**
   ([design 5.4](design.md#54-which-model-sees-which-tool-p1-13)). `get_system_prompt`, `list_areas`, `list_playbooks`, `get_playbook`, `submit_feedback` and the sync tools are for
   Claude clients, not for the web's in-app assistant, which today shares one tool set with every MCP client.
   - Delivered in [yvoke-web#23](https://github.com/yvoke-dev/yvoke-web/pull/23); plan in

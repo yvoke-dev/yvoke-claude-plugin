@@ -1,4 +1,4 @@
-# P1-13 Keep plugin-control tools away from models that should not call them
+# P1-13 Keep client-only tools away from models that should not call them
 
 **Release:** v1 · **Size:** S · **Type:** feature · **Status:** done
 
@@ -11,7 +11,7 @@ every task plan does. Facts below were read from yvoke-web `main` at `123045e` (
 **Done when:** the web's in-app assistant cannot be given `get_system_prompt`, `list_areas`,
 `list_playbooks` or `get_playbook` (they are not in its tool registry, so no playbook can grant them and
 the admin playbook editor does not offer them), while every MCP client still finds all four in
-`tools/list` on `/mcp`. Later plugin-only tools (`list_profiles`, `submit_feedback`, the sync tools) land
+`tools/list` on `/mcp`. Later client-only tools (`list_profiles`, `submit_feedback`, the sync tools) land
 on the same side by one annotation.
 
 ## How tools reach each model today
@@ -96,7 +96,7 @@ design 5.4 saying the recommended option was built.
 ## Proof
 
 - `McpServerEndpointsIT`: the new registry test and the existing `toolsListPublishesTheWholeToolCatalogue`.
-- `JsonObjectsToolsIT.everyDocumentedToolIsPresentInTheRegisteredCallbackList` (split).
+- `JsonObjectsToolsIT.theTwoToolCataloguesAreSplitExactly` (was `everyDocumentedToolIsPresentInTheRegisteredCallbackList`).
 - yvoke-web: `./mvnw verify -Pit-tests` green, `check_steering.py` clean.
 - This repository: `npm run check` (docs links; nothing else changes here).
 
@@ -107,6 +107,12 @@ design 5.4 saying the recommended option was built.
   MCP-only callback.
 - `JsonObjectsToolsIT.theInAppChatAgentIsFedTheSameToolCallbackInstancesAsTheMcpServer` now reads the
   renamed bean, and its exact-match assertion also pins that the registry holds none of the four.
+- Review fixes in yvoke-web#23: `sharedToolCallbacks` takes its taken names from the
+  `clientOnlyToolCallbacks` provider (no second scan, no unguarded `getBean`); the three hand-registered
+  callbacks are checked against taken names too; `everyDocumentedToolIsPresentInTheRegisteredCallbackList`
+  is renamed `theTwoToolCataloguesAreSplitExactly`, since it now pins two lists.
+- Term: "client-only tools", after the `@ClientOnlyTools` mark. Every MCP client gets them, so neither
+  "plugin-only" nor "plugin-control" fits.
 - Delivered in [yvoke-web#23](https://github.com/yvoke-dev/yvoke-web/pull/23). Unit run: 2144 tests, 0
   failures. IT run: 622 tests, 0 failures, 1 skipped. Mutation checks: removing the mark from
   `PlaybookTools` turns the registry test red; an empty provider makes `tools/list` miss all four.
