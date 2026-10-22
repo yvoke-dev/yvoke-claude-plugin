@@ -42,3 +42,47 @@ export const qualifyTool = (tool: string, serverPrefix: string): string => {
   const trimmed = tool.trim()
   return builtinTool(trimmed) ?? `${serverPrefix}${trimmed.replace(MCP_PREFIX, '')}`
 }
+
+// P2-02: the Yvoke server tools a playbook's declaration grants. Ported from yvoke-desktop's
+// `buildAllowedTools` (src/main/agent/policy.ts), `DEFAULT_KB_TOOLS` (src/shared/types.ts) and
+// `isComputeTool` (src/main/agent/computeTools.ts). Web and compute names are dropped, so a declaration
+// alone never grants them: P2-04 and P2-05 grant those under their own rules.
+
+/** What a playbook that declares no tools gets, as in yvoke-desktop. */
+export const DEFAULT_KB_TOOLS = [
+  'query_json_objects',
+  'get_section',
+  'get_graph_neighbors',
+  'verify_citations',
+  'list_documents',
+  'get_toc',
+  'search_graph_entities',
+  'get_json_schema',
+  'search_corpus',
+  'ask_clarifying_question',
+]
+
+const WEB_TOOLS = ['WebSearch', 'WebFetch']
+
+/** `WebSearch` or `WebFetch`, in any case, bare or behind a prefix. */
+export const isWebTool = (tool: string): boolean => WEB_TOOLS.includes(builtinTool(tool) ?? '')
+
+/** yvoke-desktop's in-process compute server, and the compute tools it once had or still has. */
+const COMPUTE_PREFIX = 'mcp__compute__'
+const COMPUTE_NAMES = ['execute_code', 'calculate', 'statistics', 'date_diff']
+
+/** `execute_code` or a retired compute tool, in any case, bare or behind a prefix. */
+export const isComputeTool = (tool: string): boolean => {
+  const lower = tool.trim().toLowerCase()
+  return lower.startsWith(COMPUTE_PREFIX) || COMPUTE_NAMES.includes(lower.replace(MCP_PREFIX, ''))
+}
+
+/**
+ * The full names of the Yvoke server tools a playbook grants under `serverPrefix`: those it declares, or
+ * `DEFAULT_KB_TOOLS` when `declared` is null. Built-ins (web tools among them) and compute tools are left
+ * out; the gate grants `ToolSearch` and `AskUserQuestion` itself.
+ */
+export const allowedServerTools = (declared: string[] | null, serverPrefix: string): string[] =>
+  (declared ?? DEFAULT_KB_TOOLS)
+    .filter((tool) => builtinTool(tool) === undefined && !isComputeTool(tool))
+    .map((tool) => qualifyTool(tool, serverPrefix))

@@ -9,7 +9,9 @@
 //   session it locked in, null before the first question (P1-08). Written by src/setup.ts, and by
 //   src/preflight.ts when the user switches to the playbook the preflight check suggests (P2-06); P1-07
 //   reads area, mode and playbook.
-// catalogue: the areas and playbooks the band offers, or why they could not be loaded (P1-08).
+// catalogue: the areas and playbooks the band offers, or why they could not be loaded (P1-08). A playbook's
+//   `tools` are the names it declares, null when it declares none (an empty list or no field),
+//   'unreadable' when the server sent something else; the tool gate reads them (P2-02).
 // preflight: the session and playbook the preflight check last ran for, so a question sent again is not
 //   checked twice (P2-06). Written only by src/preflight.ts.
 // loopStep: a family, one member per loop (`id`: the subagent's id, or `main`): the turn and request it
@@ -31,7 +33,7 @@ export type YvokeCatalogue =
         areas: {
           name: string
           title: string
-          playbooks: { name: string; version: number; title: string; description: string }[]
+          playbooks: { name: string; version: number; tools: string[] | null | 'unreadable'; title: string; description: string }[]
           defaultPlaybook: string | null
           profiles: string[]
           defaultProfile: string | null
