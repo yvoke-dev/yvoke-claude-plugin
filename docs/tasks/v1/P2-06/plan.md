@@ -1,6 +1,6 @@
 # P2-06 Playbook preflight check
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** done
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in review (done after the machine check under Proof)
 
 On the first question of a single-agent Yvoke session, before the setup locks, the mod asks the model
 whether the chosen playbook fits the question. If another playbook of the area clearly fits better, the user
@@ -175,9 +175,19 @@ Each step: the test first, seen failing, then the code, then `npm run check`.
 - **A failing `$.state.set` cannot be staged**: the kit has its own state, and a test hook on `state.set`
   that throws is skipped. The planned test for a switch whose setup write fails was taken out; the write
   sits inside the caught body like every other step.
-- **Claude Code 2.1.287's `prompt.submit` has no `command` or `isMeta`** (its type lacks both; CI's
-  typecheck on 2.1.287 failed). The hook reads them through a wider type, so on 2.1.287 neither skip
-  applies there (not checked whether 2.1.287 raises `prompt.submit` for a slash command at all).
+- **Only some releases mark a command or a meta prompt.** 2.1.306's `prompt.submit` had `command` and
+  `isMeta`; 2.1.287's and 2.1.308's types have neither (CI's typecheck on 2.1.287 failed). The hook reads
+  them through a wider type, and only a non-empty string `command` counts as a command (review of #30);
+  where the fields are absent neither skip applies (not checked whether those releases raise
+  `prompt.submit` for a slash command at all).
+- **Instructions loaded for a dropped question served a later playbook** (review of #30; P1-07 and P1-08
+  together, before P2-06). `yvoke.instructions` was keyed by session id only, so when a hook beneath
+  dropped the first question after the instructions loaded and the user then picked another playbook,
+  the question sent again locked the new playbook with the old one's text. Regression test committed
+  first (`preflight.test.ts`, *a playbook changed after a dropped first question loads its own
+  instructions*), then the fix: the instructions record the setup they were loaded for (`loadedFor`), and
+  another setup loads again. No hook of the mod drops after the load today, so it needed another plugin
+  beneath, but nothing stopped a pick between the drop and the resend.
 - **Ported cases**: the desktop's parser reads the first `{` to the last `}`, so a JSON array around an
   object is read as that object; no test claims otherwise.
 - **Merge with P2-02** ([#28](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/28)): both add fields

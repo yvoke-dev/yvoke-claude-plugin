@@ -3,8 +3,8 @@
 // import anything, so YvokeState repeats them for code that wants the type by name.
 //
 // yvokeSession: true in a session the user started with /yvoke (P1-10). Written only by src/session.ts.
-// instructions: the base instructions and playbook text loaded for one session id (P1-07). Written only
-//   by src/system-prompt.ts.
+// instructions: the base instructions and playbook text loaded for one session id and the setup they were
+//   loaded for (`loadedFor`, P1-07). Written only by src/system-prompt.ts.
 // setup: the area, mode, playbook (with its version) or profile the session runs on, and the id of the
 //   session it locked in, null before the first question (P1-08). Written by src/setup.ts, and by
 //   src/preflight.ts when the user switches to the playbook the preflight check suggests (P2-06); P1-07
@@ -42,7 +42,7 @@ export type YvokeCatalogue =
 
 export type YvokeState = {
   yvokeSession: boolean
-  instructions: { sessionId: string; text: string } | null
+  instructions: { sessionId: string; loadedFor: string; text: string } | null
   setup: YvokeSetup | null
   catalogue: YvokeCatalogue | null
   preflight: { sessionId: string; playbook: string } | null
@@ -53,7 +53,7 @@ declare module 'claude-code' {
   interface PluginState {
     yvoke: {
       yvokeSession: boolean
-      instructions: { sessionId: string; text: string } | null
+      instructions: { sessionId: string; loadedFor: string; text: string } | null
       setup: YvokeSetup | null
       catalogue: YvokeCatalogue | null
       preflight: { sessionId: string; playbook: string } | null

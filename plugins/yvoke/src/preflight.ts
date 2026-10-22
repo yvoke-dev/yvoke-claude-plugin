@@ -154,7 +154,8 @@ export function registerPreflight(on: On) {
       const { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
       const { value: catalogue } = await $.state.get({ plugin: 'yvoke', key: 'catalogue' })
       const { value: checked } = await $.state.get({ plugin: 'yvoke', key: 'preflight' })
-      // Claude Code 2.1.287's prompt.submit has neither field; later releases add both.
+      // Claude Code 2.1.287 and 2.1.308 send neither field on prompt.submit; 2.1.306 sent both. Only a
+      // named command counts as one.
       const marks = e as { command?: unknown; isMeta?: unknown }
       const check = shouldCheck({
         setup: setup ?? null,
@@ -162,7 +163,7 @@ export function registerPreflight(on: On) {
         sessionId,
         checked: checked ?? null,
         text: e.text,
-        isCommand: marks.command !== undefined,
+        isCommand: typeof marks.command === 'string' && marks.command !== '',
         isMeta: marks.isMeta === true,
       })
       if (!check || !setup || !catalogue?.ok) return

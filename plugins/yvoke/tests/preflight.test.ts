@@ -341,3 +341,16 @@ test('a playbook changed after a dropped first question loads its own instructio
   expect(loaded(w)).toEqual(['oim-start', 'oim-schema'])
   expect(await instructions($)).toEqual(['BASE\n\n---\n\nPLAYBOOK oim-schema'])
 })
+
+// Claude Code 2.1.306 marked a slash command with `command`; the kit passes the field on.
+for (const [label, command, checks] of [
+  ['a slash command is not checked', '/review', 0],
+  ['an empty command field is not a command', '', 1],
+] as const) {
+  test(label, async ($, on) => {
+    const w = engine(on)
+    await ready($)
+    await $.prompt.submit({ text: QUESTION, wait: false, origin: { kind: 'composer' }, command } as never)
+    expect(w.models).toHaveLength(checks)
+  })
+}

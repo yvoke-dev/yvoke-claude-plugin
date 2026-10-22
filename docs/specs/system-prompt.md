@@ -24,11 +24,15 @@
   example `Yvoke Backend: ERROR: playbook 'oim-ful' not found.`, or, when the server is not connected,
   `Yvoke Backend:` followed by Claude Code's own sentence (and *Run /mcp and sign in to yvoke.* when it
   needs a sign-in). The next question tries again. Nothing is cached as a fallback.
-- The text is loaded once per session id. Later questions reuse it, even if the playbook changes on the
-  server. `/clear`, `/resume` and `/branch` start a new session id, so that session loads again on its first
-  question.
-- Fails closed: if the hook that loads the instructions fails, the question is dropped with *Yvoke Backend:
-  the instructions could not be loaded, so the question was not sent.* If the hook that adds the section
+- The text is loaded once per session id and setup (area, mode, playbook and version, profile). Later
+  questions reuse it, even if the playbook changes on the server. `/clear`, `/resume` and `/branch` start a
+  new session id, so that session loads again on its first question. If a hook beneath drops the first
+  question after the text loaded and the user then picks another playbook in the band, the question sent
+  again loads the new playbook's text.
+- Fails closed: if the hook that loads the instructions throws, the question is dropped. The user sees the
+  setup band's message, *Yvoke Backend: the session could not be set up, so the question was not sent.*,
+  not this hook's own *the instructions could not be loaded*, because the mod's outermost hook on
+  `prompt.submit` answers for the hooks beneath it (design 4.4). If the hook that adds the section
   fails, the system prompt is replaced by one section telling the model to reply only that Yvoke could not
   load its instructions.
 - Outside a Yvoke session neither hook changes anything, and the server is not called.
@@ -50,7 +54,7 @@ smaller. With under 1 s left, it fails at once and asks to send the question aga
 | Piece | Where |
 | --- | --- |
 | `prompt.submit` hook (loads, or drops the question) and `prompt.compose` hook (adds the section) | `plugins/yvoke/src/system-prompt.ts` |
-| `$.state` `yvoke.instructions` = `{ sessionId, text }`, written only by `system-prompt.ts` | contract in `plugins/yvoke/types/index.d.ts` |
+| `$.state` `yvoke.instructions` = `{ sessionId, loadedFor, text }` (`loadedFor`: the setup it was loaded for), written only by `system-prompt.ts` | contract in `plugins/yvoke/types/index.d.ts` |
 | `$.state` `yvoke.setup` = `{ area, mode, playbook }` (playbook null = the area's default), read here, written by P1-08 | same |
 | Server tools `list_areas` (`defaultPlaybook`, `defaultSystemPrompt`, `systemPrompts`), `get_playbook(name)` (`systemPrompt`, `text`), `get_system_prompt(name?)` | through `callYvoke` ([server-client.md](server-client.md)) |
 

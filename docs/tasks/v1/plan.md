@@ -447,7 +447,7 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
     cases of yvoke-desktop's `computeTools.test.ts`; the escape cases come from P0-12's findings. If P0-12 shows the route cannot be made safe, v1 has no compute
   tool and this task is struck through. The earlier plan for `calculate`, `statistics` and `date_diff`
   ([#19](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/19)) is not used. ⛔ P0-12
-- [x] **P2-06** `plugin` · M — **Playbook preflight check** ([#30](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/30),
+- [ ] **P2-06** `plugin` · M — **Playbook preflight check** ([#30](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/30),
   [task plan](P2-06/plan.md)). On the first question of a single-agent session, before the setup locks
   (P1-08), when the area offers another playbook besides its default, ask the model (`$.model.complete`,
   no tools, 45 s timeout) whether the playbook fits; if not, Claude Code's question dialog (D-27) offers
