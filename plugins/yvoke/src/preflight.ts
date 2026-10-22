@@ -7,7 +7,8 @@
 // is never suggested.
 //
 // This part holds the rules, with no `$` in it, so they can be tested without the engine.
-import type { CatalogueState, PlaybookEntry, Setup } from './setup'
+import type { On } from 'claude-code'
+import { DROP_FAILED, MULTI_AGENT_READY, pick, setupKey, type CatalogueState, type PlaybookEntry, type Setup } from './setup'
 
 /** How long the model may take. A slow model holds the question this long, with the checking line shown. */
 export const VALIDATION_TIMEOUT_MS = 45_000
@@ -133,4 +134,79 @@ export const dialogFor = (verdict: Extract<Verdict, { fits: false }>) => {
   const which = suggested.title === suggested.name ? suggested.name : `${suggested.title} (${suggested.name})`
   const switchLabel = `Switch to ${suggested.name}`
   return { question: `${why} Switch to ${which} for this session?`, switchLabel, options: [switchLabel, SEND_ANYWAY] }
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// The hook. Registered first in hooks/register.tsx, above the setup band: P1-08's hook reads the setup
+// before the question goes down and locks that copy once it is back, so a switch must be written before it
+// reads. Every $.state key is written inline (the engine refuses a reference imported from another file).
+
+export function registerPreflight(on: On) {
+  // The matcher takes every prompt: P1-07's prompt.submit is the mod's one hook on it with no matcher.
+  on('prompt.submit', { text: /^/ }, async ($, e, next) => {
+    // Everything before the question goes down is caught here, so the check fails open and the hook always
+    // reaches `next(e)` itself, where the setup band and the instructions load (P1-08, P1-07) run as usual.
+    const decide = async () => {
+      const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
+      if (isYvoke !== true) return
+
+      const sessionId = await $.session.id()
+      const { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
+      const { value: catalogue } = await $.state.get({ plugin: 'yvoke', key: 'catalogue' })
+      const { value: checked } = await $.state.get({ plugin: 'yvoke', key: 'preflight' })
+      const check = shouldCheck({
+        setup: setup ?? null,
+        catalogue: catalogue ?? null,
+        sessionId,
+        checked: checked ?? null,
+        text: e.text,
+        isCommand: e.command !== undefined,
+        isMeta: e.isMeta === true,
+      })
+      if (!check || !setup || !catalogue?.ok) return
+      // Recorded first: a question dropped further down and sent again is not checked twice.
+      await $.state.set({ plugin: 'yvoke', key: 'preflight' }, { sessionId, playbook: check.selected.name })
+
+      let verdict: Verdict = FITS
+      // A status line the engine cannot show is dropped by it, without failing the hook.
+      $.ui.status(CHECKING)
+      try {
+        const reply = await $.model.complete({
+          model: await $.session.model(),
+          system: buildValidatorPrompt(check.candidates, check.selected.name),
+          prompt: e.text,
+          maxTokens: MAX_TOKENS,
+          effort: 'low',
+          timeoutMs: VALIDATION_TIMEOUT_MS,
+        })
+        if (reply.isAnswered) verdict = parseValidation(reply.text, check.candidates, check.selected.name)
+      } finally {
+        $.ui.status(undefined)
+      }
+      if (verdict.fits) return
+
+      const dialog = dialogFor(verdict)
+      let answer: string = SEND_ANYWAY
+      try {
+        answer = await $.ui.ask(dialog.question, { header: DIALOG_HEADER, options: dialog.options })
+      } catch {
+        // Dismissed, or no one to ask (`-p`): Send anyway.
+      }
+      if (answer !== dialog.switchLabel) return
+      const switched = pick(setup, catalogue.catalogue, 'playbook', verdict.suggested.name, MULTI_AGENT_READY)
+      await $.state.set({ plugin: 'yvoke', key: 'setup' }, switched)
+      // A copy that cannot be saved misses only /resume; the switch stands for this session.
+      await $.store.set(setupKey(sessionId), switched)
+    }
+    try {
+      await decide()
+    } catch {
+      // Fails open: the question goes on with whatever setup stands.
+    }
+    return next(e)
+    // This hook is the mod's outermost on prompt.submit, and a failure in the hooks beneath it (a `$` call
+    // the setup band or the instructions load could not make) is answered here, the drop P1-08's own
+    // .catch gave while it was outermost: they fail closed. A `next(e)` here would skip them and let the
+    // question through bare (checked on 2.1.306).
+  }).catch((_$, e, next) => (next.called ? next(e) : { drop: DROP_FAILED }))
 }

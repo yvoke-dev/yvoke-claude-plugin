@@ -6,9 +6,12 @@
 // instructions: the base instructions and playbook text loaded for one session id (P1-07). Written only
 //   by src/system-prompt.ts.
 // setup: the area, mode, playbook (with its version) or profile the session runs on, and the id of the
-//   session it locked in, null before the first question (P1-08). Written only by src/setup.ts; P1-07
+//   session it locked in, null before the first question (P1-08). Written by src/setup.ts, and by
+//   src/preflight.ts when the user switches to the playbook the preflight check suggests (P2-06); P1-07
 //   reads area, mode and playbook.
 // catalogue: the areas and playbooks the band offers, or why they could not be loaded (P1-08).
+// preflight: the session and playbook the preflight check last ran for, so a question sent again is not
+//   checked twice (P2-06). Written only by src/preflight.ts.
 // loopStep: a family, one member per loop (`id`: the subagent's id, or `main`): the turn and request it
 //   stands at and its ceiling, or null when its ceiling is off (P2-08). Written only by
 //   src/turn-limits.ts. YvokeState gives the member's value, which is what `$.state.get` with an `id`
@@ -42,6 +45,7 @@ export type YvokeState = {
   instructions: { sessionId: string; text: string } | null
   setup: YvokeSetup | null
   catalogue: YvokeCatalogue | null
+  preflight: { sessionId: string; playbook: string } | null
   loopStep: { turnId: string; index: number; n: number } | null
 }
 
@@ -52,6 +56,7 @@ declare module 'claude-code' {
       instructions: { sessionId: string; text: string } | null
       setup: YvokeSetup | null
       catalogue: YvokeCatalogue | null
+      preflight: { sessionId: string; playbook: string } | null
       loopStep: StateFamily<{ turnId: string; index: number; n: number } | null>
     }
   }
