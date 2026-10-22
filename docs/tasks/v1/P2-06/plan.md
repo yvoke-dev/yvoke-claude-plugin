@@ -177,7 +177,7 @@ Each step: the test first, seen failing, then the code, then `npm run check`.
   sits inside the caught body like every other step.
 - **Claude Code 2.1.287's `prompt.submit` has no `command` or `isMeta`** (its type lacks both; CI's
   typecheck on 2.1.287 failed). The hook reads them through a wider type, so on 2.1.287 neither skip
-  applies, which is right: that release raises no `prompt.submit` for a slash command.
+  applies there (not checked whether 2.1.287 raises `prompt.submit` for a slash command at all).
 - **Ported cases**: the desktop's parser reads the first `{` to the last `}`, so a JSON array around an
   object is read as that object; no test claims otherwise.
 - **Merge with P2-02** ([#28](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/28)): both add fields
