@@ -78,8 +78,10 @@ the same event stops the module loading (design 4.4).
   later questions, server down then back, no playbook text, a server that does not answer, a new session
   id, and a throw in each hook (fails closed). The whole mod is loaded, so the server stub also answers
   the setup band's `list_playbooks`; the tests count only the calls made after `/yvoke`. A throw in this
-  `prompt.submit` hook reaches the user as the setup band's drop, since its `.catch` sits outside this
-  one; the test fails if both `.catch`es are removed, not if only this one is.
+  `prompt.submit` hook reaches the user as the setup band's drop, since the mod's outermost `.catch` on
+  `prompt.submit` (the preflight check's) answers for it. Any one of the three `.catch`es (the preflight
+  check's, the setup band's, this hook's) keeps the question dropped, so the test fails only if all three
+  are removed.
 - Not checkable in the test kit: a plugin hook that overruns its own 10 s budget (the kit cuts the waits
   beneath it first). The `.catch` it would reach is the one the throw tests reach.
 - Not yet checked on a real Claude Code (P0-06): that the first answer already sees the section, and

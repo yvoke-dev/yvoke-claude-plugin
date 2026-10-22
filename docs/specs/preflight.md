@@ -6,7 +6,10 @@
   locks ([setup.md](setup.md)), the mod asks the model whether the chosen playbook fits the question.
 - The check runs only when all of these hold; otherwise the question goes straight through with no model
   call:
-  - the question was typed: not a slash command, not a prompt the user does not see, not blank;
+  - the question was typed: not a slash command, not a prompt the user does not see, not blank. The
+    first two are read from `prompt.submit`'s `command` and `isMeta`, which Claude Code 2.1.306 sends
+    and 2.1.287 and 2.1.308 do not; where they are missing, neither skip applies (whether those releases
+    raise `prompt.submit` for a slash command at all is not checked);
   - the setup is single agent, unlocked, and names a playbook the catalogue lists for its area;
   - the playbook is **not the area's default** (yvoke-web and yvoke-desktop 1.3.0);
   - the area offers at least one non-default playbook besides the chosen one. Default playbooks are

@@ -115,7 +115,8 @@ several tasks (P1-09, P3-01, P6-03, P2-05, P2-06). Those merge without real conf
 rebases. `docs/tasks/v1/plan.md` gets one tick per task, same.
 
 **Hook order.** Hooks on one event run in `register.tsx` order, the first outermost. P1-07's
-`prompt.submit` load is the lock: once it has run, later questions of that session never reload. So any
+`prompt.submit` load is the lock: once it has run, later questions of that session never reload (since
+P2-06's review: they reload when the setup changed, which only a dropped question leaves open). So any
 hook that must act on the first question before the setup locks, P2-06's preflight above all, registers
 **before** `registerSystemPrompt(on)`. Registered after it, the preflight would see the old playbook
 already loaded, and a **Switch to …** would change nothing. P1-07's `prompt.submit` and

@@ -123,8 +123,10 @@ reach `$.ui.log`.
 | `plugins/yvoke/tests/preflight-rules.test.ts` | new: the rules, port of desktop's `playbookValidation.test.ts` (prompt and parse cases; the SDK and exclusion-list cases do not apply) |
 | `plugins/yvoke/tests/preflight.test.ts` | new: the hook through the engine with the whole mod loaded |
 | `plugins/yvoke/tests/setup-rules.test.ts` | the catalogue's expected playbooks gain `title` and `description` |
+| `plugins/yvoke/src/system-prompt.ts`, `plugins/yvoke/types/index.d.ts` | review of #30: `yvoke.instructions` records the setup it was loaded for (`loadedFor`) and loads again for another setup (see *Found while building*) |
+| `plugins/yvoke/tests/system-prompt.test.ts` | review of #30: the fail-closed throw test makes the third session-id call throw, so it lands in P1-07's hook again |
 | `docs/specs/preflight.md`, `docs/specs/README.md` | new spec and its index line |
-| `docs/specs/setup.md`, `docs/specs/system-prompt.md` | the hook order: preflight first |
+| `docs/specs/setup.md`, `docs/specs/system-prompt.md` | the hook order: preflight first; system-prompt.md also the per-setup load and which drop message a throw shows |
 | `docs/tasks/v1/design.md` | D-27 (recorded with the plan); 1.2 and 1.3 (dialog, hook order); 4.4 the hook order note; 4.3 row for `$.ui.ask` |
 | `docs/tasks/v1/requirements.md` | 2.1 line: the suggestion comes in a dialog (D-27) |
 | `docs/tasks/v1/plan.md` | the P2-06 entry (order, dialog), tick with the PR link |
