@@ -5,12 +5,14 @@
 // `buildCanUseTool` (src/main/agent/policy.ts). Later tasks open their own class here: the web tools
 // (P2-04), `execute_code` and the mod's own `Bash` call behind it (P2-05), delegation while a profile is
 // active (P6-04). Until then each stays denied. P2-02: of the server's tools, only those the session's
-// playbook declares, or the default set, by exact name.
+// playbook declares, or the default set, by exact name. P1-09: the server's `ask_clarifying_question` is
+// answered here, by asking the user (src/clarify.ts).
 import type { On } from 'claude-code'
 import { SERVER } from './server'
 import type { CatalogueState, Setup } from './setup'
 import { allowedServerTools, serverToolPrefix } from './tool-names'
 import { CHECK_FAILED, WRAP_UP, isWrapUp } from './turn-limits'
+import { ANSWER_PREFIX, CANNOT_ASK, CLARIFY_TOOL, HEADER, NO_QUESTION, clarifyingQuestion } from './clarify'
 
 export const denied = (tool: string) =>
   `The tool "${tool}" is not available in this application. Use the yvoke knowledge-base tools instead.`
@@ -72,6 +74,18 @@ export function registerPolicy(on: On) {
         const declared = declaredTools(setup, catalogue)
         if (declared === undefined) return { deny: PLAYBOOK_UNKNOWN }
         serverTools = allowedServerTools(declared, prefix)
+        // P1-09, D-28: the server's question tool, once granted, asks the user in the native dialog
+        // instead of running (it would report success without asking anyone).
+        if (e.tool === prefix + CLARIFY_TOOL && serverTools.includes(e.tool)) {
+          const asked = clarifyingQuestion(e as { question?: unknown; options?: unknown })
+          if (asked === null) return { deny: NO_QUESTION }
+          try {
+            const answer = await $.ui.ask(asked.question, { options: asked.options, header: HEADER })
+            return { result: ANSWER_PREFIX + answer }
+          } catch {
+            return { deny: CANNOT_ASK }
+          }
+        }
       }
     }
     return isAllowed(e.tool, serverTools) ? next(e) : { deny: denied(e.tool) }

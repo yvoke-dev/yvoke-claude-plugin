@@ -1,6 +1,6 @@
 # P1-09 Clarifying questions
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** done
 
 The Yvoke server's `ask_clarifying_question` tool answers *"Clarifying question asked successfully"*
 without asking anyone (design 5.5). yvoke-desktop treats it as an alias of the native question tool: it
@@ -32,6 +32,15 @@ On **Claude Code 2.1.308** (the generated declarations):
 - The plugin may have only one unmatched `tool.call` hook (`src/policy.ts` says so), so the alias is a
   step in that hook, not a hook of its own.
 - yvoke-web's tool takes `question` (required) and `options` (an optional list of strings).
+
+## Found while building
+
+- `$.ui.ask` reaches the engine as a `tool.call` of `AskUserQuestion` with
+  `questions: [{ question, header, options: [{ label, description }], multiSelect }]`, and reads the
+  answer from the result's `answers[question]`. Any refusal from beneath (`{ deny }`) makes it reject,
+  which the gate turns into the *cannot be asked* line. Without a `header` the chip reads *Plugin*, so the
+  gate passes *Yvoke*.
+- A missing question and a dismissed dialog reach the model as an error (`{ deny }`), as in yvoke-desktop.
 
 ## Design
 

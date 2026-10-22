@@ -112,7 +112,7 @@ describe('in a Yvoke session', () => {
     await yvokeSession($)
 
     await call($, ASKED, { question: 'Which one?', options: ['a', 'b', 'c', 'd', 'e', 'f'] })
-    expect(w.dialogs[0].options).toEqual(['a', 'b', 'c', 'd'])
+    expect(w.dialogs).toEqual([expect.objectContaining({ options: ['a', 'b', 'c', 'd'] })])
   })
 
   test('blank and non-text options are dropped, and labels are trimmed', async ($, on) => {
@@ -120,7 +120,7 @@ describe('in a Yvoke session', () => {
     await yvokeSession($)
 
     await call($, ASKED, { question: 'Which one?', options: [' a ', '', '   ', 3, null, 'b'] })
-    expect(w.dialogs[0].options).toEqual(['a', 'b'])
+    expect(w.dialogs).toEqual([expect.objectContaining({ options: ['a', 'b'] })])
   })
 
   test('no options: the dialog still opens, and the user can type an answer', async ($, on) => {
@@ -129,8 +129,7 @@ describe('in a Yvoke session', () => {
     w.answer = 'version 10'
 
     expect(await call($, ASKED, { question: 'Which version?' })).toEqual({ result: 'User answered: version 10' })
-    expect(w.dialogs).toHaveLength(1)
-    expect(w.dialogs[0].question).toBe('Which version?')
+    expect(w.dialogs).toEqual([expect.objectContaining({ question: 'Which version?' })])
   })
 
   for (const question of [undefined, '', '   ', 42]) {

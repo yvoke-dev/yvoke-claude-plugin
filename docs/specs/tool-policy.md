@@ -33,6 +33,15 @@
     playbook is not in them, or the playbook's `tools` are not a list of names, the call is refused with *Yvoke: the session's playbook could not
     be read, so this tool was not run.* It does not fall back to the default set, which could grant more
     than the playbook declares.
+- **The server's `ask_clarifying_question`** (P1-09, D-28) asks the user instead of running, when the
+  playbook grants it (the default set does). The question opens in Claude Code's own question dialog, the
+  one `AskUserQuestion` opens, with the chip *Yvoke* and the call's `options` as answers: blank or non-text
+  options dropped, the rest trimmed, the first four shown. With fewer than two the dialog adds its own
+  (Yes/No); an answer can always be typed under "Other". The model reads *User answered: &lt;answer&gt;*, and
+  the server is never called. With no question the model reads *ask_clarifying_question needs a question.
+  Call it again with the question to ask the user.* If the user dismisses the dialog, or it cannot open (a
+  `-p` run), the model reads *Clarifying questions cannot be asked in this execution context.* The same holds
+  under a connector's name and inside subagents. A tool of that name on another server is refused as above.
 - The same rule applies inside subagents.
 - When the Yvoke server is not connected, no tool counts as its, so its tools are refused too.
 - Built-in tools are decided without asking for the server's connection or reading the setup.
@@ -58,6 +67,7 @@
 | The plugin's only `tool.call` hook: its checks run in order, the turn limit (P2-08) first, then this policy | same file |
 | `serverToolPrefix(server)`: a server name → its tools' prefix, by the engine's rule | `plugins/yvoke/src/tool-names.ts` |
 | `qualifyTool(tool, serverPrefix)`: a playbook's tool name → the name the model calls (P2-03); `builtinTool(tool)` | `plugins/yvoke/src/tool-names.ts` |
+| `clarifyingQuestion(e)`, `ANSWER_PREFIX`, `CANNOT_ASK`, `NO_QUESTION`, `HEADER` (P1-09); the gate asks with `$.ui.ask` | `plugins/yvoke/src/clarify.ts`, `src/policy.ts` |
 | `allowedServerTools(declared, serverPrefix)`, `DEFAULT_KB_TOOLS`, `isWebTool`, `isComputeTool` (P2-02) | `plugins/yvoke/src/tool-names.ts` |
 | Engine calls | `$.state.get` (the Yvoke flag; `setup` and `catalogue` for Yvoke server tools only), `$.mcp.connect('yvoke')` (MCP tools only) |
 
@@ -75,6 +85,10 @@ tools granted.
   (an empty list and no field), declared web and compute tools, a look-alike server, and the playbook not
   readable (lists not loaded, with and without a saved setup; no setup; area or playbook missing;
   unreadable `tools`); multi-agent with no playbook.
+- `plugins/yvoke/tests/clarify.test.ts` (P1-09): the dialog's question, options and chip and the answer
+  reaching the model with the server never called; a typed answer; a connector name; a subagent; more than
+  four, blank and no options; a missing question; a dismissed dialog; a playbook that does not grant the
+  tool; `AskUserQuestion` itself; a look-alike on another server; outside a Yvoke session.
 - `plugins/yvoke/tests/tool-names.test.ts`: the naming rule; `builtinTool`; `qualifyTool` for the plugin
   and a connector prefix (bare names, the current prefix, `mcp__yvoke__` and older aliases, one prefix
   only, spaces before a prefix, built-ins and names that only look like one); `isWebTool`,
@@ -89,3 +103,5 @@ tools granted.
   playbook's tool list (P2-02).
 - P2-02 ([#28](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/28)): the playbook's own tools, by
   exact name, or the default set.
+- P1-09 ([#15](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/15)): the server's
+  `ask_clarifying_question` asks the user in the native dialog (D-28).

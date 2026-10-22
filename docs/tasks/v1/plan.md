@@ -349,7 +349,7 @@ a cloud session.
     (moved 2026-10-20): the typed
     text stays in the prompt box after `{ drop }` (else restore it with `$.prompt.fill`); `$.session.id`
     is the same after `/resume`; and the setup survives `/branch`.
-- [ ] **P1-09** `plugin` · S — **Clarifying questions** (D-28). In a Yvoke session the server's
+- [x] **P1-09** `plugin` · S — **Clarifying questions** (D-28) ([#15](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/15)). In a Yvoke session the server's
   `ask_clarifying_question` is an alias of Claude Code's native question dialog, as in yvoke-desktop: the
   mod asks the user with `$.ui.ask` and gives the model *User answered: …*. Plan: [P1-09/plan.md](P1-09/plan.md).
   - Done when: a test shows the server tool's question and options in the dialog and the answer reaching
