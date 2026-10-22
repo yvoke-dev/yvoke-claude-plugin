@@ -84,9 +84,9 @@ The reply is read by the desktop's `parseValidation`, ported: JSON dug out of fe
 `plausible: false` with a suggestion that names a candidate (by name or title, any case) and is not the
 selected playbook counts as a fit.
 
-### What the user sees on a better match (D-27, to be decided)
+### What the user sees on a better match (D-27)
 
-**Proposed:** the engine's question dialog, `$.ui.ask`, with the header *Playbook* and:
+**Decided 2026-10-22 (Eduard):** the engine's question dialog, `$.ui.ask`, with the header *Playbook* and:
 
 > *&lt;reason&gt;* Switch to **&lt;title&gt;** (&lt;name&gt;) for this session?
 > — **Switch to &lt;name&gt;** · **Send anyway**
@@ -100,8 +100,7 @@ The plan entry says *show a band*. A band cannot do this inside the hook: a `pro
 a `$` call, but a band button is pressed in a later `ui.render` handler, so the hook would have to drop the
 question, keep its text, and resubmit it with `$.prompt.submit` after the press, which brings back
 dropped-then-resent questions, a pending state in the band, and a question the user no longer sees in the
-prompt. The dialog keeps the question in flight and needs no state beyond the hook. This is decision D-27,
-raised separately; the answer goes into `design.md` in this PR.
+prompt. The dialog keeps the question in flight and needs no state beyond the hook. D-27 in `design.md`.
 
 ### Fails open
 
@@ -127,8 +126,8 @@ reach `$.ui.log`.
 | `plugins/yvoke/tests/setup-rules.test.ts` | the catalogue's expected playbooks gain `title` and `description` |
 | `docs/specs/preflight.md`, `docs/specs/README.md` | new spec and its index line |
 | `docs/specs/setup.md`, `docs/specs/system-prompt.md` | the hook order: preflight first |
-| `docs/tasks/v1/design.md` | D-27; 1.2 and 1.3 (dialog, hook order); 4.4 the hook order note; 4.3 row for `$.ui.ask` |
-| `docs/tasks/v1/requirements.md` | 2.1 line: dialog instead of band, if D-27 goes that way |
+| `docs/tasks/v1/design.md` | D-27 (recorded with the plan); 1.2 and 1.3 (dialog, hook order); 4.4 the hook order note; 4.3 row for `$.ui.ask` |
+| `docs/tasks/v1/requirements.md` | 2.1 line: the suggestion comes in a dialog (D-27) |
 | `docs/tasks/v1/plan.md` | the P2-06 entry (order, dialog), tick with the PR link |
 
 ## Order of work
@@ -178,7 +177,7 @@ Each step: the test first, seen failing, then the code, then `npm run check`.
   and credentials, as every turn does; nothing is logged.
 - **Rejected:** registering just before `registerSystemPrompt` (the plan entry's wording; see *Where the hook
   sits*); putting the check inside P1-08's hook (keeps one writer of `setup`, but mixes a second feature into
-  a 450-line module that other threads also touch); a band with drop-and-resend (see D-27); the desktop's
+  a 450-line module that other threads also touch); a band with drop-and-resend (D-27); the desktop's
   exclusion-list setting and on/off switch (the area's default replaces the list; no setting was asked for);
   `$.model.fork` (it sends the whole transcript, and there is none before the first question).
 

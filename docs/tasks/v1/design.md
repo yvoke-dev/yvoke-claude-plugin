@@ -361,6 +361,13 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     ships no skills. P0-08, P1-04, P1-05 and P8-01 move to the end of [plan.md](plan.md), to check after
     v1, with P8-02 to P8-04. The generator built for P1-04 stays in #24's history should they return.
   - Supersedes: D-10; D-04 now applies only after v1.
+- [x] **D-27** `PO` · `plugin` — **How does the preflight check offer its suggestion?** The plan entry
+  said a band with **Switch to …** / **Send anyway**. The `prompt.submit` hook holding the question can wait on
+  `$.ui.ask` (Claude Code's own question dialog) but not on a band button, which is pressed in a later
+  `ui.render` handler; a band would mean dropping the question and resending it after the press.
+  - **Decided 2026-10-22 (Eduard): the dialog.** The question waits in it; **Switch to …** or **Send anyway**
+    sends it at once, and dismissing it counts as **Send anyway** (the check fails open).
+  - Delivered by: P2-06.
 
 ## 4. Notes for implementers
 
