@@ -64,7 +64,7 @@ first two are granted already; `execute_code` stays denied until P2-05 opens it 
 | File | Change |
 | --- | --- |
 | `plugins/yvoke/src/setup.ts` | `RawPlaybook` and `PlaybookEntry` gain `tools: string[] \| null \| 'unreadable'`; `toCatalogue` keeps a non-empty list of names, gives `null` for a missing field or an empty list, and `'unreadable'` for anything else (changed in review). Nothing else in the band changes. |
-| `plugins/yvoke/types/index.d.ts` | The catalogue's playbook entry gains `tools: string[] \| null`. |
+| `plugins/yvoke/types/index.d.ts` | The catalogue's playbook entry gains `tools: string[] \| null \| 'unreadable'`. |
 | `plugins/yvoke/src/tool-names.ts` | `DEFAULT_KB_TOOLS`, `isComputeTool(tool)` (the desktop's, with its retired names), `isWebTool(tool)` (from `builtinTool`), and `allowedServerTools(declared, serverPrefix)`: the set above, which leaves out every built-in (the gate grants `ToolSearch` and `AskUserQuestion` itself) and every compute tool. Pure, no `$`. `isWebTool` has no caller here yet; P2-04 uses it. |
 | `plugins/yvoke/src/policy.ts` | Inside the one gate (mod rule 15, no new hook): for a tool under the Yvoke server's prefix, read `setup` and `catalogue` from `$.state`, find the playbook (`declaredTools`), and check the exact name against `allowedServerTools`. `isAllowed` takes the set instead of the prefix. `PLAYBOOK_UNKNOWN` message. P2-01's `MOD_TOOLS` list is deleted: compute tools are never in the set, so the exact match already refuses `mcp__yvoke__execute_code` under a bare-named server (found while building; P2-01's test for it still passes). |
 | `plugins/yvoke/tests/tool-names.test.ts` | `isComputeTool`, `isWebTool`, `allowedServerTools` for both prefixes. |
@@ -78,8 +78,8 @@ first two are granted already; `execute_code` stays denied until P2-05 opens it 
 
 Each step: write the test, run `claude plugin test plugins/yvoke` and see it fail, then the code.
 
-1. `toCatalogue`: a playbook with `tools: ["search_corpus", 3]` keeps `["search_corpus"]`; one with no
-   `tools`, or `tools: "search_corpus"`, gets `null`.
+1. `toCatalogue`: a list of names is kept; no `tools` field or an empty list gets `null`;
+   `tools: "search_corpus"`, `null` or `["search_corpus", 3]` gets `'unreadable'` (changed in review).
 2. `isComputeTool` and `isWebTool`: the desktop's cases, in any case, bare and behind a prefix;
    `search_corpus` and `web_search_corpus` are neither.
 3. `allowedServerTools`, for `mcp__plugin_yvoke_yvoke__` and `mcp__claude_ai_yvoke__`: a declared list

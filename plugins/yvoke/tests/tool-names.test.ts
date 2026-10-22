@@ -174,6 +174,10 @@ for (const prefix of ['mcp__plugin_yvoke_yvoke__', 'mcp__claude_ai_yvoke__']) {
       expect(allowedServerTools(['ToolSearch', 'AskUserQuestion', 'search_corpus'], prefix)).toEqual([`${prefix}search_corpus`])
     })
 
+    test('a declaration of only web and compute tools grants no server tool', () => {
+      expect(allowedServerTools(['WebSearch', 'execute_code'], prefix)).toEqual([])
+    })
+
     test('an empty declaration grants no server tool', () => {
       expect(allowedServerTools([], prefix)).toEqual([])
     })

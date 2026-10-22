@@ -266,6 +266,16 @@ describe("in a Yvoke session: the playbook's tools (P2-02)", () => {
     expect(w.reached).toEqual([])
   })
 
+  test('a declaration of only web and compute tools grants no server tool, not the default set', async ($, on) => {
+    const w = engine(on)
+    w.playbooks = playbooks(['WebSearch', 'execute_code'])
+    await yvokeSession($)
+
+    expect(await call($, `${P}search_corpus`)).toEqual({ deny: denied(`${P}search_corpus`) })
+    expect(await call($, 'ToolSearch')).toEqual({ result: 'ran ToolSearch' })
+    expect(w.reached).toEqual(['ToolSearch'])
+  })
+
   test('a declared name on a server that only looks like Yvoke is refused', async ($, on) => {
     const w = engine(on)
     w.playbooks = playbooks(['search_corpus'])
