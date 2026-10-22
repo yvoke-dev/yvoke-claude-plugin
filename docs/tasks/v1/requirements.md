@@ -57,7 +57,7 @@ same pull request.
   mod's own tool, so the model never gets `Bash` (D-19). Also refused on every call while the playbook
   declares `codeExecution: false`. (P0-12, P2-05)
 - The server's `ask_clarifying_question` asks the user in Claude Code's native question dialog, the one
-  `AskUserQuestion` opens, and the model gets the answer. (P1-09, D-27)
+  `AskUserQuestion` opens, and the model gets the answer. (P1-09, D-28)
 - Turn ceilings per question (single agent 25, lead 60, specialist and reviewer 20, configurable). At the
   ceiling the answer is still delivered and marked *stopped at the turn limit*. (P2-08)
 

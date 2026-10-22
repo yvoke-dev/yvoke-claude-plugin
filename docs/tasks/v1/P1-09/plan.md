@@ -8,7 +8,7 @@ catches the call, shows the question, and hands the model *"User answered: …"*
 `isClarificationTool` in its `src/main/agent/policy.ts` and `src/shared/types.ts`). The plugin does the
 same in Claude Code: in a Yvoke session the server tool puts its question to the user in Claude Code's own
 question dialog, and the model gets the answer. Task entry:
-[plan.md, P1-09](../plan.md#phase-1--knowledge-base-base-instructions-and-playbooks-mvp). Decision: D-27
+[plan.md, P1-09](../plan.md#phase-1--knowledge-base-base-instructions-and-playbooks-mvp). Decision: D-28
 (Eduard, 2026-10-22: an alias, not a deny). No yvoke-web change (design 5.5: leave the server tool as it is).
 
 ## What the user sees
@@ -65,7 +65,7 @@ On **Claude Code 2.1.308** (the generated declarations):
 | `plugins/yvoke/tests/clarify.test.ts` | New. The cases under *Proof*. |
 | `docs/specs/tool-policy.md` | `ask_clarifying_question` asks the user; tests line. |
 | `docs/tasks/v1/requirements.md` | The P1-09 line: the server's tool asks with the native dialog, instead of "is denied" (with this plan). |
-| `docs/tasks/v1/design.md` | D-27; section 5.5's line on the tool (with this plan). |
+| `docs/tasks/v1/design.md` | D-28; section 5.5's line on the tool (with this plan). |
 | `docs/tasks/v1/plan.md` | P1-09's entry and its **Done when** (with this plan); the tick with the PR link at the end. |
 
 **Shared with other threads:** `src/policy.ts` and `docs/specs/tool-policy.md` are the policy gate's
