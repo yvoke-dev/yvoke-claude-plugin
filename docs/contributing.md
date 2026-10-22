@@ -1,7 +1,7 @@
 # Working on the plugin
 
 This page gets you from a clean machine to a mod that reloads every time you save a file, in the terminal
-and in the Claude Desktop app's **Code** tab. Checked with Claude Code 2.1.293 on 2026-10-07.
+and in the Claude Desktop app's **Code** tab. Checked with Claude Code 2.1.293 on 2026-10-07 and 2.1.308 on 2026-10-22.
 
 How a change is made (task plan, tests first, pull request) is in [sdlc.md](sdlc.md). The rules every
 change follows, and the five checks it must pass, are in [AGENTS.md](../AGENTS.md).
@@ -30,7 +30,7 @@ Check that it loaded: type `/yvoke`. It should answer *Yvoke session started…*
 **Hot reload.** Leave the session open and save any file under `plugins/yvoke/`. The transcript shows:
 
 ```text
-● yvoke: reloaded (3 hooks: session.start, command.run, classic.SessionStart)
+● yvoke: reloaded (10 hooks: command.run, classic.SessionStart, prompt.submit, …)
 ```
 
 The module's `register` ran again with your change. `$.state` and `$.store` are kept; module variables
@@ -136,6 +136,13 @@ message while you work, write it with `$.ui.log` and take the line out before yo
   nothing in VS Code, with `-p`, or in cloud sessions.
 - **The change does not appear.** Check the log for `reload failed` or `watching nothing`. In the
   Desktop app, `CLAUDE_CODE_PLUGIN_DIR_WATCH` must be `1`.
+- **Your organization manages Claude Code** (a Team or Enterprise plan with managed settings). A mod
+  loaded from your clone counts as one you installed yourself, and Claude Code then skips some of its
+  hooks: every `classic.*` event (so `/resume` and `/branch` do not restore a Yvoke session),
+  `prompt.compose` (so the server's instructions are never added) and a few others. The grey "hook was
+  skipped" line and the debug log's `hooks-passed-over` say so. Reloading, `/yvoke` and the tests still
+  work. To try those hooks, use a machine or account outside the organization (D-25 in
+  [design.md](tasks/v1/design.md)).
 - **The module loads but a feature is missing.** The engine refuses some code shapes that TypeScript
   accepts: `$` passed into another file, a hook built by a wrapper, a `$.state` key imported from another
   file. See [design.md 4.4](tasks/v1/design.md#44-rules-that-are-easy-to-get-wrong).
