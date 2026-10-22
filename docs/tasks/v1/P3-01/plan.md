@@ -1,6 +1,6 @@
 # P3-01 Citation marker parser
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** done
 
 **Done when** (from [plan.md](../plan.md)): the parser is ported from yvoke-desktop's `citationRehype.ts`
 and its tests, and tests cover:
@@ -42,8 +42,9 @@ the answer is parsed"):
    citation of kind `id`, labelled with its first 8 characters: `[274b9610]`. The same id twice gives two
    citations; nothing is merged.
 2. **Legacy prefixed forms.** `[chunk_id=…]`, `[document_id=…]` and `[file=…]` (value `[a-zA-Z0-9_.-]+`)
-   become kinds `chunk`, `document` and `file`, labelled with the whole marker. The prefix is matched
-   without regard to case, as in the desktop.
+   become kinds `chunk`, `document` and `file`, labelled with the whole marker. The prefix is matched in
+   lower case only, as in the desktop's bracket pattern (its item check ignored case, but a bracket never
+   reached it otherwise).
 3. **Groups.** `[a, b]` and `[a,b]` with any mix of the two forms above give one citation per item.
    Adjacent brackets `[a][b]` give two.
 4. **Numbers stay text.** `[1]` and `[1, 2]` are left as text. The desktop drew them as plain superscripts;
@@ -52,9 +53,9 @@ the answer is parsed"):
 5. **Not a marker:** a truncated id (`[decade00]`, 8 hex digits are also ordinary prose), any bracket whose
    items are not all citations, and an empty bracket.
 6. **Code and links are left alone.** Nothing inside a fenced block (```` ``` ```` or `~~~`, of any
-   length, closed by a fence at least as long; an unclosed fence runs to the end), inside an inline code
-   span (a backtick run closed by a run of the same length), or inside a real link `[text](url)` (the
-   label and the url) is rewritten.
+   length, at any indentation, closed by a fence at least as long; an unclosed fence runs to the end),
+   inside an inline code span (a backtick run closed by a run of the same length; an escaped backtick
+   opens nothing), or inside a real link or image `[text](url)` (the label and the url) is rewritten.
 
 ### What is copied from yvoke-desktop
 
@@ -109,6 +110,10 @@ Each step starts with a test that is seen failing, then the code that makes it p
 7. **Links.** `[2](https://ex.com)` intact; an id used as a link label or inside a url is left alone; an
    id right after a link is found.
 8. **Round trip.** For every case above, joining `text` and `raw` gives back the input.
+
+Done as planned. Each rule was also checked by breaking it in `citations.ts` and watching a test fail
+(fences, closing-fence length, unclosed fence, code spans, run length, escaped backtick, links, nested
+parentheses, the 8-character label).
 
 ## Risks
 

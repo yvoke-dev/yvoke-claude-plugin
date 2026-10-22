@@ -488,11 +488,11 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
 
 **Milestone M2:** every citation in an answer opens the passage it names.
 
-- [ ] **P3-01** `plugin` · M — **Citation marker parser** (`src/citations.ts`). Port from yvoke-desktop's
-  `citationRehype.ts` and its tests:
+- [x] **P3-01** `plugin` · M — **Citation marker parser** (`src/citations.ts`). Port from yvoke-desktop's
+  `citationRehype.ts` and its tests ([#16](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/16)):
   - bare `[<uuid>]` → clickable, labelled with the first 8 characters;
   - legacy `[chunk_id=…]`, `[document_id=…]`, `[file=…]` → clickable, full label;
-  - `[1]`-style numbers → not clickable; a truncated id → not a marker;
+  - `[1]`-style numbers → stay text, not clickable; a truncated id → not a marker;
   - markers inside code blocks and inside real links `[2](https://…)` → left alone.
 - [ ] **P3-02** `plugin` · M — **Citations in replies.** A `ui.render` hook on `AssistantMessage` turns
   markers into links (or a row of source buttons under the reply, depending on P0-05), on both `terminal`
