@@ -349,10 +349,11 @@ a cloud session.
     (moved 2026-10-20): the typed
     text stays in the prompt box after `{ drop }` (else restore it with `$.prompt.fill`); `$.session.id`
     is the same after `/resume`; and the setup survives `/branch`.
-- [ ] **P1-09** `plugin` · S — **Clarifying questions.** Deny the server's `ask_clarifying_question` with a
-  message telling the model to use Claude Code's native `AskUserQuestion`. Yvoke Desktop intercepts that tool;
-  nothing else does.
-  - Done when: a test shows the deny and its message.
+- [ ] **P1-09** `plugin` · S — **Clarifying questions** (D-27). In a Yvoke session the server's
+  `ask_clarifying_question` is an alias of Claude Code's native question dialog, as in yvoke-desktop: the
+  mod asks the user with `$.ui.ask` and gives the model *User answered: …*. Plan: [P1-09/plan.md](P1-09/plan.md).
+  - Done when: a test shows the server tool's question and options in the dialog and the answer reaching
+    the model, with the server never called.
 - [x] **P1-10** `plugin` · S — **Yvoke session start** (D-13) ([#12](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/12)). The mod's hooks run in every session that loads
   the plugin, in any folder. A session becomes a Yvoke session only when the user types `/yvoke`.
   - In a Yvoke session: policy, playbook gate, compute tools, preflight and UI all apply.

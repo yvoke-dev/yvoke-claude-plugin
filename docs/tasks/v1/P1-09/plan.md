@@ -3,93 +3,107 @@
 **Release:** v1 · **Size:** S · **Type:** feature · **Status:** planned
 
 The Yvoke server's `ask_clarifying_question` tool answers *"Clarifying question asked successfully"*
-without asking anyone (design 5.5). yvoke-desktop intercepts it and shows the question; Claude Code does
-not. So in a Yvoke session the mod refuses the tool and tells the model to ask with Claude Code's own
-`AskUserQuestion`, which shows the user a question prompt and waits for the answer. Task entry:
-[plan.md, P1-09](../plan.md#phase-1--knowledge-base-base-instructions-and-playbooks-mvp). Requirement:
-[requirements.md](../requirements.md) ("The server's `ask_clarifying_question` is denied in favour of the
-native `AskUserQuestion`"). No yvoke-web change (design 5.5: leave the server tool as it is).
+without asking anyone (design 5.5). yvoke-desktop treats it as an alias of the native question tool: it
+catches the call, shows the question, and hands the model *"User answered: …"* (`buildCanUseTool` and
+`isClarificationTool` in its `src/main/agent/policy.ts` and `src/shared/types.ts`). The plugin does the
+same in Claude Code: in a Yvoke session the server tool puts its question to the user in Claude Code's own
+question dialog, and the model gets the answer. Task entry:
+[plan.md, P1-09](../plan.md#phase-1--knowledge-base-base-instructions-and-playbooks-mvp). Decision: D-27
+(Eduard, 2026-10-22: an alias, not a deny). No yvoke-web change (design 5.5: leave the server tool as it is).
 
 ## What the user sees
 
-In a Yvoke session, when the model tries the server's question tool, it gets this error instead of a fake
-success, and asks again through the native prompt:
-
-> *ask_clarifying_question is not available in Claude Code. To ask the user a clarifying question, use the
-> AskUserQuestion tool instead.*
-
-The user sees the refused call as one failed tool line, then Claude Code's question prompt. Outside a
+In a Yvoke session, when the model calls the server's `ask_clarifying_question`, Claude Code's question
+dialog opens with the model's question and its suggested answers, the same dialog `AskUserQuestion`
+opens, with "Other" for a typed answer. The user picks or types; the model reads
+*User answered: <answer>* and carries on. `AskUserQuestion` itself keeps working as before. Outside a
 Yvoke session nothing changes.
+
+## What was checked first
+
+On **Claude Code 2.1.308** (the generated declarations):
+
+- `$.ui.ask(question, { options })` opens the engine's own AskUserQuestion dialog and resolves to the
+  label chosen, or the text typed under "Other". It takes 2 to 4 option labels (fewer are padded with
+  Yes/No). It rejects when the user dismisses the dialog, and in a `-p` run. It runs as a `tool.call` of
+  `AskUserQuestion` through every hook but the calling one, so the policy gate does not stop it.
+- Waiting on a `$` call is free of the hook's 10 s budget (`HookBudget`), so the gate may wait for the
+  user as long as they take.
+- The plugin may have only one unmatched `tool.call` hook (`src/policy.ts` says so), so the alias is a
+  step in that hook, not a hook of its own.
+- yvoke-web's tool takes `question` (required) and `options` (an optional list of strings).
 
 ## Design
 
-- One `tool.call` hook in a new `src/clarify.ts`, registered from `register.tsx` with
-  `registerClarify(on)`.
-- It opens with the two-line Yvoke check (design 4.4). Outside a Yvoke session it calls `next(e)` and
-  nothing else.
-- **Which calls it refuses:** any MCP tool whose name ends in `__ask_clarifying_question`, so the
-  plugin's own `mcp__plugin_yvoke_yvoke__ask_clarifying_question` and the same tool reached through a
-  claude.ai connector (`mcp__<connector>__ask_clarifying_question`, names still to be confirmed by
-  P0-04). This is how yvoke-desktop's `isClarificationTool` matches it: by the bare name, whatever the
-  server prefix. My default; say if you want only the plugin's own server matched.
-- Main loop and subagents alike (`e.agentId` is not checked): no agent in a Yvoke session should get a
-  fake "asked".
-- **Fails closed:** `.catch(() => ({ deny: <the same message> }))`. If the check itself fails, refusing a
-  tool that never asks anyone loses nothing.
-- Every other tool goes to `next(e)` untouched. Allowing `AskUserQuestion` itself is P2-01's job (it is
-  on P2-01's allow list); nothing denies it today.
+- **Where:** in the policy gate (`src/policy.ts`), after the call has passed the checks. If the tool is
+  the Yvoke server's `ask_clarifying_question` (its full name under the prefix the gate already works
+  out, so the plugin's entry or the claude.ai connector's), the gate answers the call itself and does
+  not call `next(e)`:
+  - `question` and `options` are read from the call by a small pure function in a new
+    `src/clarify.ts` (no `$`), and passed to `$.ui.ask`.
+  - The answer goes back as the tool's result: `{ result: 'User answered: <answer>' }`, yvoke-desktop's
+    wording (`CLARIFICATION_ANSWER_PREFIX`).
+- **Granting stays the playbook's.** The gate decides first, as for every server tool: the default set
+  includes `ask_clarifying_question`; a playbook that declares tools gets it only if it declares it.
+  When it is refused, the model still has `AskUserQuestion`.
+- **Options.** More than 4: the first 4 are shown, and the others can still be typed under "Other".
+  Fewer than 2: `$.ui.ask` adds Yes/No; for an open question with no options the user types under
+  "Other". Empty or blank labels are dropped. A missing or blank `question` is answered with an error
+  result telling the model to ask with a question, without opening a dialog.
+- **Dismissed, interrupted or `-p`:** `$.ui.ask` rejects, and the model reads yvoke-desktop's
+  *Clarifying questions cannot be asked in this execution context.* The call is not refused as a policy
+  failure, because the check had passed.
+- **Subagents:** the same alias. If a specialist asks, the user sees the question.
+- No other tool changes, and `AskUserQuestion` stays allowed as P2-01 has it.
 
 ## Files that change
 
 | File | Change |
 | --- | --- |
-| `plugins/yvoke/src/clarify.ts` | New. `registerClarify(on)`: the `tool.call` hook above, and the message as an exported constant. |
-| `plugins/yvoke/hooks/register.tsx` | One line: `registerClarify(on)`. |
+| `plugins/yvoke/src/clarify.ts` | New. `clarifyingQuestion(e)`: the call's arguments → `{ question, options }` or a reason it cannot be asked; `ANSWER_PREFIX`, `CANNOT_ASK`. No `$`. |
+| `plugins/yvoke/src/policy.ts` | The alias step after the grant check, as above. |
 | `plugins/yvoke/tests/clarify.test.ts` | New. The cases under *Proof*. |
-| `docs/specs/clarifying-questions.md` | New spec: behaviour, interfaces, tests, history. Row in `docs/specs/README.md`. |
-| `docs/tasks/v1/plan.md` | Tick P1-09 with the PR link. |
+| `docs/specs/tool-policy.md` | `ask_clarifying_question` asks the user; tests line. |
+| `docs/tasks/v1/requirements.md` | The P1-09 line: the server's tool asks with the native dialog, instead of "is denied" (with this plan). |
+| `docs/tasks/v1/design.md` | D-27; section 5.5's line on the tool (with this plan). |
+| `docs/tasks/v1/plan.md` | P1-09's entry and its **Done when** (with this plan); the tick with the PR link at the end. |
 
-**Shared with other threads:** `register.tsx` and `docs/specs/README.md` each get one line, as every
-feature task does (P1-07, P3-01, P6-03 and P2-05 are running at the same time). A merge conflict there is
-one line to keep from each side. No other file is shared.
+**Shared with other threads:** `src/policy.ts` and `docs/specs/tool-policy.md` are the policy gate's
+(P2-01/P2-02, merged). Any thread changing them at the same time (P2-04 web tools, P2-05 compute,
+P6-04 delegation) adds its own class there, so a conflict is a few lines to keep from each side.
 
 ## Order of work
 
 Each step: write the test, run it and see it fail, then write the code.
 
-1. In a Yvoke session, `mcp__plugin_yvoke_yvoke__ask_clarifying_question` is denied with the message, and
-   the engine beneath never sees the call.
-2. The same through a connector name (`mcp__claude_ai_yvoke__ask_clarifying_question`), and from a
-   subagent (`agentId` set).
-3. Outside a Yvoke session the call reaches the engine unchanged.
-4. In a Yvoke session, other tools (`AskUserQuestion`, `mcp__plugin_yvoke_yvoke__search_corpus`, and a
-   look-alike such as `mcp__plugin_yvoke_yvoke__ask_clarifying_question_v2`) reach the engine unchanged.
-5. A failing `$.state` read denies with the same message (the `.catch`).
-6. Spec, plan tick, `npm run check`.
-
-A test's `$` has no `$.state`, so a Yvoke session is made the way the user makes one: `/yvoke` through
-`registerSession`, with a small stubbed engine like the one in `session.test.ts`.
+1. In a Yvoke session, the plugin's `ask_clarifying_question` with a question and three options opens
+   the dialog with that question and those options; the model gets `User answered: <label>`, and the
+   server is never called.
+2. An answer typed under "Other" comes back as typed.
+3. The same through the connector's name, and from a subagent.
+4. Options: more than 4 (first 4), none, blank labels dropped; a blank question gets the error result
+   and no dialog.
+5. Dismissed (the dialog rejects): the *cannot be asked* result.
+6. A playbook that does not declare the tool: refused as today, no dialog.
+7. Outside a Yvoke session the call reaches the engine unchanged; `AskUserQuestion` still passes.
+8. Docs and spec, plan tick, `npm run check`.
 
 ## Risks
 
-- **Ordering with P2-01 and P2-02.** yvoke-desktop puts `ask_clarifying_question` in `DEFAULT_KB_TOOLS`.
-  If P2-02 ports that list as is, its allow must not reach the tool before this deny. This hook answers
-  without calling `next`, so it wins as long as P2-01/P2-02 call `next(e)` for tools they allow, which is
-  the chain rule anyway. I will add a line to P2-02's entry: drop `ask_clarifying_question` from the
-  ported default set.
-- **A wasted turn.** The model still sees the server tool and may try it once per session before it
-  switches. Accepted: P2-01 and P2-02 decide which tools are listed. Hiding or rewording it with a
-  `tool.describe` hook was considered and left out, because the listing belongs to those tasks.
-- **Subagents and `AskUserQuestion`.** If Claude Code does not offer `AskUserQuestion` to subagents, a
-  specialist told to use it cannot. Then it answers without asking, which is still better than a fake
-  "asked". P6-04 decides who may ask the user in a multi-agent run.
-- **Considered and rejected:** answering the tool call with a result instead of a deny (for example by
-  calling `AskUserQuestion` from the mod). The mod API has no way to put a question to the user from a
-  `tool.call` hook, and a deny with a pointer is what the task asks for.
+- **Yes/No padding.** With fewer than two suggested answers the dialog offers Yes/No, which can read
+  oddly for an open question ("Which version?"). The user can still type under "Other". If it bothers
+  in use, the mod can instead ask the model to re-ask with `AskUserQuestion` for such questions.
+- **What the dialog returns in a test.** `$.ui.ask` dispatches a `tool.call` of `AskUserQuestion`
+  beneath the plugin; the test answers it. The exact result shape the engine reads the answer from is
+  checked in step 1 and noted in the spec.
+- **Considered and rejected:** refusing the tool with a pointer to `AskUserQuestion` (the first version
+  of this plan): it costs the model a failed call and a retry every time, and yvoke-desktop's alias is
+  the behaviour users already know. Removing the tool from the playbook's grant: playbooks name it and
+  the server's prompts tell the model to call it, so it must work.
 
 ## Proof
 
-- `plugins/yvoke/tests/clarify.test.ts`: the cases in *Order of work* 1 to 5. Case 1 is P1-09's **Done
-  when** ("a test shows the deny and its message").
+- `plugins/yvoke/tests/clarify.test.ts`: the cases in *Order of work* 1 to 7. Step 1 is P1-09's **Done
+  when**.
 - `npm run check`: docs, both `validate --strict` runs (the `calls:` line names no `$.fs`, `$.process` or
   `$.http`), typecheck, tests.

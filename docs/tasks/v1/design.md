@@ -369,6 +369,13 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     ships no skills. P0-08, P1-04, P1-05 and P8-01 move to the end of [plan.md](plan.md), to check after
     v1, with P8-02 to P8-04. The generator built for P1-04 stays in #24's history should they return.
   - Supersedes: D-10; D-04 now applies only after v1.
+- [x] **D-27** `PO` · `plugin` — **What happens to the server's `ask_clarifying_question` in Claude Code?** It
+  reports success without asking anyone (5.5). The plan was to refuse it and point the model to the native
+  `AskUserQuestion`.
+  - **Decided 2026-10-22 (Eduard): an alias, as yvoke-desktop has it.** In a Yvoke session the mod puts the
+    tool's question and options to the user in the native question dialog (`$.ui.ask`) and hands the model
+    *User answered: …*. Both tools work; the playbook's grant still decides whether the server tool may run.
+  - Delivered by: P1-09.
 
 ## 4. Notes for implementers
 
@@ -656,7 +663,7 @@ in Chat and Cowork when a playbook stub tells it to; D-26).
   visible to every plugin user. Refresh the prompt and tool listing when a playbook changes.
 - **The client's version.** The MCP `clientInfo` a server sees is Claude Code's, not the plugin's. Feedback
   and sync payloads therefore carry the plugin version themselves.
-- **`ask_clarifying_question` reports success without asking anyone** (spec ch. 7). The plugin denies it in
-  Claude Code (P1-09); leave it as is unless Chat and Cowork return after v1 (D-26).
+- **`ask_clarifying_question` reports success without asking anyone** (spec ch. 7). In Claude Code the mod
+  answers it by asking the user (P1-09, D-27); leave it as is unless Chat and Cowork return after v1 (D-26).
 - **Conversations from the plugin** (only if D-07): mark them as coming from the Claude plugin, as desktop
   conversations are marked *Desktop*, so the web sidebar and the admin register can tell them apart.
