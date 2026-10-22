@@ -19,6 +19,18 @@ export const FAILED = 'Yvoke: /yvoke did not work. Try it again.'
 /** The `$.store` key holding one session's Yvoke entry. */
 export const sessionKey = (sessionId: string) => `session:${sessionId}`
 
+/**
+ * The `$.store` key naming the session that ended last, `{ sessionId }`. Claude Code starts a /branch with
+ * empty `$.state` and names no parent, but ends the parent just before, so the fork reads its parent here.
+ */
+export const ENDED = 'ended'
+
+/** The id saved under ENDED, or undefined. */
+export const endedId = (entry: unknown) =>
+  typeof entry === 'object' && entry !== null && typeof (entry as { sessionId?: unknown }).sessionId === 'string'
+    ? (entry as { sessionId: string }).sessionId
+    : undefined
+
 /** Whether a stored entry marks a Yvoke session. */
 export const isSavedYvoke = (entry: unknown) =>
   typeof entry === 'object' && entry !== null && (entry as { yvoke?: unknown }).yvoke === true
@@ -54,9 +66,20 @@ export function registerSession(on: On) {
       await $.state.set(FLAG, false)
       if (isSavedYvoke(await $.store.get(sessionKey(e.session_id)))) await $.state.set(FLAG, true)
     } else if (e.source === 'fork') {
-      const { value: isYvoke } = await $.state.get(FLAG)
+      let { value: isYvoke } = await $.state.get(FLAG)
+      if (isYvoke !== true) {
+        const parent = endedId(await $.store.get(ENDED))
+        isYvoke = parent !== undefined && isSavedYvoke(await $.store.get(sessionKey(parent)))
+        if (isYvoke) await $.state.set(FLAG, true)
+      }
       if (isYvoke === true) await $.store.set(sessionKey(e.session_id), { yvoke: true })
     }
     return next(e)
   })
+
+  // Every session, plain ones too, so a /branch never takes an older Yvoke session for its parent.
+  on('session.end', async ($, e, next) => {
+    await $.store.set(ENDED, { sessionId: e.sessionId })
+    return next(e)
+  }).catch((_$, e, next) => next(e))
 }

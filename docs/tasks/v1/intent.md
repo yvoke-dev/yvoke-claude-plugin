@@ -1,15 +1,14 @@
 # Yvoke for Claude v1: intent
 
-**Author:** Eduard · **Status:** accepted (decisions D-01 to D-16 taken 2026-10-05 and 2026-10-06) · **Updated:** 2026-10-06
+**Author:** Eduard · **Status:** accepted (decisions D-01 through D-26, taken 2026-10-05 to 2026-10-21) · **Updated:** 2026-10-21 (D-26: v1 is Claude Code only)
 
 Why we are building the plugin, who it is for, and what they will do with it. What the plugin must do is in
 [requirements.md](requirements.md), how it is built is in [design.md](design.md), and the work and its
 progress are in [plan.md](plan.md).
 
 **What we are building:** one Claude plugin that brings Yvoke Desktop's capabilities into Claude. It
-works fully in **Claude Code** (the Desktop app's **Code** tab and the terminal) through a **mod**. In v1,
-**Chat** and **Cowork** get a reduced form through the same plugin's playbook skills and the Yvoke
-connector (D-10).
+works fully in **Claude Code** (the Desktop app's **Code** tab and the terminal) through a **mod**. v1 is
+Claude Code only (D-26, 2026-10-21); a reduced form for **Chat** and **Cowork** is listed to check after v1.
 
 **Reference implementation:** [`yvoke-dev/yvoke-desktop`](https://github.com/yvoke-dev/yvoke-desktop). Its
 `spec/` chapters say *what* each feature is for; its `tests/` say *exactly* how it behaves.
@@ -62,7 +61,7 @@ Each use case names the tasks in [plan.md](plan.md) that deliver it.
 | U7 | Consultant | **Answer a clarifying question** | When the question is ambiguous, Claude asks with its native question prompt, then continues. | P1-09, P6-08 |
 | U8 | Consultant | **Start over with another setup** | Area, mode and playbook are fixed once the first question is sent. `/clear` ends the Yvoke session, and `/yvoke` starts a new one with a fresh setup band; `/resume` brings back an old session with its setup. | P1-08 |
 | U9 | Developer on the same laptop | **Code as usual** | In any session where they did not type `/yvoke`, Claude Code behaves exactly as before. | P1-10 |
-| U10 | Chat or Cowork user | **Use a playbook outside Claude Code** | Invokes a Yvoke playbook skill. Claude fetches the playbook from the server and answers from the knowledge base, without the setup band, the tool rules or the source pane. | P1-01, P1-04, P1-06, P8-01 |
+| U10 | Chat or Cowork user (after v1, D-26) | **Use a playbook outside Claude Code** | Invokes a Yvoke playbook skill. Claude fetches the playbook from the server and answers from the knowledge base, without the setup band, the tool rules or the source pane. | P1-01, P1-04, P1-06, P8-01 |
 | U11 | Anyone | **Server unreachable** | The question fails with a `Yvoke Backend:` message. There is no stale cached answer. | P1-03, P1-07 |
 | U12 | Consultant | **Very long question** | A loop that hits the turn ceiling still delivers what it has, marked *stopped at the turn limit*. | P2-08 |
 
@@ -70,13 +69,13 @@ After v1: rate an answer with 👍/👎 (Phase 4) and find Claude conversations 
 
 ## 5. Scope and target surfaces
 
-One plugin, three surfaces. Each surface loads only the parts it supports.
+One plugin, three surfaces. v1 targets Claude Code only (D-26); Chat and Cowork are listed for after v1.
 
-| Surface | Loads from this plugin | v1 (D-10) | Later |
+| Surface | Loads from this plugin | v1 (D-26) | Later |
 | --- | --- | --- | --- |
-| **Claude Code**: Desktop **Code** tab, terminal, JetBrains | connector, mod (the playbook skills load but are not offered, D-11) | **Full parity**, the primary target | Rating and sync |
-| **Cowork** (Desktop) | playbook skills, connector (hooks and agents possible, no mod) | Playbook stubs over the organization connector | Tool scoping through hooks (P8-02), MCP App widgets (P8-03) |
-| **Chat** (Desktop, web, mobile) | playbook skills, connector (no agents, hooks or mod) | Playbook stubs over the organization connector | Widgets and citation links (P8-03, P8-04); anything enforced must live on the server |
+| **Claude Code**: Desktop **Code** tab, terminal, JetBrains | connector, mod | **Full parity**, the primary target | Rating and sync |
+| **Cowork** (Desktop) | connector (hooks and agents possible, no mod) | Not in v1 | Playbook stubs over the organization connector (P1-04, P8-01), tool scoping through hooks (P8-02), MCP App widgets (P8-03) |
+| **Chat** (Desktop, web, mobile) | connector (no agents, hooks or mod) | Not in v1 | Playbook stubs (P1-04, P8-01), widgets and citation links (P8-03, P8-04); anything enforced must live on the server |
 
 Not targeted: VS Code extension UI (mod hooks run there, but nothing it draws is shown), WSL sessions in the
 Desktop app (no plugins), cloud sessions (hooks run, nothing is drawn).
@@ -84,7 +83,8 @@ Desktop app (no plugins), cloud sessions (hooks run, nothing is drawn).
 ## 6. Not in v1
 
 - Conversation sync into the Yvoke account (D-07) and rating answers, which builds on sync (D-08).
-- Cowork hooks, MCP App widgets and citation URLs for Chat and Cowork (P8-02 to P8-04).
+- Chat and Cowork (D-26): playbook stubs, Cowork hooks, MCP App widgets and citation URLs (P0-08, P1-04,
+  P1-05, P8-01 to P8-04).
 - An IT lockdown of shell and file tools (D-09). Claude Code's own permission prompts still apply.
 
 ## 7. Constraints
@@ -101,18 +101,17 @@ Desktop app (no plugins), cloud sessions (hooks run, nothing is drawn).
 - The production API scope (the desktop's ends in `/desktop`) and the claude.ai connector callback URL for
   the new Entra client (P0-09).
 - Mod API behaviour the spikes settle: tool names per surface, drawing in the Desktop Code tab, `/branch`,
-  dynamic subagents (P0-04 to P0-08).
+  dynamic subagents (P0-04 to P0-07).
 
 ## 9. Not planned and known gaps
 
 Write things down here when they are decided against, so nobody "fixes" them by accident.
 
-- **Hiding playbook text from the user.** Skills are readable in Claude's skill viewer; playbooks are also
-  readable by any connected client of the server. Not a secret today either.
+- **Hiding playbook text from the user.** Playbooks are readable by any connected client of the server. Not a secret today either.
 - **Isolation from the user's own Claude setup.** In Claude, the user's other plugins, skills, memory and
   connectors can affect answers; Yvoke Desktop excluded them. Managed settings can narrow this, not remove it.
   The other direction is handled: outside a Yvoke session the mod changes nothing (P1-10), but the
-  playbook skills and the Yvoke connector are still offered in every session.
+  Yvoke connector is still offered in every session.
 - **Company cost reporting.** Model usage stays on each user's Claude subscription, as with Yvoke Desktop.
 - **Removing a rejected draft from the record.** Claude Code keeps every turn; the mod only collapses
   rejected drafts on screen (P6-07). The transcript, `/resume` and copy still contain them.
