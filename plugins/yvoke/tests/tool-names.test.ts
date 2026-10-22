@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'claude-code/testing'
-import { builtinTool, qualifyTool, serverToolPrefix } from '../src/tool-names'
+import { DEFAULT_KB_TOOLS, allowedServerTools, builtinTool, isComputeTool, isWebTool, qualifyTool, serverToolPrefix } from '../src/tool-names'
 
 // P2-01: the engine names a server's tools `mcp__<server>__<tool>`, with the server's name normalized.
 // The rule was read from Claude Code 2.1.304: every character outside [a-zA-Z0-9_-] becomes `_`; for a
@@ -96,6 +96,90 @@ for (const prefix of ['mcp__plugin_yvoke_yvoke__', 'mcp__claude_ai_yvoke__']) {
     test('trims before stripping a prefix, so a padded prefixed name is read like the plain one', () => {
       expect(qualifyTool(' mcp__oim__WebSearch', prefix)).toBe('WebSearch')
       expect(qualifyTool(' mcp__oim__search_corpus ', prefix)).toBe(`${prefix}search_corpus`)
+    })
+  })
+}
+
+// P2-02: the tools a playbook's declaration grants on the Yvoke server. Ported from yvoke-desktop's
+// `buildAllowedTools`, `isWebTool` and `isComputeTool` and their cases in tests/policy.test.ts. Web and
+// compute names are dropped here; P2-04 and P2-05 grant them under their own rules.
+
+describe('isWebTool', () => {
+  test('the two web built-ins, in any case, bare or behind a prefix', () => {
+    for (const tool of ['WebSearch', 'webfetch', 'mcp__oim__WebSearch', ' WebFetch ']) expect(isWebTool(tool)).toBe(true)
+  })
+
+  test('other built-ins and server tools are not web tools', () => {
+    for (const tool of ['ToolSearch', 'AskUserQuestion', 'search_corpus', 'web_search_corpus']) expect(isWebTool(tool)).toBe(false)
+  })
+})
+
+describe('isComputeTool', () => {
+  test('execute_code and the retired compute tools, in any case, bare or behind a prefix', () => {
+    for (const tool of [
+      'execute_code',
+      'Execute_Code',
+      'calculate',
+      'statistics',
+      'date_diff',
+      'mcp__yvoke__calculate',
+      'mcp__compute__execute_code',
+      'mcp__compute__anything',
+      ' execute_code ',
+    ]) {
+      expect(isComputeTool(tool)).toBe(true)
+    }
+  })
+
+  test('server tools and built-ins are not compute tools', () => {
+    for (const tool of ['search_corpus', 'execute_code_now', 'mcp__yvoke__search_corpus', 'WebSearch', '']) {
+      expect(isComputeTool(tool)).toBe(false)
+    }
+  })
+})
+
+test('the default set is the desktop’s, search_corpus included', () => {
+  // The desktop's copy once lost search_corpus, which refused plain chat its main tool.
+  expect(DEFAULT_KB_TOOLS).toEqual([
+    'query_json_objects',
+    'get_section',
+    'get_graph_neighbors',
+    'verify_citations',
+    'list_documents',
+    'get_toc',
+    'search_graph_entities',
+    'get_json_schema',
+    'search_corpus',
+    'ask_clarifying_question',
+  ])
+})
+
+for (const prefix of ['mcp__plugin_yvoke_yvoke__', 'mcp__claude_ai_yvoke__']) {
+  describe(`allowedServerTools with ${prefix}`, () => {
+    test('a declaration grants exactly its tools, each under this session’s prefix', () => {
+      expect(allowedServerTools(['search_corpus', 'mcp__yvoke__get_toc', 'mcp__oim__get_section'], prefix)).toEqual([
+        `${prefix}search_corpus`,
+        `${prefix}get_toc`,
+        `${prefix}get_section`,
+      ])
+    })
+
+    test('declared web and compute tools are dropped, never qualified as server tools', () => {
+      const declared = ['search_corpus', 'WebSearch', 'webfetch', 'execute_code', 'calculate', 'statistics', 'date_diff',
+        'mcp__yvoke__calculate', 'mcp__compute__execute_code']
+      expect(allowedServerTools(declared, prefix)).toEqual([`${prefix}search_corpus`])
+    })
+
+    test('the always-granted built-ins are not server tools either', () => {
+      expect(allowedServerTools(['ToolSearch', 'AskUserQuestion', 'search_corpus'], prefix)).toEqual([`${prefix}search_corpus`])
+    })
+
+    test('an empty declaration grants no server tool', () => {
+      expect(allowedServerTools([], prefix)).toEqual([])
+    })
+
+    test('no declaration grants the default set', () => {
+      expect(allowedServerTools(null, prefix)).toEqual(DEFAULT_KB_TOOLS.map((tool) => `${prefix}${tool}`))
     })
   })
 }

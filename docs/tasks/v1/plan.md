@@ -400,7 +400,7 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
     `execute_code` and delegation stay denied.
   - Applies only in a Yvoke session. ⛔ P1-10
   - Done when: tests cover each class of tool.
-- [ ] **P2-02** `plugin` · M — **Per-playbook scoping.** A playbook that declares tools gets exactly
+- [x] **P2-02** `plugin` · M — **Per-playbook scoping** ([#28](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/28)). A playbook that declares tools gets exactly
   those (plus the always-added three); one that declares none gets the default set (`DEFAULT_KB_TOOLS`).
   Scoping follows the session's playbook from P1-08, which never changes during the session. ⛔ P1-08
   - Done when: tests cover declared tools and no declaration.

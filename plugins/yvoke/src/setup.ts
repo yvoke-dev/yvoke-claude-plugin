@@ -12,7 +12,8 @@ import { ENDED, endedId } from './session'
 export const MULTI_AGENT_READY = false
 
 export type Mode = 'single' | 'multi'
-export type PlaybookEntry = { name: string; version: number }
+/** `tools`: the tool names the playbook declares, null when it declares none (P2-02). */
+export type PlaybookEntry = { name: string; version: number; tools: string[] | null }
 export type AreaEntry = {
   name: string
   title: string
@@ -49,7 +50,7 @@ type RawArea = {
   defaultProfile?: unknown
   profiles?: unknown
 }
-type RawPlaybook = { name: string; area?: unknown; prototype?: unknown; version?: unknown }
+type RawPlaybook = { name: string; area?: unknown; prototype?: unknown; version?: unknown; tools?: unknown }
 
 const objectsWithName = (text: string): Record<string, unknown>[] | null => {
   let parsed: unknown
@@ -82,7 +83,11 @@ export const toCatalogue = (
   const areas = rawAreas.filter(shown).map((a): AreaEntry => {
     const playbooks = rawPlaybooks
       .filter((p) => p.area === a.name && shown(p))
-      .map((p) => ({ name: p.name, version: typeof p.version === 'number' ? p.version : 1 }))
+      .map((p) => ({
+        name: p.name,
+        version: typeof p.version === 'number' ? p.version : 1,
+        tools: Array.isArray(p.tools) ? strings(p.tools) : null,
+      }))
     const profiles = strings(a.profiles)
     return {
       name: a.name,

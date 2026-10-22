@@ -1,6 +1,6 @@
 # P2-02 Per-playbook scoping
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** done
 
 Today the gate (P2-01) lets through every tool of the Yvoke server. With this task a Yvoke session gets
 exactly the server tools its playbook declares, or yvoke-desktop's default set when the playbook declares
@@ -40,7 +40,7 @@ first two are granted already; `execute_code` stays denied until P2-05 opens it 
 - **The denial message stays the same** for a server tool the playbook does not declare: *The tool
   "&lt;name&gt;" is not available in this application. Use the yvoke knowledge-base tools instead.* This
   is the desktop's single message too.
-- **Playbook not known: refuse, with its own message.** If an `mcp__` call arrives in a Yvoke session and
+- **Playbook not known: refuse, with its own message.** If a Yvoke server tool is called in a Yvoke session and
   the setup is missing, the catalogue did not load, or the setup's playbook is not in the catalogue's
   list for its area, every server tool is refused with *Yvoke: the session's playbook could not be
   read, so this tool was not run.* Falling back to the default set would hand a playbook that declares
@@ -58,11 +58,12 @@ first two are granted already; `execute_code` stays denied until P2-05 opens it 
 | --- | --- |
 | `plugins/yvoke/src/setup.ts` | `RawPlaybook` and `PlaybookEntry` gain `tools: string[] \| null`; `toCatalogue` keeps a playbook's `tools` when it is an array of strings (non-strings dropped, as the desktop does), else `null`. Nothing else in the band changes. |
 | `plugins/yvoke/types/index.d.ts` | The catalogue's playbook entry gains `tools: string[] \| null`. |
-| `plugins/yvoke/src/tool-names.ts` | `DEFAULT_KB_TOOLS`, `isComputeTool(tool)` (the desktop's, with its retired names), `isWebTool(tool)` (from `builtinTool`), and `allowedServerTools(declared, serverPrefix)`: the set above. Pure, no `$`. |
-| `plugins/yvoke/src/policy.ts` | Inside the one gate (mod rule 15, no new hook): for `mcp__` tools, read `setup` and `catalogue` from `$.state`, find the playbook, and check the exact name against `allowedServerTools`. `isAllowed` takes the set instead of the prefix. `PLAYBOOK_UNKNOWN` message. |
+| `plugins/yvoke/src/tool-names.ts` | `DEFAULT_KB_TOOLS`, `isComputeTool(tool)` (the desktop's, with its retired names), `isWebTool(tool)` (from `builtinTool`), and `allowedServerTools(declared, serverPrefix)`: the set above, which leaves out every built-in (the gate grants `ToolSearch` and `AskUserQuestion` itself) and every compute tool. Pure, no `$`. `isWebTool` has no caller here yet; P2-04 uses it. |
+| `plugins/yvoke/src/policy.ts` | Inside the one gate (mod rule 15, no new hook): for a tool under the Yvoke server's prefix, read `setup` and `catalogue` from `$.state`, find the playbook (`declaredTools`), and check the exact name against `allowedServerTools`. `isAllowed` takes the set instead of the prefix. `PLAYBOOK_UNKNOWN` message. P2-01's `MOD_TOOLS` list is deleted: compute tools are never in the set, so the exact match already refuses `mcp__yvoke__execute_code` under a bare-named server (found while building; P2-01's test for it still passes). |
 | `plugins/yvoke/tests/tool-names.test.ts` | `isComputeTool`, `isWebTool`, `allowedServerTools` for both prefixes. |
 | `plugins/yvoke/tests/setup-rules.test.ts` | `toCatalogue` keeps `tools`, gives `null` when it is missing or not an array. |
-| `plugins/yvoke/tests/policy.test.ts` | Each test that sets up a Yvoke session also stubs `setup` and `catalogue` (mod rule 11). New cases under *Proof*. |
+| `plugins/yvoke/tests/policy.test.ts` | The stubbed server answers `list_areas` and `list_playbooks`, so /yvoke loads a real setup and catalogue (oim-full declaring nothing unless a test says otherwise); `setup` is answered through mod rule 11 only where a test needs one the band cannot produce. New cases under *Proof*. |
+| `plugins/yvoke/tests/turn-limits.test.ts` | Its state map starts with a setup and catalogue (oim-full, no declaration), so the server tool it calls stays granted. Assertions unchanged. |
 | `docs/specs/tool-policy.md`, `docs/specs/setup.md` | Behaviour, Interfaces, Tests, History; the catalogue carries `tools`. |
 | `docs/tasks/v1/plan.md` | Tick P2-02. |
 

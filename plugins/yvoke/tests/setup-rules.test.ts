@@ -67,8 +67,8 @@ describe('toCatalogue', () => {
           name: 'OIM',
           title: 'OIM',
           playbooks: [
-            { name: 'oim-quick', version: 2 },
-            { name: 'oim-full', version: 3 },
+            { name: 'oim-quick', version: 2, tools: [] },
+            { name: 'oim-full', version: 3, tools: [] },
           ],
           defaultPlaybook: 'oim-full',
           profiles: ['OIM', 'OIM-deep'],
@@ -78,8 +78,8 @@ describe('toCatalogue', () => {
           name: 'PING',
           title: 'PingID',
           playbooks: [
-            { name: 'ping-other', version: 1 },
-            { name: 'ping-main', version: 5 },
+            { name: 'ping-other', version: 1, tools: [] },
+            { name: 'ping-main', version: 5, tools: [] },
           ],
           defaultPlaybook: 'ping-main',
           profiles: [],
@@ -116,7 +116,21 @@ describe('toCatalogue', () => {
 
   test('a playbook with no version counts as version 1', () => {
     const playbooks = JSON.stringify([{ ...playbook('oim-full'), version: undefined }])
-    expect(catalogue(AREAS, playbooks).areas[0]!.playbooks).toEqual([{ name: 'oim-full', version: 1 }])
+    expect(catalogue(AREAS, playbooks).areas[0]!.playbooks).toEqual([{ name: 'oim-full', version: 1, tools: [] }])
+  })
+
+  // P2-02: the gate scopes the session to the tools its playbook declares.
+  test("a playbook's declared tools are kept, anything that is not a name dropped", () => {
+    const playbooks = JSON.stringify([playbook('oim-full', { tools: ['search_corpus', 3, null, 'WebSearch'] })])
+    expect(catalogue(AREAS, playbooks).areas[0]!.playbooks[0]!.tools).toEqual(['search_corpus', 'WebSearch'])
+  })
+
+  test('a playbook that declares no tools, or not a list, has null', () => {
+    const playbooks = JSON.stringify([
+      { ...playbook('oim-full'), tools: undefined },
+      playbook('oim-quick', { tools: 'search_corpus' }),
+    ])
+    expect(catalogue(AREAS, playbooks).areas[0]!.playbooks.map((p) => p.tools)).toEqual([null, null])
   })
 
   test('a server with no areas is an error', () => {
