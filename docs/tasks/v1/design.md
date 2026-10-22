@@ -334,6 +334,14 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     first question also fetches the server's current text; the line, the status line and the toast follow
     the same rule.
   - Delivered by: P1-08.
+- [x] **D-23** `PO` · `server` — **Where do the client-only tools live on yvoke-web?** Before P1-13, yvoke-web
+  built one tool list for `/mcp` and for its own assistant, so `get_system_prompt`, `list_areas`,
+  `list_playbooks` and `get_playbook` were offered as tool choices in its playbook editor.
+  - **Decided 2026-10-20 (Eduard): same `/mcp`, not in the web assistant.** One sign-in. yvoke-web keeps
+    serving them on `/mcp` and leaves them out of its assistant's tool registry and the playbook editor
+    ([5.4](#54-which-model-sees-which-tool-p1-13)). A second endpoint (`/mcp/client`) was rejected: a
+    second sign-in for every plugin user.
+  - Delivered by: P1-13.
 - [x] **D-24** `PO` · `plugin` — **Which turn ceiling does the reviewer get?** The plan said 20 as
   yvoke-desktop's value, but the desktop hard-codes its reviewer at 6 (`AgentService.ts`); its other
   shipped ceilings are single agent 25, lead 60, specialist 20. A reviewer stopped at its ceiling cannot
@@ -626,16 +634,18 @@ playbook searches (P1-14).
 
 ### 5.4 Which model sees which tool (P1-13)
 
-yvoke-web's spec says AI clients and the in-app assistant share one tool set, so a new tool is offered to
-the web's own assistant and to every connected client, including the model in Claude Code and Chat.
+Before P1-13, yvoke-web's spec said AI clients and the in-app assistant shared one tool set, so a new tool
+was offered to the web's own assistant and to every connected client, including the model in Claude Code
+and Chat. Since P1-13 it has 10 shared tools and 4 client-only tools.
 `submit_feedback` and the sync tools are meant for the mod, not for any model. `get_system_prompt`,
 `list_areas`, `list_playbooks` and `get_playbook` are called by the mod in Claude Code (and, after v1, perhaps by the model
 in Chat and Cowork when a playbook stub tells it to; D-26).
 
-- Recommended: keep them on the same `/mcp` server (one sign-in) and leave them out of the in-app
-  assistant's tool set. In Claude Code the mod's deny-by-default already stops the model from calling them,
-  and the mod reaches them through `$.mcp.call`, which is not a model tool call.
-- Alternative: a second MCP endpoint (for example `/mcp/client`) with only these tools, listed as a second
+- Chosen (D-23): keep them on the same `/mcp` server (one sign-in) and leave them out of the in-app
+  assistant's tool set. In Claude Code, P2-02 (playbook tool scoping) is what stops the model from calling
+  them: P2-01's gate alone allows every Yvoke server tool. The mod reaches them through `$.mcp.call`, which
+  is not a model tool call.
+- Rejected: a second MCP endpoint (for example `/mcp/client`) with only these tools, listed as a second
   server in the plugin's `.mcp.json`. Cleaner separation, but a second connection to sign in.
 
 ### 5.5 Behaviour to fix on the server
