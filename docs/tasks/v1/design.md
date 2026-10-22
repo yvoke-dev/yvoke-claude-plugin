@@ -334,9 +334,9 @@ Each decision blocks the tasks in [plan.md](plan.md) listed under it. Record the
     first question also fetches the server's current text; the line, the status line and the toast follow
     the same rule.
   - Delivered by: P1-08.
-- [x] **D-23** `PO` · `server` — **Where do the client-only tools live on yvoke-web?** yvoke-web builds one
-  tool list for `/mcp` and for its own assistant, so `get_system_prompt`, `list_areas`, `list_playbooks`
-  and `get_playbook` are offered as tool choices in its playbook editor.
+- [x] **D-23** `PO` · `server` — **Where do the client-only tools live on yvoke-web?** Before P1-13, yvoke-web
+  built one tool list for `/mcp` and for its own assistant, so `get_system_prompt`, `list_areas`,
+  `list_playbooks` and `get_playbook` were offered as tool choices in its playbook editor.
   - **Decided 2026-10-20 (Eduard): same `/mcp`, not in the web assistant.** One sign-in. yvoke-web keeps
     serving them on `/mcp` and leaves them out of its assistant's tool registry and the playbook editor
     ([5.4](#54-which-model-sees-which-tool-p1-13)). A second endpoint (`/mcp/client`) was rejected: a
