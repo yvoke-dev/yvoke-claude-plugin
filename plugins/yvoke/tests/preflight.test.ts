@@ -141,6 +141,7 @@ function engine(on: On, start: Partial<World> = {}): World {
     return h(Box, {}) as RenderElement
   })
   on('classic.SessionStart', () => ({}))
+  on('prompt.compose', () => ({ sections: [] }))
   return w
 }
 
@@ -159,6 +160,8 @@ const ready = async ($: Engine, playbook = 'oim-start') => {
   await yvoke($)
   await choose($, playbook)
 }
+const RENDER = { model: 'claude-x', promptModel: 'claude-x', surfaces: ['terminal'], tools: [], outputStyle: null, traits: [] } as const
+const instructions = async ($: Engine) => (await $.prompt.compose(RENDER)).sections.map((s) => s.text)
 const loaded = (w: World) => w.calls.filter((c) => c.tool === 'get_playbook').map((c) => c.args.name)
 const locked = (w: World) => w.store.get(`setup:${w.sessionId}`) as Record<string, unknown> | undefined
 
@@ -324,4 +327,17 @@ test('changing the playbook after a dropped first question makes it a new check'
   await ask($, QUESTION)
   expect(w.models).toHaveLength(2)
   expect(String(w.models[1]!.system)).toContain('Selected Playbook Name:\noim-schema')
+})
+
+// Found in review of #30 (P1-07 and P1-08 together): instructions loaded for a first question that a hook
+// beneath then dropped must not serve the playbook chosen afterwards.
+test('a playbook changed after a dropped first question loads its own instructions', async ($, on) => {
+  const w = engine(on, { dropBeneath: 'Yvoke Backend: ERROR: down.' })
+  await ready($)
+  await ask($, QUESTION)
+  w.dropBeneath = null
+  await choose($, 'oim-schema')
+  expect(await ask($, QUESTION)).toEqual({ text: QUESTION })
+  expect(loaded(w)).toEqual(['oim-start', 'oim-schema'])
+  expect(await instructions($)).toEqual(['BASE\n\n---\n\nPLAYBOOK oim-schema'])
 })
