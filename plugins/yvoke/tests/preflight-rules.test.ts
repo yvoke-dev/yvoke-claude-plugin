@@ -13,7 +13,7 @@ import type { Catalogue, PlaybookEntry, Setup } from '../src/setup'
 // yvoke-desktop's tests/playbookValidation.test.ts (1.3.0); the SDK call and the exclusion list do not
 // carry over (the mod calls $.model.complete, and the area's default playbook replaces the list).
 
-const pb = (name: string, title = name, description = ''): PlaybookEntry => ({ name, version: 1, title, description })
+const pb = (name: string, title = name, description = ''): PlaybookEntry => ({ name, version: 1, tools: null, title, description })
 
 const PLAYBOOKS = [
   pb('oim-getting-started', 'Getting started', 'Onboarding and end-user questions.'),
