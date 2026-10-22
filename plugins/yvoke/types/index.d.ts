@@ -28,7 +28,7 @@ export type YvokeCatalogue =
         areas: {
           name: string
           title: string
-          playbooks: { name: string; version: number }[]
+          playbooks: { name: string; version: number; title: string; description: string }[]
           defaultPlaybook: string | null
           profiles: string[]
           defaultProfile: string | null

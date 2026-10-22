@@ -67,8 +67,8 @@ describe('toCatalogue', () => {
           name: 'OIM',
           title: 'OIM',
           playbooks: [
-            { name: 'oim-quick', version: 2 },
-            { name: 'oim-full', version: 3 },
+            { name: 'oim-quick', version: 2, title: 'oim-quick', description: '' },
+            { name: 'oim-full', version: 3, title: 'oim-full', description: '' },
           ],
           defaultPlaybook: 'oim-full',
           profiles: ['OIM', 'OIM-deep'],
@@ -78,8 +78,8 @@ describe('toCatalogue', () => {
           name: 'PING',
           title: 'PingID',
           playbooks: [
-            { name: 'ping-other', version: 1 },
-            { name: 'ping-main', version: 5 },
+            { name: 'ping-other', version: 1, title: 'ping-other', description: '' },
+            { name: 'ping-main', version: 5, title: 'ping-main', description: '' },
           ],
           defaultPlaybook: 'ping-main',
           profiles: [],
@@ -116,7 +116,21 @@ describe('toCatalogue', () => {
 
   test('a playbook with no version counts as version 1', () => {
     const playbooks = JSON.stringify([{ ...playbook('oim-full'), version: undefined }])
-    expect(catalogue(AREAS, playbooks).areas[0]!.playbooks).toEqual([{ name: 'oim-full', version: 1 }])
+    expect(catalogue(AREAS, playbooks).areas[0]!.playbooks).toEqual([{ name: 'oim-full', version: 1, title: 'oim-full', description: '' }])
+  })
+
+  // P2-06: the preflight check lists each candidate as `name | title | description`.
+  test("a playbook keeps its title and description; with none, its name and ''", () => {
+    const playbooks = JSON.stringify([
+      playbook('oim-full', { title: 'Full', description: 'Everything about OIM.' }),
+      { ...playbook('oim-quick'), title: undefined, description: 7 },
+      playbook('oim-blank', { title: ' ', description: null }),
+    ])
+    expect(catalogue(AREAS, playbooks).areas[0]!.playbooks).toEqual([
+      { name: 'oim-full', version: 1, title: 'Full', description: 'Everything about OIM.' },
+      { name: 'oim-quick', version: 1, title: 'oim-quick', description: '' },
+      { name: 'oim-blank', version: 1, title: 'oim-blank', description: '' },
+    ])
   })
 
   test('a server with no areas is an error', () => {

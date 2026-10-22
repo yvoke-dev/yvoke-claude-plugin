@@ -1,6 +1,6 @@
 # P2-06 Playbook preflight check
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
 
 On the first question of a single-agent Yvoke session, before the setup locks, the mod asks the model
 whether the chosen playbook fits the question. If another playbook of the area clearly fits better, the user
