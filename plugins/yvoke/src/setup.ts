@@ -12,7 +12,11 @@ import { ENDED, endedId } from './session'
 export const MULTI_AGENT_READY = false
 
 export type Mode = 'single' | 'multi'
-export type PlaybookEntry = { name: string; version: number }
+/**
+ * `tools`: the tool names the playbook declares (P2-02); null when it declares none, which yvoke-web sends as
+ * an empty list; `'unreadable'` when the value is there but is not a list of names, so nothing is granted.
+ */
+export type PlaybookEntry = { name: string; version: number; tools: string[] | null | 'unreadable' }
 export type AreaEntry = {
   name: string
   title: string
@@ -49,7 +53,7 @@ type RawArea = {
   defaultProfile?: unknown
   profiles?: unknown
 }
-type RawPlaybook = { name: string; area?: unknown; prototype?: unknown; version?: unknown }
+type RawPlaybook = { name: string; area?: unknown; prototype?: unknown; version?: unknown; tools?: unknown }
 
 const objectsWithName = (text: string): Record<string, unknown>[] | null => {
   let parsed: unknown
@@ -67,6 +71,13 @@ const strings = (x: unknown) => (Array.isArray(x) ? x.filter((s): s is string =>
 const orFirst = (wanted: unknown, names: string[]) =>
   typeof wanted === 'string' && names.includes(wanted) ? wanted : (names[0] ?? null)
 
+/** A playbook's `tools` as the tool gate reads them; see `PlaybookEntry`. */
+const declared = (p: RawPlaybook): PlaybookEntry['tools'] => {
+  if (!('tools' in p) || p.tools === undefined) return null
+  if (!Array.isArray(p.tools) || !p.tools.every((t) => typeof t === 'string')) return 'unreadable'
+  return p.tools.length === 0 ? null : (p.tools as string[])
+}
+
 /** The answers of `list_areas` and `list_playbooks` as the band shows them. */
 export const toCatalogue = (
   areasText: string,
@@ -82,7 +93,11 @@ export const toCatalogue = (
   const areas = rawAreas.filter(shown).map((a): AreaEntry => {
     const playbooks = rawPlaybooks
       .filter((p) => p.area === a.name && shown(p))
-      .map((p) => ({ name: p.name, version: typeof p.version === 'number' ? p.version : 1 }))
+      .map((p) => ({
+        name: p.name,
+        version: typeof p.version === 'number' ? p.version : 1,
+        tools: declared(p),
+      }))
     const profiles = strings(a.profiles)
     return {
       name: a.name,

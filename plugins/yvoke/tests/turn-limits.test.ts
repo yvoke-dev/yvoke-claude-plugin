@@ -29,7 +29,18 @@ const address = (e: { plugin: string; key: string; id?: string }) =>
 function engine(on: On, start: { yvoke?: boolean; mode?: string } = {}): World {
   const w: World = { state: new Map(), failGet: null, failSet: null, toolsRun: [], failConnect: false }
   if (start.yvoke !== false) w.state.set('yvoke.yvokeSession', true)
-  if (start.mode !== undefined) w.state.set('yvoke.setup', { area: 'OIM', mode: start.mode, playbook: null })
+  // The tool gate (P2-02) grants the server tools of the session's playbook: oim-full declares none, so the
+  // default set, search_corpus among it.
+  w.state.set('yvoke.catalogue', {
+    ok: true,
+    catalogue: { areas: [{ name: 'OIM', title: 'OIM', playbooks: [{ name: 'oim-full', version: 1, tools: null }], defaultPlaybook: 'oim-full', profiles: [], defaultProfile: null }] },
+  })
+  w.state.set(
+    'yvoke.setup',
+    start.mode === undefined
+      ? { area: 'OIM', mode: 'single', playbook: 'oim-full', version: 1, profile: null, lockedSessionId: null }
+      : { area: 'OIM', mode: start.mode, playbook: null },
+  )
   on('state.get', (_$, e) => {
     // A hook that throws is skipped and the kit answers in its place, so a failed read is staged as an
     // answer the plugin cannot use.
