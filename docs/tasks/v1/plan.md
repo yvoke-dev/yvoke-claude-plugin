@@ -447,20 +447,23 @@ from `tests/policy.test.ts` first, watch them fail, then implement.
     cases of yvoke-desktop's `computeTools.test.ts`; the escape cases come from P0-12's findings. If P0-12 shows the route cannot be made safe, v1 has no compute
   tool and this task is struck through. The earlier plan for `calculate`, `statistics` and `date_diff`
   ([#19](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/19)) is not used. ⛔ P0-12
-- [ ] **P2-06** `plugin` · M — **Playbook preflight check.** On the first question of a single-agent
-  session, before the setup locks (P1-08), when the area offers at least two playbooks, ask the model
-  (`$.model.complete`, no tools, 45 s timeout) whether the playbook fits; if not, show a band with
-  **Switch to …** / **Send anyway**. Either answer locks the setup.
+- [x] **P2-06** `plugin` · M — **Playbook preflight check** ([#30](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/30),
+  [task plan](P2-06/plan.md)). On the first question of a single-agent session, before the setup locks
+  (P1-08), when the area offers another playbook besides its default, ask the model (`$.model.complete`,
+  no tools, 45 s timeout) whether the playbook fits; if not, Claude Code's question dialog (D-27) offers
+  **Switch to …** / **Send anyway**. Either answer sends the question, and the setup locks with the
+  playbook then chosen.
   - Fails open on every error, including a reply with `isAnswered: false`: `$.model.complete` reports a
-    Claude API failure that way rather than by rejecting. Runs once per session, on the first question.
-    Port `playbookValidation.test.ts`.
-  - Its `prompt.submit` hook registers before `registerSystemPrompt(on)` (P1-07), whose load locks the
-    setup: registered after it, the old playbook is already loaded and a switch changes nothing. It
-    registers with a matcher (even `{}`), since P1-07's `prompt.submit` hook is the mod's unmatched one
-    and a second unmatched hook stops the module loading (design 4.4).
-  - Shows that the check is running (`$.ui.status` or the band above the prompt) while it waits, so a slow
-    model does not look like a frozen app. Time spent inside `$.model.complete` does not count against a
-    hook's 10-second limit.
+    Claude API failure that way rather than by rejecting. Runs once per session and playbook, on the first
+    question. Port `playbookValidation.test.ts`.
+  - Its `prompt.submit` hook registers **first**, above `registerSetup` (found while building): the setup
+    band locks the copy of the setup it read before the question went down, so a switch made beneath it
+    would load the new playbook and lock the old one. It registers with a matcher, since P1-07's
+    `prompt.submit` hook is the mod's unmatched one (design 4.4). As the outermost hook its `.catch`
+    answers for failures beneath it, so it drops there rather than calling `next(e)`.
+  - Shows *Yvoke: checking the playbook…* in the status line while it waits, so a slow model does not look
+    like a frozen app. Time spent inside `$.model.complete` and the dialog does not count against a hook's
+    10-second limit.
   - **The area's default playbook skips the check** (yvoke-web and yvoke-desktop 1.3.0): the question goes
     straight through, and default playbooks are never offered as a suggestion. A suggestion naming the
     playbook already chosen counts as a fit.

@@ -55,9 +55,11 @@ smaller. With under 1 s left, it fails at once and asks to send the question aga
 | Server tools `list_areas` (`defaultPlaybook`, `defaultSystemPrompt`, `systemPrompts`), `get_playbook(name)` (`systemPrompt`, `text`), `get_system_prompt(name?)` | through `callYvoke` ([server-client.md](server-client.md)) |
 
 The setup band locks its own setup (`lockedSessionId`); it does not read `yvoke.instructions`. Its
-`prompt.submit` hook is registered first, so it wraps this one: a failure here passes back through it, and
-the user sees its drop message. A `prompt.submit` hook that must act before the lock (P2-06's preflight) registers before
-`registerSystemPrompt(on)` in `hooks/register.tsx`, and with a matcher (even `{}`): P1-07's
+`prompt.submit` hook is registered before this one, so it wraps it, and the preflight check's
+([preflight.md](preflight.md)) wraps both: a failure here passes back through them, and the user sees the
+setup band's drop message. A `prompt.submit` hook that must act before the lock registers before
+`registerSetup` in `hooks/register.tsx` (the setup band locks the copy of the setup it read before the
+question went down), and with a matcher (even `{}`): P1-07's
 `prompt.submit` and `prompt.compose` hooks are the mod's unmatched ones, and a second unmatched hook on
 the same event stops the module loading (design 4.4).
 

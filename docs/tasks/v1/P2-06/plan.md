@@ -1,6 +1,6 @@
 # P2-06 Playbook preflight check
 
-**Release:** v1 · **Size:** M · **Type:** feature · **Status:** in progress
+**Release:** v1 · **Size:** M · **Type:** feature · **Status:** done
 
 On the first question of a single-agent Yvoke session, before the setup locks, the mod asks the model
 whether the chosen playbook fits the question. If another playbook of the area clearly fits better, the user
@@ -106,11 +106,10 @@ prompt. The dialog keeps the question in flight and needs no state beyond the ho
 
 Every error sends the question unchanged with the playbook as chosen, and nothing is shown but the cleared
 status: `isAnswered: false` (any reason, the 45 s timeout included), a `$.model.complete` that rejects, an
-unreadable reply, an unknown or same-playbook suggestion, a failed `$.session.model()`, `$.ui.status`, state
-or store call, and the hook throwing anywhere before `next`. Its `.catch` is
-`(_$, e, next) => next(e)`: unlike the enforcing hooks it never drops (a `next` already called is
-replayed, not run twice). A switch whose setup write
-fails sends the question with the old playbook. Nothing is logged: the question and the model's reply never
+unreadable reply, an unknown or same-playbook suggestion, a failed `$.session.model()`, state or store
+call, and the hook throwing anywhere before `next`: everything before `next(e)` is caught inside the hook,
+which then calls `next(e)` itself. Its `.catch` drops with the setup band's message instead (see *Found
+while building*). A switch whose setup write fails sends the question with the old playbook. Nothing is logged: the question and the model's reply never
 reach `$.ui.log`.
 
 ## Files that change
@@ -153,13 +152,34 @@ Each step: the test first, seen failing, then the code, then `npm run check`.
    store show it; **Send anyway**, *Other* text and a dismissed dialog send with the chosen playbook.
 5. **Fails open.** Timeout (`aborted`), `api-error`, `empty-reply`, a rejecting `$.model.complete`, an
    unreadable reply, an unknown suggestion, a suggestion of the selected playbook, a failing
-   `$.session.model()`, a failing setup write on a switch: each sends the question with the playbook as
-   chosen, and the status is cleared.
+   `$.session.model()`: each sends the question with the playbook as chosen, and the status is cleared.
 6. **Status.** `$.ui.status` shows the checking line before the model call and is cleared before the
-   question goes down; a failing status call does not stop the check.
+   dialog and the question.
 7. **Hook order.** The module loads with the new matcher; the switch test of step 4 fails if
    `registerPreflight` is moved below `registerSetup` (seen red once by moving it).
 8. **Docs**: specs, design, requirements, plan; `finish-task`.
+
+## Found while building
+
+- **The outermost hook's `.catch` answers for the whole event.** The first version's `.catch` was
+  `(_$, e, next) => next(e)`. It turned two existing tests red (`setup.test.ts`, *a failing hook drops the
+  question*; `system-prompt.test.ts`, *a throw in prompt.submit drops the question*): a `$` call failing
+  in the setup band's or the instructions' hook beneath was answered by the preflight's `.catch`, now the
+  outermost, and its `next(e)` let the question through bare. So the hook catches its own failures inside
+  its body and always calls `next(e)` itself, and the `.catch` is
+  `next.called ? next(e) : { drop: DROP_FAILED }`, the setup band's message, which keeps both tests as
+  they were. Recorded in design 4.4.
+- **`$.ui.status` does not throw**: an engine that cannot show it drops it and the hook goes on (seen in
+  the throwaway mod). The `try` around it and the test for a failing status line were taken out; the
+  mutation that removed the `try` left every test green.
+- **A failing `$.state.set` cannot be staged**: the kit has its own state, and a test hook on `state.set`
+  that throws is skipped. The planned test for a switch whose setup write fails was taken out; the write
+  sits inside the caught body like every other step.
+- **Ported cases**: the desktop's parser reads the first `{` to the last `}`, so a JSON array around an
+  object is read as that object; no test claims otherwise.
+- **Merge with P2-02** ([#28](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/28)): both add fields
+  to the catalogue's playbook entries in `setup.ts`, `types/index.d.ts` and `setup-rules.test.ts`.
+  Whichever merges second keeps both (`tools` and `title`, `description`).
 
 ## Risks
 
