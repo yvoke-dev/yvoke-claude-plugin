@@ -1,6 +1,6 @@
 # P1-09 Clarifying questions
 
-**Release:** v1 · **Size:** S · **Type:** feature · **Status:** planned
+**Release:** v1 · **Size:** S · **Type:** feature · **Status:** in progress
 
 The Yvoke server's `ask_clarifying_question` tool answers *"Clarifying question asked successfully"*
 without asking anyone (design 5.5). yvoke-desktop treats it as an alias of the native question tool: it
