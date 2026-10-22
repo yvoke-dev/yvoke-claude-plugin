@@ -20,17 +20,24 @@ In a Yvoke session, after the Yvoke flag and the turn limit (P2-08), the gate al
 
 "The playbook's server tools" are built the way yvoke-desktop's `buildAllowedTools` builds them:
 
-- **Declared** (`tools` is an array): each name, minus web tools (`builtinTool` says `WebSearch` or
+- **Declared** (`tools` is a list of names, not empty): each name, minus web tools (`builtinTool` says `WebSearch` or
   `WebFetch`; P2-04 grants them under its rules) and compute tools (`execute_code`, the retired
   `calculate`, `statistics`, `date_diff`, and anything under `mcp__compute__`; P2-05 grants
   `execute_code` under its rules), each then put through `qualifyTool` (P2-03) with the session's server
-  prefix. An empty array grants no server tool, as in the desktop.
-- **Not declared** (`tools` missing or not an array): `DEFAULT_KB_TOOLS`, qualified the same way:
+  prefix. A list that is left empty once web and compute names are out grants no server tool.
+- **Not declared** (`tools` missing or an empty list): `DEFAULT_KB_TOOLS`, qualified the same way:
   `query_json_objects`, `get_section`, `get_graph_neighbors`, `verify_citations`, `list_documents`,
   `get_toc`, `search_graph_entities`, `get_json_schema`, `search_corpus`, `ask_clarifying_question`.
 - **No playbook** (the setup's mode is `multi`, so `playbook` is null): the same default set, until P6-04
   gives each role its own list. Multi-agent is not offered yet (P1-08's `multiAgent` switch), so this
   case is not reachable today.
+- **Changed in review:** an empty list counts as declaring none. The desktop reads `tools` from a
+  playbook's own frontmatter, where a missing field and `tools: []` differ; yvoke-web's `list_playbooks`
+  sends `[]` for a playbook with none (`PlaybookDto.from`), so the two cannot be told apart here, and
+  taking `[]` literally would leave the default set unreachable. This follows the release requirement
+  ("one that declares none gets the default set"). A `tools` value that is there but is not a list of
+  names (a string, `null`, a list holding a number) is **unreadable**: refused as below, never taken as
+  "none", which would grant more than the playbook may have meant.
 
 The plan entry's "always-added three" is read as `ToolSearch`, `AskUserQuestion` and `execute_code`. The
 first two are granted already; `execute_code` stays denied until P2-05 opens it with `codeExecution`.
@@ -41,8 +48,8 @@ first two are granted already; `execute_code` stays denied until P2-05 opens it 
   "&lt;name&gt;" is not available in this application. Use the yvoke knowledge-base tools instead.* This
   is the desktop's single message too.
 - **Playbook not known: refuse, with its own message.** If a Yvoke server tool is called in a Yvoke session and
-  the setup is missing, the catalogue did not load, or the setup's playbook is not in the catalogue's
-  list for its area, every server tool is refused with *Yvoke: the session's playbook could not be
+  the setup is missing, the catalogue did not load, the setup's area or its playbook is not in the
+  catalogue, or the playbook's `tools` are unreadable, every server tool is refused with *Yvoke: the session's playbook could not be
   read, so this tool was not run.* Falling back to the default set would hand a playbook that declares
   fewer tools more than it asked for. In practice P1-07 drops a question when it cannot reach the server,
   so the model rarely gets this far. Built-ins are still decided without reading the setup.
@@ -56,12 +63,12 @@ first two are granted already; `execute_code` stays denied until P2-05 opens it 
 
 | File | Change |
 | --- | --- |
-| `plugins/yvoke/src/setup.ts` | `RawPlaybook` and `PlaybookEntry` gain `tools: string[] \| null`; `toCatalogue` keeps a playbook's `tools` when it is an array of strings (non-strings dropped, as the desktop does), else `null`. Nothing else in the band changes. |
+| `plugins/yvoke/src/setup.ts` | `RawPlaybook` and `PlaybookEntry` gain `tools: string[] \| null \| 'unreadable'`; `toCatalogue` keeps a non-empty list of names, gives `null` for a missing field or an empty list, and `'unreadable'` for anything else (changed in review). Nothing else in the band changes. |
 | `plugins/yvoke/types/index.d.ts` | The catalogue's playbook entry gains `tools: string[] \| null`. |
 | `plugins/yvoke/src/tool-names.ts` | `DEFAULT_KB_TOOLS`, `isComputeTool(tool)` (the desktop's, with its retired names), `isWebTool(tool)` (from `builtinTool`), and `allowedServerTools(declared, serverPrefix)`: the set above, which leaves out every built-in (the gate grants `ToolSearch` and `AskUserQuestion` itself) and every compute tool. Pure, no `$`. `isWebTool` has no caller here yet; P2-04 uses it. |
 | `plugins/yvoke/src/policy.ts` | Inside the one gate (mod rule 15, no new hook): for a tool under the Yvoke server's prefix, read `setup` and `catalogue` from `$.state`, find the playbook (`declaredTools`), and check the exact name against `allowedServerTools`. `isAllowed` takes the set instead of the prefix. `PLAYBOOK_UNKNOWN` message. P2-01's `MOD_TOOLS` list is deleted: compute tools are never in the set, so the exact match already refuses `mcp__yvoke__execute_code` under a bare-named server (found while building; P2-01's test for it still passes). |
 | `plugins/yvoke/tests/tool-names.test.ts` | `isComputeTool`, `isWebTool`, `allowedServerTools` for both prefixes. |
-| `plugins/yvoke/tests/setup-rules.test.ts` | `toCatalogue` keeps `tools`, gives `null` when it is missing or not an array. |
+| `plugins/yvoke/tests/setup-rules.test.ts` | `toCatalogue` keeps `tools`; `null` when missing or empty; `'unreadable'` otherwise. |
 | `plugins/yvoke/tests/policy.test.ts` | The stubbed server answers `list_areas` and `list_playbooks`, so /yvoke loads a real setup and catalogue (oim-full declaring nothing unless a test says otherwise); `setup` is answered through mod rule 11 only where a test needs one the band cannot produce. New cases under *Proof*. |
 | `plugins/yvoke/tests/turn-limits.test.ts` | Its state map starts with a setup and catalogue (oim-full, no declaration), so the server tool it calls stays granted. Assertions unchanged. |
 | `docs/specs/tool-policy.md`, `docs/specs/setup.md` | Behaviour, Interfaces, Tests, History; the catalogue carries `tools`. |
@@ -84,8 +91,9 @@ Each step: write the test, run `claude plugin test plugins/yvoke` and see it fai
    (`get_playbook`) is denied; a declared `WebSearch` and `execute_code` stay denied; a look-alike
    server's tool of a declared name (`mcp__plugin_yvoke_yvoke2__search_corpus`) is denied; the same
    under the connector name; a subagent gets the same set.
-5. Playbook not known: no setup, catalogue `ok: false`, and a playbook missing from its area each refuse
-   a server tool with `PLAYBOOK_UNKNOWN`, while `ToolSearch` is still allowed.
+5. Playbook not known: no setup, catalogue `ok: false` (with and without a saved setup, as after
+   `/resume`), an area or a playbook missing from the catalogue, and unreadable `tools` each refuse a
+   server tool with `PLAYBOOK_UNKNOWN`, while `ToolSearch` is still allowed.
 6. Spec, `plan.md`; `finish-task`.
 
 ## Risks
@@ -108,7 +116,8 @@ Each step: write the test, run `claude plugin test plugins/yvoke` and see it fai
 
 ## Proof
 
-- `plugins/yvoke/tests/policy.test.ts`: declared tools, no declaration, an empty list, web and compute
+- `plugins/yvoke/tests/policy.test.ts`: declared tools, no declaration (an empty list, as the server
+  sends it, and no field), web and compute
   declarations not granted, exact names, playbook not known. This is the task's **Done when** ("tests
   cover declared tools and no declaration").
 - `plugins/yvoke/tests/tool-names.test.ts` and `setup-rules.test.ts`: the pure pieces.

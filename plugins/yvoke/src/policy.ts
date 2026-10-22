@@ -8,7 +8,7 @@
 // playbook declares, or the default set, by exact name.
 import type { On } from 'claude-code'
 import { SERVER } from './server'
-import type { Catalogue, Setup } from './setup'
+import type { CatalogueState, Setup } from './setup'
 import { allowedServerTools, serverToolPrefix } from './tool-names'
 import { CHECK_FAILED, WRAP_UP, isWrapUp } from './turn-limits'
 
@@ -34,16 +34,18 @@ export const isAllowed = (tool: string, serverTools: string[]): boolean => ALWAY
 /**
  * The tool names the session's playbook declares: null when it declares none, or when the setup names no
  * playbook (multi-agent, until P6-04), so the default set applies; undefined when the setup, the
- * catalogue or the playbook in it is missing, so nothing can be granted.
+ * catalogue, the area or the playbook in it is missing, or its `tools` are unreadable, so nothing can be
+ * granted.
  */
 export const declaredTools = (
   setup: Setup | null | undefined,
-  catalogue: { ok: true; catalogue: Catalogue } | { ok: false; error: string } | null | undefined,
+  catalogue: CatalogueState | null | undefined,
 ): string[] | null | undefined => {
   if (!setup || !catalogue?.ok) return undefined
   if (setup.playbook === null) return null
   const area = catalogue.catalogue.areas.find((a) => a.name === setup.area)
-  return area?.playbooks.find((p) => p.name === setup.playbook)?.tools
+  const tools = area?.playbooks.find((p) => p.name === setup.playbook)?.tools
+  return tools === 'unreadable' ? undefined : tools
 }
 
 export function registerPolicy(on: On) {

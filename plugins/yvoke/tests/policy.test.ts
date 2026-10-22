@@ -8,7 +8,8 @@ import type { McpConnectResult, McpToolResult, On } from 'claude-code'
 //
 // P2-02: the server tools are those the session's playbook declares, or the default set when it declares
 // none. /yvoke loads the playbook list from the stubbed server (P1-08); unless a test says otherwise the
-// area's default playbook, oim-full, declares nothing, so the session gets the default set.
+// area's default playbook, oim-full, declares nothing (`tools: []`, as yvoke-web sends it), so the session
+// gets the default set.
 
 const denied = (tool: string) =>
   `The tool "${tool}" is not available in this application. Use the yvoke knowledge-base tools instead.`
@@ -23,8 +24,8 @@ const text = (body: string): McpToolResult => ({ content: [{ type: 'text', text:
 const AREAS = JSON.stringify([
   { name: 'OIM', title: 'OIM', prototype: false, defaultPlaybook: 'oim-full', profiles: [], defaultProfile: null },
 ])
-/** The answer of `list_playbooks`, with oim-full declaring `tools`, or nothing when `tools` is undefined. */
-const playbooks = (tools?: unknown) => JSON.stringify([{ name: 'oim-full', area: 'OIM', prototype: false, version: 1, tools }])
+/** The answer of `list_playbooks`, with oim-full declaring `tools`; yvoke-web sends `[]` for none. */
+const playbooks = (tools: unknown = []) => JSON.stringify([{ name: 'oim-full', area: 'OIM', prototype: false, version: 1, tools }])
 
 // The engine beneath the plugin: what /yvoke needs, the server's connection and lists, and the tools themselves.
 function engine(on: On, connect: () => Connect = () => ({ isConnected: true, server: 'plugin:yvoke:yvoke' })): World {
@@ -244,15 +245,14 @@ describe("in a Yvoke session: the playbook's tools (P2-02)", () => {
     expect(w.reached).toEqual([`${P}search_corpus`, `${P}verify_citations`])
   })
 
-  test('an empty declaration grants no server tool, but the built-ins stay', async ($, on) => {
+  test('a playbook with no tools field at all gets the default set too', async ($, on) => {
     const w = engine(on)
-    w.playbooks = playbooks([])
+    w.playbooks = JSON.stringify([{ name: 'oim-full', area: 'OIM', prototype: false, version: 1 }])
     await yvokeSession($)
 
-    expect(await call($, `${P}search_corpus`)).toEqual({ deny: denied(`${P}search_corpus`) })
-    expect(await call($, 'ToolSearch')).toEqual({ result: 'ran ToolSearch' })
-    expect(await call($, 'AskUserQuestion')).toEqual({ result: 'ran AskUserQuestion' })
-    expect(w.reached).toEqual(['ToolSearch', 'AskUserQuestion'])
+    expect(await call($, `${P}search_corpus`)).toEqual({ result: `ran ${P}search_corpus` })
+    expect(await call($, `${P}get_playbook`)).toEqual({ deny: denied(`${P}get_playbook`) })
+    expect(w.reached).toEqual([`${P}search_corpus`])
   })
 
   test('declaring a web or compute tool does not grant it (P2-04, P2-05)', async ($, on) => {
@@ -304,6 +304,35 @@ describe("in a Yvoke session: the playbook can't be read (P2-02)", () => {
   // mod rule 11: a test hook on state.get answers the plugin's own read, as `{ value: { value, version } }`.
   const setupAnswer = (on: On, value: unknown) =>
     on('state.get', { plugin: 'yvoke', key: 'setup' }, () => ({ value: { value, version: 1 } }))
+
+  test("a tools value the mod cannot read: server tools are refused, not given the default set", async ($, on) => {
+    const w = engine(on)
+    w.playbooks = playbooks('search_corpus')
+    await yvokeSession($)
+
+    expect(await call($, `${P}search_corpus`)).toEqual({ deny: PLAYBOOK_UNKNOWN })
+    expect(await call($, 'ToolSearch')).toEqual({ result: 'ran ToolSearch' })
+    expect(w.reached).toEqual(['ToolSearch'])
+  })
+
+  test('a saved setup whose lists then fail to load (as after /resume)', async ($, on) => {
+    setupAnswer(on, { area: 'OIM', mode: 'single', playbook: 'oim-full', version: 1, profile: null, lockedSessionId: 'session-a' })
+    const w = engine(on)
+    w.playbooks = 'not a list'
+    await yvokeSession($)
+
+    expect(await call($, `${P}search_corpus`)).toEqual({ deny: PLAYBOOK_UNKNOWN })
+    expect(w.reached).toEqual([])
+  })
+
+  test("the setup's area is not in the list", async ($, on) => {
+    setupAnswer(on, { area: 'GONE', mode: 'single', playbook: 'oim-full', version: 1, profile: null, lockedSessionId: null })
+    const w = engine(on)
+    await yvokeSession($)
+
+    expect(await call($, `${P}search_corpus`)).toEqual({ deny: PLAYBOOK_UNKNOWN })
+    expect(w.reached).toEqual([])
+  })
 
   test('no setup', async ($, on) => {
     setupAnswer(on, null)

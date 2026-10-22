@@ -22,15 +22,15 @@
   - A playbook that declares tools gets exactly those, each named as below. Declared web tools
     (`WebSearch`, `WebFetch`) and compute tools (`execute_code`, the retired `calculate`, `statistics`,
     `date_diff`, anything under `mcp__compute__`) are left out: a declaration alone never grants them.
-    An empty list grants no server tool.
-  - A playbook that declares none, or a setup with no playbook (multi-agent, not offered yet), gets
+    A list left empty once those are out grants no server tool.
+  - A playbook that declares none (yvoke-web sends an empty list), or a setup with no playbook (multi-agent, not offered yet), gets
     yvoke-desktop's default set: `query_json_objects`, `get_section`, `get_graph_neighbors`,
     `verify_citations`, `list_documents`, `get_toc`, `search_graph_entities`, `get_json_schema`,
     `search_corpus`, `ask_clarifying_question`.
   - A server tool passes only by its exact full name, so a server whose name merely starts like Yvoke's
     gets nothing.
-  - If a Yvoke server tool is called and there is no setup, the lists did not load, or the setup's
-    playbook is not in its area's list, the call is refused with *Yvoke: the session's playbook could not
+  - If a Yvoke server tool is called and there is no setup, the lists did not load, the setup's area or
+    playbook is not in them, or the playbook's `tools` are not a list of names, the call is refused with *Yvoke: the session's playbook could not
     be read, so this tool was not run.* It does not fall back to the default set, which could grant more
     than the playbook declares.
 - The same rule applies inside subagents.
@@ -71,14 +71,16 @@ tools granted.
 - `plugins/yvoke/tests/policy.test.ts`: outside a Yvoke session; each allowed and denied class; the server
   under a connector name and under the bare name; a look-alike server name; subagents; the server not connected; built-ins not
   waiting on the server; a failing check; a failure beneath the gate after the check, compared with the same call outside a
-  Yvoke session. P2-02: declared tools (also under a connector name and in a subagent), no declaration,
-  an empty list, declared web and compute tools, a look-alike server, and the playbook not readable (lists
-  not loaded, no setup, playbook not in its area); multi-agent with no playbook.
+  Yvoke session. P2-02: declared tools (also under a connector name and in a subagent), no declaration
+  (an empty list and no field), declared web and compute tools, a look-alike server, and the playbook not
+  readable (lists not loaded, with and without a saved setup; no setup; area or playbook missing;
+  unreadable `tools`); multi-agent with no playbook.
 - `plugins/yvoke/tests/tool-names.test.ts`: the naming rule; `builtinTool`; `qualifyTool` for the plugin
   and a connector prefix (bare names, the current prefix, `mcp__yvoke__` and older aliases, one prefix
   only, spaces before a prefix, built-ins and names that only look like one); `isWebTool`,
   `isComputeTool`, `DEFAULT_KB_TOOLS` and `allowedServerTools` for both prefixes (P2-02).
-- `plugins/yvoke/tests/setup-rules.test.ts`: the catalogue keeps a playbook's `tools`, null when none.
+- `plugins/yvoke/tests/setup-rules.test.ts`: the catalogue keeps a playbook's `tools`; null when none or
+  empty; `'unreadable'` when not a list of names.
 
 ## History
 

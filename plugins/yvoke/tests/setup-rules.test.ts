@@ -67,8 +67,8 @@ describe('toCatalogue', () => {
           name: 'OIM',
           title: 'OIM',
           playbooks: [
-            { name: 'oim-quick', version: 2, tools: [] },
-            { name: 'oim-full', version: 3, tools: [] },
+            { name: 'oim-quick', version: 2, tools: null },
+            { name: 'oim-full', version: 3, tools: null },
           ],
           defaultPlaybook: 'oim-full',
           profiles: ['OIM', 'OIM-deep'],
@@ -78,8 +78,8 @@ describe('toCatalogue', () => {
           name: 'PING',
           title: 'PingID',
           playbooks: [
-            { name: 'ping-other', version: 1, tools: [] },
-            { name: 'ping-main', version: 5, tools: [] },
+            { name: 'ping-other', version: 1, tools: null },
+            { name: 'ping-main', version: 5, tools: null },
           ],
           defaultPlaybook: 'ping-main',
           profiles: [],
@@ -116,21 +116,28 @@ describe('toCatalogue', () => {
 
   test('a playbook with no version counts as version 1', () => {
     const playbooks = JSON.stringify([{ ...playbook('oim-full'), version: undefined }])
-    expect(catalogue(AREAS, playbooks).areas[0]!.playbooks).toEqual([{ name: 'oim-full', version: 1, tools: [] }])
+    expect(catalogue(AREAS, playbooks).areas[0]!.playbooks).toEqual([{ name: 'oim-full', version: 1, tools: null }])
   })
 
-  // P2-02: the gate scopes the session to the tools its playbook declares.
-  test("a playbook's declared tools are kept, anything that is not a name dropped", () => {
-    const playbooks = JSON.stringify([playbook('oim-full', { tools: ['search_corpus', 3, null, 'WebSearch'] })])
+  // P2-02: the gate scopes the session to the tools its playbook declares. yvoke-web sends `tools: []` for a
+  // playbook that declares none (PlaybookDto.from), so an empty list and a missing one both mean "none".
+  test("a playbook's declared tools are kept", () => {
+    const playbooks = JSON.stringify([playbook('oim-full', { tools: ['search_corpus', 'WebSearch'] })])
     expect(catalogue(AREAS, playbooks).areas[0]!.playbooks[0]!.tools).toEqual(['search_corpus', 'WebSearch'])
   })
 
-  test('a playbook that declares no tools, or not a list, has null', () => {
-    const playbooks = JSON.stringify([
-      { ...playbook('oim-full'), tools: undefined },
-      playbook('oim-quick', { tools: 'search_corpus' }),
-    ])
+  test('a playbook that declares none, as an empty list or no field at all, has null', () => {
+    const playbooks = JSON.stringify([playbook('oim-full', { tools: [] }), { ...playbook('oim-quick'), tools: undefined }])
     expect(catalogue(AREAS, playbooks).areas[0]!.playbooks.map((p) => p.tools)).toEqual([null, null])
+  })
+
+  test('a tools value the mod cannot read is marked unreadable, never taken as none', () => {
+    const playbooks = JSON.stringify([
+      playbook('oim-full', { tools: 'search_corpus' }),
+      playbook('oim-quick', { tools: ['search_corpus', 3] }),
+      playbook('oim-null', { tools: null }),
+    ])
+    expect(catalogue(AREAS, playbooks).areas[0]!.playbooks.map((p) => p.tools)).toEqual(['unreadable', 'unreadable', 'unreadable'])
   })
 
   test('a server with no areas is an error', () => {

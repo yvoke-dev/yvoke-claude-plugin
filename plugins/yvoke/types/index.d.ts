@@ -9,7 +9,8 @@
 //   session it locked in, null before the first question (P1-08). Written only by src/setup.ts; P1-07
 //   reads area, mode and playbook.
 // catalogue: the areas and playbooks the band offers, or why they could not be loaded (P1-08). A playbook's
-//   `tools` are the names it declares, null when it declares none; the tool gate reads them (P2-02).
+//   `tools` are the names it declares, null when it declares none (an empty list), 'unreadable' when the
+//   server sent something else; the tool gate reads them (P2-02).
 // loopStep: a family, one member per loop (`id`: the subagent's id, or `main`): the turn and request it
 //   stands at and its ceiling, or null when its ceiling is off (P2-08). Written only by
 //   src/turn-limits.ts. YvokeState gives the member's value, which is what `$.state.get` with an `id`
@@ -29,7 +30,7 @@ export type YvokeCatalogue =
         areas: {
           name: string
           title: string
-          playbooks: { name: string; version: number; tools: string[] | null }[]
+          playbooks: { name: string; version: number; tools: string[] | null | 'unreadable' }[]
           defaultPlaybook: string | null
           profiles: string[]
           defaultProfile: string | null
