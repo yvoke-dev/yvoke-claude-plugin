@@ -105,12 +105,12 @@ Write a clear markdown report in your run folder covering:
 
 ## Finishing the Run
 
-Submit your verdict via `lintel finish`:
+Submit your verdict via `./.lintel/bin/lintel done`:
 - **`approve`**: Required when there are **zero** `open` findings with severity `blocker` or `major` (`minor` findings may remain `open` as non-blocking advice):
   ```bash
-  lintel finish --run <run-id> --result approve
+  ./.lintel/bin/lintel done --verdict approve
   ```
 - **`changes`**: Required when there is **at least one** `open` finding with severity `blocker` or `major`:
   ```bash
-  lintel finish --run <run-id> --result changes
+  ./.lintel/bin/lintel done --verdict changes
   ```

@@ -6,15 +6,17 @@ import { join, dirname, resolve, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const skip = new Set(['.git', 'node_modules', '.agents', '.lintel'])
+const skip = new Set(['.git', 'node_modules', '.agents'])
+const skipLintel = new Set(['tasks', 'personas', 'bin', 'state', 'scripts'])
 const problems = []
 
 const files = []
-function walk(dir) {
+function walk(dir, inLintel = false) {
   for (const name of readdirSync(dir)) {
     if (skip.has(name)) continue
+    if (inLintel && skipLintel.has(name)) continue
     const path = join(dir, name)
-    if (statSync(path).isDirectory()) walk(path)
+    if (statSync(path).isDirectory()) walk(path, inLintel || name === '.lintel')
     else if (name.endsWith('.md')) files.push(path)
   }
 }

@@ -3,19 +3,91 @@
   "presets": [
     "node"
   ],
+  "paths": {
+    "tests": {
+      "unit": {
+        "paths": {
+          "add": [
+            "plugins/yvoke/tests/**/*.test.ts",
+            "plugins/yvoke/tests/**/*.test.tsx"
+          ]
+        }
+      },
+      "integration": {
+        "required": false
+      },
+      "e2e": {
+        "required": false
+      }
+    },
+    "build": {
+      "add": [
+        "package.json",
+        "package-lock.json",
+        "tsconfig.json",
+        "plugins/yvoke/tsconfig.json",
+        ".claude-plugin/marketplace.json",
+        "scripts/**"
+      ]
+    },
+    "source": {
+      "add": [
+        "**/*.tsx",
+        "**/*.mjs",
+        "plugins/yvoke/.claude-plugin/plugin.json",
+        "plugins/yvoke/.mcp.json",
+        "plugins/yvoke/hooks/hooks.json"
+      ]
+    },
+    "testOutput": {
+      "add": [
+        "plugins/yvoke/.claude-plugin/types/**"
+      ]
+    }
+  },
+  "skills": {
+    "all": {
+      "add": [
+        "yvoke-domain",
+        "rag"
+      ]
+    },
+    "architect": {
+      "remove": [
+        "lintel:node-design"
+      ],
+      "add": [
+        "claude-code-mod"
+      ]
+    },
+    "qa": {
+      "remove": [
+        "lintel:node-testing"
+      ],
+      "add": [
+        "claude-code-testing",
+        "claude-code-mod"
+      ]
+    },
+    "dev": {
+      "remove": [
+        "lintel:node-implementation"
+      ],
+      "add": [
+        "claude-code-mod"
+      ]
+    }
+  },
   "steering": {
     "all": [
       "product.md",
+      "architecture.md",
       "tech.md",
       "structure.md",
       "conventions.md"
     ],
     "architect": [
-      "architecture.md",
       "testing.md"
-    ],
-    "dev": [
-      "architecture.md"
     ],
     "qa": [
       "testing.md"

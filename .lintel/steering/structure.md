@@ -3,6 +3,9 @@
 ```text
 yvoke-claude-plugin/
 ├── README.md                        # Overview and local development setup against yvoke-web
+├── PLAN.md                          # Feature roadmap, milestones, spikes, and server/IT dependencies
+├── package.json                     # Dev scripts (`check`, `typecheck`, `test`, `validate`) and TypeScript devDependency
+├── tsconfig.json                    # Root TypeScript project reference pointing to `plugins/yvoke`
 ├── .claude-plugin/
 │   └── marketplace.json             # Self-hosted Claude Code marketplace manifest (`yvoke`)
 ├── plugins/yvoke/
@@ -15,7 +18,7 @@ yvoke-claude-plugin/
 │   │   ├── hooks.json               # `{ "modules": ["./register.tsx"] }`
 │   │   └── register.tsx             # Mod entry point; wires feature modules in strict registration order
 │   ├── src/                         # Feature modules (pure rules + hook registrations)
-│   │   ├── server.ts                # `callYvoke(io, tool, args)` MCP client wrapper with timeout & error prefixing
+│   │   ├── server.ts                # `callYvoke(io, tool, args, options)` MCP client wrapper with timeout & error prefixing
 │   │   ├── session.ts               # `/yvoke` session start, `/clear`, `/resume`, `/branch` session state
 │   │   ├── setup.ts                 # `AbovePrompt` setup band (area, mode, playbook/profile) & lock on first question
 │   │   ├── system-prompt.ts         # Loads base instructions + playbook from server into `prompt.compose`
@@ -26,13 +29,17 @@ yvoke-claude-plugin/
 │   │   └── index.d.ts               # TypeScript contract for `PluginState.yvoke` (`$.state` keys)
 │   └── tests/                       # Automated test suites run by `claude plugin test plugins/yvoke`
 ├── scripts/
-│   ├── check-docs.mjs               # Validates Markdown relative links, `#anchors`
+│   ├── check-docs.mjs               # Validates Markdown relative links and `#anchors`
 │   └── lay-types.mjs                # Spawns print-mode Claude Code to lay `.claude-plugin/types/`
 ├── docs/
 │   └── contributing.md              # Developer guide: hot reload, types, debug log, troubleshooting
+├── .agents/
+│   └── skills/                      # Project skills (`claude-code-mod`, `claude-code-testing`, `yvoke-domain`, `rag`)
 ├── .lintel/
+│   ├── config.jsonc                 # Lintel path classifications, role skills, steering, and personas
+│   ├── scripts/                     # Build, setup, and test runner scripts (`build.sh`, `setup.sh`, etc.)
 │   ├── specs/                       # Living specifications per feature area
-│   └── steering/                    # Project steering (product, architecture, tech, structure, conventions, testing)
+│   └── steering/                    # Project steering (`product.md`, `architecture.md`, `tech.md`, `structure.md`, `conventions.md`, `testing.md`)
 └── .github/workflows/ci.yml         # CI running docs check and plugin validation/tests on 2.1.287 & latest
 ```
 

@@ -6,13 +6,17 @@ Yvoke knowledge base, and multi-agent investigations with enforced review.
 - **Claude Code** (the Claude Desktop app's **Code** tab and the terminal): full feature set, through a mod.
 - **Cowork** and **Chat**: not in v1; to check after v1.
 
-**Status:** early. `/yvoke` starts a Yvoke session, and in it the mod lets through only the tools a Yvoke
-answer may use. Picking a playbook and getting an answer from it come next (milestone M1).
+**Status:** single-agent MVP works against a local `yvoke-web` server. `/yvoke` starts a Yvoke session with the
+setup band above the prompt (area and versioned playbook selection, locked on the first question and preserved
+across `/resume` and `/branch`), composes base instructions and the active playbook from the server, enforces a
+deny-by-default tool gate scoped to the playbook's knowledge-base tools, and caps model requests per question.
+Production Entra ID sign-in, citations, web and compute tool rules, playbook preflight checks, and multi-agent
+investigations are tracked in [PLAN.md](PLAN.md).
 
 ## Use it locally
 
 Run the plugin from your clone against a [yvoke-web](https://github.com/yvoke-dev/yvoke-web) on your own
-machine. Checked with Claude Code 2.1.291.
+machine. Checked with Claude Code 2.1.308.
 
 1. **Start yvoke-web in mock mode.** Use an up-to-date `main` (the dev switch needs
    [yvoke-web#6](https://github.com/yvoke-dev/yvoke-web/pull/6)). In your yvoke-web clone, make sure `.env` has
@@ -46,7 +50,7 @@ machine. Checked with Claude Code 2.1.291.
 
 **Use another server.** Run `/plugin configure yvoke@yvoke` in a session, set `serverUrl` to that server
 and turn `devMode` off. In a terminal, pipe the values in instead:
-`echo '{"serverUrl":"https://<server>/mcp","devMode":"false"}' | claude plugin configure yvoke@yvoke --values-stdin`. The plugin then uses the normal sign-in. That sign-in (Entra ID) arrives with task P1-02; until then
+`echo '{"serverUrl":"https://<server>/mcp","devMode":"false"}' | claude plugin configure yvoke@yvoke --values-stdin`. The plugin then uses the normal sign-in. Production Entra ID sign-in is tracked in [PLAN.md](PLAN.md); until then
 only a local server in mock mode works.
 
 **Turn limits.** Three more settings cap the model requests of one Yvoke question: `turnLimitSingle`
@@ -64,8 +68,11 @@ Use the steps above when you need it connected to a server. To work on the mod w
 
 | Document | What it covers |
 | --- | --- |
+| [PLAN.md](PLAN.md) | Feature roadmap, upcoming milestones, codebase integration notes, and server/IT dependencies |
 | [docs/contributing.md](docs/contributing.md) | Running the mod while you work on it: reload, types, debug log |
-| [.lintel/specs/index.md](.lintel/specs/index.md) | Living specifications: what is built today |
-| [.lintel/steering/product.md](.lintel/steering/product.md) | v1 intent, requirements, and roadmap |
-| [.lintel/steering/architecture.md](.lintel/steering/architecture.md) | Architecture, decisions, notes for implementers, yvoke-web changes |
+| [.lintel/specs/index.md](.lintel/specs/index.md) | Living specifications describing what is implemented today |
+| [.lintel/steering/product.md](.lintel/steering/product.md) | Product mission, target users, and core principles |
+| [.lintel/steering/architecture.md](.lintel/steering/architecture.md) | Current hook pipeline, question lifecycle, and module boundaries |
+| [.lintel/steering/tech.md](.lintel/steering/tech.md) | Technology stack and mod runtime environment |
 | [.lintel/steering/conventions.md](.lintel/steering/conventions.md) | Coding and security conventions |
+| [.lintel/steering/testing.md](.lintel/steering/testing.md) | Headless mod test runner and testing patterns |

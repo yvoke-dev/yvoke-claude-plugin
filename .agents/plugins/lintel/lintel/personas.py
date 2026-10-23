@@ -368,7 +368,7 @@ def render_brief(
         lines.append("")
         lines.append("### Steering")
         for sname, src in assigned_steering_with_sources:
-            if sname.startswith(".lintel/steering/"):
-                lines.append(f"- `{repo_root / sname}`")
+            rel_s = sname if sname.startswith(".lintel/steering/") else f".lintel/steering/{sname}"
+            lines.append(f"- `{repo_root / rel_s}`")
                 
     return "\n".join(lines) + "\n", assigned_skill_names, is_test_side

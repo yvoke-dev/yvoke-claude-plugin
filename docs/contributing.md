@@ -87,8 +87,7 @@ ignored by git: never commit it, since it changes with every Claude Code version
 
 The declarations are the truth about the API for your version. Grep
 `plugins/yvoke/.claude-plugin/types/claude-code/index.d.ts` for an event name (`'tool.call'`) or a type
-(`HookBudget`). [architecture.md 4.2 and 4.3](../.lintel/steering/architecture.md#42-the-mod-api-where-the-truth-is) map the
-plan's ideas onto that API.
+(`HookBudget`). See [architecture.md](../.lintel/steering/architecture.md) for how the plugin's hooks map onto that API.
 
 ## 6. Tests and checks
 
@@ -98,7 +97,7 @@ npm run check   # all five verification checks, in CI's order
 ```
 
 Tests run against the real engine with no session, network or server: see
-[architecture.md 4.2](../.lintel/steering/architecture.md#42-the-mod-api-where-the-truth-is) for how a test answers the mod's
+[testing.md](../.lintel/steering/testing.md) for how a test answers the mod's
 `$` calls and stubs the Yvoke server. Run `npm run check` before every push; CI runs the same commands.
 
 ## 7. Reading the debug log
@@ -140,9 +139,9 @@ message while you work, write it with `$.ui.log` and take the line out before yo
   hooks: every `classic.*` event (so `/resume` and `/branch` do not restore a Yvoke session),
   `prompt.compose` (so the server's instructions are never added) and a few others. The grey "hook was
   skipped" line and the debug log's `hooks-passed-over` say so. Reloading, `/yvoke` and the tests still
-  work. To try those hooks, use a machine or account outside the organization (D-25 in
+  work. To try those hooks, use a machine or account outside the organization (see
   [architecture.md](../.lintel/steering/architecture.md)).
 - **The module loads but a feature is missing.** The engine refuses some code shapes that TypeScript
   accepts: `$` passed into another file, a hook built by a wrapper, a `$.state` key imported from another
-  file. See [architecture.md 4.4](../.lintel/steering/architecture.md#44-rules-that-are-easy-to-get-wrong).
+  file. See [conventions.md](../.lintel/steering/conventions.md).
   `claude plugin validate --strict plugins/yvoke` names the problem.

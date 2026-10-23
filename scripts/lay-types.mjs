@@ -6,7 +6,7 @@
 // (no sign-in, no model call, no cost), waits for the declarations to appear, and stops the session.
 // Usage: node scripts/lay-types.mjs   (exit code 1 if the declarations do not appear within 60 s)
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,6 +15,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const plugin = join(root, 'plugins', 'yvoke')
 const types = join(plugin, '.claude-plugin', 'types')
 const api = join(types, 'claude-code', 'index.d.ts')
+const mcpTypes = join(types, 'claude-code-mcp', 'index.d.ts')
 
 // Start clean, so a stale file from an older Claude Code cannot pass for a fresh one.
 rmSync(types, { recursive: true, force: true })
@@ -50,6 +51,12 @@ function stop(code, message) {
   clearInterval(timer)
   child.kill('SIGKILL')
   rmSync(config, { recursive: true, force: true })
+  if (code === 0 && existsSync(mcpTypes) && readFileSync(mcpTypes, 'utf8').includes('mcp__')) {
+    writeFileSync(
+      mcpTypes,
+      "export {}\ndeclare module 'claude-code' {\n  interface McpToolInputs {}\n}\n",
+    )
+  }
   ;(code === 0 ? console.log : console.error)(message)
   process.exit(code)
 }

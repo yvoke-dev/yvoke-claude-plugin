@@ -26,16 +26,23 @@ for nvm_bin in "$HOME"/.nvm/versions/node/*/bin; do
 done
 export PATH
 
-if ! command -v claude >/dev/null 2>&1; then
-    echo "lintel: claude CLI not found on PATH" >&2
+if [ ! -d node_modules ] || [ ! -f "plugins/yvoke/.claude-plugin/types/claude-code/index.d.ts" ] || grep -q "mcp__" "plugins/yvoke/.claude-plugin/types/claude-code-mcp/index.d.ts" 2>/dev/null; then
+    sh ./.lintel/scripts/setup.sh || exit 2
+fi
+
+if ! command -v node >/dev/null 2>&1 || ! command -v claude >/dev/null 2>&1; then
+    echo "lintel: node or claude CLI not found on PATH" >&2
     exit 2
 fi
 
-if [ "$#" -eq 0 ]; then
-    UNIT_FILES="$(find plugins/yvoke/tests -type f -name '*.test.ts' ! -name '*.integration.*' ! -name '*.e2e.*' 2>/dev/null)"
-    if [ -z "$UNIT_FILES" ]; then
-        exit 3
-    fi
+if [ ! -x ./node_modules/.bin/tsc ]; then
+    echo "lintel: ./node_modules/.bin/tsc not found" >&2
+    exit 2
+fi
+
+UNIT_FILES="$(find plugins/yvoke/tests -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) ! -name '*.integration.*' ! -name '*.e2e.*' 2>/dev/null)"
+if [ -z "$UNIT_FILES" ]; then
+    exit 3
 fi
 
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/yvoke-test.XXXXXX")"
@@ -43,14 +50,21 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 export CLAUDE_CONFIG_DIR="$TMP_DIR/claude-config"
 mkdir -p "$CLAUDE_CONFIG_DIR"
 
-TEST_OUT="$TMP_DIR/test-out.txt"
-if [ "$#" -eq 0 ]; then
-    claude plugin test plugins/yvoke >"$TEST_OUT" 2>&1
-    STATUS=$?
-else
-    claude plugin test "$@" >"$TEST_OUT" 2>&1
-    STATUS=$?
+VALIDATE_OUT="$TMP_DIR/validate.txt"
+if ! claude plugin validate --strict plugins/yvoke >"$VALIDATE_OUT" 2>&1; then
+    cat "$VALIDATE_OUT" >&2
+    exit 2
 fi
+
+TSC_OUT="$TMP_DIR/tsc.txt"
+if ! ./node_modules/.bin/tsc --noEmit >"$TSC_OUT" 2>&1; then
+    cat "$TSC_OUT" >&2
+    exit 2
+fi
+
+TEST_OUT="$TMP_DIR/test-out.txt"
+claude plugin test plugins/yvoke >"$TEST_OUT" 2>&1
+STATUS=$?
 
 cat "$TEST_OUT"
 

@@ -59,7 +59,7 @@ Follow this exact sequence in every review run:
 - **Requirement & Group Coverage Rules**:
   - Every requirement assigned to Phase `<N>` must have at least one `- R<n> <group>: <what>` entry in `## Test outline`.
   - Every requirement ID referenced in `## Test outline` must belong to Phase `<N>`'s `Requirements:` list.
-  - Every configured test group from `.lintel/config.yaml` (and `.lintel/steering/testing.md`) must be accounted for in `## Test outline`—either via one or more `- R<n> <group>: <what>` bullets OR a single `- <group>: none: <reason>` bullet, **never** both for the same group.
+  - Every configured test group from `.lintel/config.jsonc` (and `.lintel/steering/testing.md`) must be accounted for in `## Test outline`—either via one or more `- R<n> <group>: <what>` bullets OR a single `- <group>: none: <reason>` bullet, **never** both for the same group.
   - Only valid configured test levels (`unit`, `integration`, `e2e`) may be named; unknown groups or `support` must **never** appear as a test outline group.
 - **Scrutinizing `none` Justifications & Scenario Quality**:
   - Do not rubber-stamp `- <group>: none: <reason>`. Verify that omitting the test group is genuinely justified by the nature of the phase (for example, a pure internal library phase having `e2e: none` when no user-facing surface is touched) and does not evade necessary coverage.

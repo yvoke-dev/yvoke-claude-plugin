@@ -2,7 +2,7 @@
 
 ## Behaviour
 
-- Every call the mod makes to the Yvoke server goes through one function, `callYvoke(io, tool, args)`.
+- Every call the mod makes to the Yvoke server goes through one function, `callYvoke(io, tool, args, options)`.
   It answers `{ ok: true, text }` or `{ ok: false, error }`, and never throws.
 - It finds the server with `$.mcp.connect('yvoke')`, the key in the plugin's own `.mcp.json`, and calls
   it under the name the engine gives back (usually `plugin:yvoke:yvoke`, or the name the session already
@@ -12,13 +12,16 @@
     "Run /mcp and sign in to yvoke.";
   - no answer within 8 seconds (or the caller's `timeoutMs`), counting from before the connect:
     "the server did not answer `<tool>` within `<n>` seconds.";
-  - a result with the error flag, **or** whose text starts with `ERROR:` or `Error:` (yvoke-web's tools
-    report their own failures that way, without the flag): the server's text as it is, for example
-    `Yvoke Backend: ERROR: playbook 'x' not found.`;
+  - a result with the error flag, **or** whose combined text starts with `ERROR:` or `Error:`
+    (`/^\s*(ERROR|Error):/`, checking only the start of the combined text, allowing leading whitespace,
+    and after unwrapping JSON-encoded strings, so an `ERROR:` on a later line is returned as normal answer
+    text; yvoke-web's tools report their own failures that way, without the flag): the server's text as it
+    is, for example `Yvoke Backend: ERROR: playbook 'x' not found.`;
   - a call that rejects: its message;
   - a failure with no text: "the `<tool>` call failed."
-- `text` is the result's text blocks joined by a blank line, each unwrapped when it is a JSON string.
-- There is no cache and no retry: a server that is down gives a clear error (U11).
+- `text` (`readText`) skips non-`text` content blocks (for example `image`) and empty text blocks when
+  joining the result's text blocks with `\n\n`, each unwrapped when it is a JSON string.
+- There is no cache and no retry: a server that is down gives a clear error.
 - The client logs nothing.
 - It registers no hook. A feature imports it and builds `io` in its own hook, because the engine does not
   let `$` cross an import:
@@ -40,12 +43,4 @@
 | Server tools it is used with | yvoke-web's MCP tools, for example `get_system_prompt`, `list_playbooks`, `get_playbook` |
 
 The client-only tools (`get_system_prompt`, `list_areas`, `list_playbooks`, `get_playbook`) are served
-to MCP clients only. yvoke-web's own assistant never gets them, and its playbook editor does not offer them
-(P1-13, D-23).
-
-
-## History
-
-- P1-03 ([#13](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/13)): the client.
-- P1-13 ([yvoke-web#23](https://github.com/yvoke-dev/yvoke-web/pull/23)): the client-only tools are kept
-  out of yvoke-web's in-app assistant.
+to MCP clients only. yvoke-web's own assistant never gets them, and its playbook editor does not offer them.

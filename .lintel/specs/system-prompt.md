@@ -8,8 +8,8 @@
 - The base instructions are chosen from data before any `get_system_prompt` call, as in yvoke-web and
   yvoke-desktop 1.3.0: the system prompt the playbook names (its `systemPrompt`) when any area in
   `list_areas` lists it among its `systemPrompts` (the server looks prompt names up globally, not within the
-  area); else the session area's `defaultSystemPrompt`; else the active default (D-16, `get_system_prompt`
-  with no name). A prompt no area lists falls back silently. Then the mod makes
+  area); else the session area's `defaultSystemPrompt`; else the active default (`get_system_prompt`
+  called with no name). A prompt no area lists falls back silently. Then the mod makes
   exactly one `get_system_prompt` call. If that call fails, an `ERROR:` body included, the question is
   dropped: the server client cannot tell a missing prompt from a broken server, so there is no second try.
 - From then on every system prompt of that session ends with one section, `yvoke:instructions`
@@ -23,18 +23,26 @@
 - If loading fails, the question is not sent and the user sees why, as the server client words it, for
   example `Yvoke Backend: ERROR: playbook 'oim-ful' not found.`, or, when the server is not connected,
   `Yvoke Backend:` followed by Claude Code's own sentence (and *Run /mcp and sign in to yvoke.* when it
-  needs a sign-in). The next question tries again. Nothing is cached as a fallback.
+  needs a sign-in). Unparseable JSON or a wrong shape drops the question with
+  `Yvoke Backend: <tool> gave an answer the plugin cannot read.`; a missing area drops it with
+  `Yvoke Backend: area '<area>' does not exist.`; an area without a default playbook when none was picked
+  drops it with `Yvoke Backend: area '<area>' has no default playbook.`; empty or whitespace-only
+  `get_playbook` `text` drops it with `Yvoke Backend: playbook '<name>' has no text.`; and empty or
+  whitespace-only `get_system_prompt` text drops it with
+  `Yvoke Backend: get_system_prompt gave no instructions.` The next question tries again. Nothing is cached
+  as a fallback.
 - The text is loaded once per session id. Later questions reuse it, even if the playbook changes on the
   server. `/clear`, `/resume` and `/branch` start a new session id, so that session loads again on its first
   question.
 - Fails closed: if the hook that loads the instructions fails, the question is dropped with *Yvoke Backend:
   the instructions could not be loaded, so the question was not sent.* If the hook that adds the section
-  fails, the system prompt is replaced by one section telling the model to reply only that Yvoke could not
-  load its instructions.
+  fails or `yvoke.instructions` is missing or unreadable for the current session, the system prompt is
+  replaced by one refusal section (`yvoke:instructions`):
+  `The Yvoke instructions for this session could not be loaded. Do not answer the question and do not call any tool. Reply only: "Yvoke could not load its instructions. Please send your question again."`
 - Outside a Yvoke session neither hook changes anything, and the server is not called.
-- Not supported (D-25): a plugin a person installs themselves where an organization manages Claude Code.
-  There Claude Code runs the loading hook but not the one that adds the section, so the organization
-  installs the mod through managed settings instead (P7-04).
+- Where an organization manages Claude Code, a plugin installed by the user from a local clone runs the
+  loading hook (`prompt.submit`) but not `prompt.compose`, so the organization must install the plugin
+  through managed settings or an MDM-managed marketplace rather than by the user from a local clone.
 
 | Load step | Calls | Time |
 | --- | --- | --- |
@@ -42,8 +50,12 @@
 | No setup saved | `list_areas`, then `get_playbook` (the area's default), then `get_system_prompt` | three rounds |
 | Multi-agent mode | `list_areas`, then `get_system_prompt` | two rounds |
 
-Each round waits at most 8 s (the server client's limit) or what the hook has left less 1.5 s, whichever is
-smaller. With under 1 s left, it fails at once and asks to send the question again.
+Each round waits at most 8 s (the server client's limit) or what the hook has left less 1,500 ms, whichever
+is smaller. If the remaining hook budget minus the 1,500 ms reserve is under 1,000 ms
+(`remainingMs() - 1500 < 1000`), the hook drops the question at once without calling the server:
+`Yvoke Backend: there was not enough time left to load the instructions. Send the question again.`
+
+> unverified: Live interactive Claude Code session check that the first answer already sees the composed section and whether subagent prompts also pass through prompt.compose.
 
 ## Interfaces
 
@@ -51,18 +63,12 @@ smaller. With under 1 s left, it fails at once and asks to send the question aga
 | --- | --- |
 | `prompt.submit` hook (loads, or drops the question) and `prompt.compose` hook (adds the section) | `plugins/yvoke/src/system-prompt.ts` |
 | `$.state` `yvoke.instructions` = `{ sessionId, text }`, written only by `system-prompt.ts` | contract in `plugins/yvoke/types/index.d.ts` |
-| `$.state` `yvoke.setup` = `{ area, mode, playbook }` (playbook null = the area's default), read here, written by P1-08 | same |
+| `$.state` `yvoke.setup` = `{ area, mode, playbook }` (playbook null = the area's default), read here, written by `src/setup.ts` | same |
 | Server tools `list_areas` (`defaultPlaybook`, `defaultSystemPrompt`, `systemPrompts`), `get_playbook(name)` (`systemPrompt`, `text`), `get_system_prompt(name?)` | through `callYvoke` ([server-client.md](server-client.md)) |
 
-The setup band locks its own setup (`lockedSessionId`); it does not read `yvoke.instructions`. Its
-`prompt.submit` hook is registered first, so it wraps this one: a failure here passes back through it, and
-the user sees its drop message. A `prompt.submit` hook that must act before the lock (P2-06's preflight) registers before
-`registerSystemPrompt(on)` in `hooks/register.tsx`, and with a matcher (even `{}`): P1-07's
-`prompt.submit` and `prompt.compose` hooks are the mod's unmatched ones, and a second unmatched hook on
-the same event stops the module loading (design 4.4).
-
-
-## History
-
-- P1-07 ([#17](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/17)): instructions from the server,
-  including a playbook's own system prompt and the `---` join from yvoke-web 1.3.0.
+Hooks nest in registration order: the first registered hook is on the outside and runs first, and a hook
+that answers without calling `next(e)` hides the ones inside it. In `hooks/register.tsx`, `registerSetup`
+runs before `registerSystemPrompt`: `registerSetup`'s `prompt.submit` hook calls `next(e)` first and locks
+the setup only if `registerSystemPrompt`'s inner `prompt.submit` hook did not drop the question.
+`src/system-prompt.ts` owns the mod's unmatched `prompt.submit` and `prompt.compose` hooks; any other hook
+on those events must register with a matcher ([architecture.md](../steering/architecture.md)).

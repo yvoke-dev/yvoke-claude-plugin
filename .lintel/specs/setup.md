@@ -3,31 +3,46 @@
 ## Behaviour
 
 - In a Yvoke session (see [session.md](session.md)) a band above the prompt shows the session's setup.
-  Outside a Yvoke session nothing is drawn and no list is loaded.
+  Outside a Yvoke session nothing is drawn and no list is loaded. When a survey is active
+  (`e.props.hasSurvey` is `true` on `AbovePrompt`), `ui.render` yields (`next(e)`) and does not draw the
+  setup band.
 - `/yvoke` loads the areas and playbooks from the server (`list_areas`, `list_playbooks`). Until they
   arrive the band says *Loading the Yvoke setup…*.
-- Before the first question the band has three selects, area first (D-11, D-18):
-  - **Area**: each area by its title. Default: OIM when the server has it, else the first area.
-  - **Mode**: *Single agent*. *Multi-agent* is not offered until multi-agent mode is built (Phase 6), and
-    never for an area with no profiles.
-  - **Playbook**: the area's playbooks as *name vN* (`oim-full v3`), the area's default playbook
-    selected. In multi-agent mode a **Profile** select takes its place, the area's default profile
-    selected.
+- Before the first question the band has three selects, area first:
+  - **Area**: each area by its title (an area without a non-empty `title` defaults its title to `name`).
+    Default: OIM when the server has it, else the first area.
+  - **Mode**: *Single agent*. *Multi-agent* is gated behind `MULTI_AGENT_READY = false` in
+    `plugins/yvoke/src/setup.ts`, so the setup band currently offers only *Single agent* mode (while
+    `setup.ts` already supports rendering and locking profile selections when multi-agent mode is enabled),
+    and never for an area with no profiles.
+  - **Playbook**: the area's playbooks as *name vN* (`oim-full v3`; a playbook without a numeric `version`
+    defaults to `1`), the area's default playbook selected. In multi-agent mode a **Profile** select takes
+    its place, the area's default profile selected.
+  A surface whose `$.ui.resolve(e)` provides no `Select` component renders the read-only text line even
+  while unlocked.
 - Changing the area resets mode, playbook and profile to that area's defaults. Switching to *Multi-agent*
-  selects the area's default profile; switching back selects the default playbook.
+  selects the area's default profile; switching back selects the default playbook. If saving an unlocked
+  select change to `$.store` fails, the error is ignored so the pick still holds in `$.state`.
 - Prototype areas and playbooks are hidden unless the `showPrototypes` setting is on. A default the band
   does not show falls back to the area's first playbook or profile.
 - The first question that enters the session **locks** the setup. Just typing accepts the defaults. From
-  then on the band shows one read-only line, *OIM · Single agent · oim-full v3*, and the status line
+  then on the band shows one read-only line, *OIM · Single agent · oim-full v3* (when `lineFor` formats the
+  read-only line without a loaded catalogue, it falls back to `setup.area` (`name`)), and the status line
   shows the same. Nothing can change it; a different setup is `/clear`, then `/yvoke`.
-- A question that is dropped (by the server's instructions failing to load, P1-07, or anything else)
-  does not lock the setup.
+- A question that is dropped does not lock the setup. When the server call that loads the instructions
+  fails in `src/system-prompt.ts`, its `prompt.submit` hook drops the question before `setup.ts` locks the
+  session, so the setup stays open.
 - The locked line keeps the version it locked with while the session runs, even when the server's
   playbook moves on.
-- Server down, or an answer the mod cannot read: the band shows the `Yvoke Backend:` error and a **Retry**
-  button, and a question is dropped with the same error. A question sent before the lists arrived loads
-  them first. A server with no areas, or an area with no playbooks, is refused the same way. There is no
-  cached list.
+- Server down, or an answer the mod cannot read (`Yvoke Backend: list_areas gave an answer the mod cannot read.`
+  / `Yvoke Backend: list_playbooks gave an answer the mod cannot read.`): the band shows the `Yvoke Backend:`
+  error and a **Retry** button, and a question is dropped with the same error. A question sent before the
+  lists arrived loads them first. A server with no areas is refused the same way (`Yvoke Backend: the server has no areas.`
+  with a **Retry** button). When an area has no playbooks, the catalogue loads and the band still renders
+  the **Area** and **Mode** selects so the user can pick another area, replacing only the third slot with
+  red text `The area <title> has no playbooks.`; if a question is submitted while that area is selected in
+  single-agent mode, the question is dropped with `Yvoke Backend: the area <name> has no playbooks, so the question was not sent.`
+  There is no cached list.
 - `/clear` ends the setup with the session. `/resume` brings back the setup the resumed session had,
   locked or not; if it cannot be read, the session has none. `/branch` keeps the setup, locked in the new
   session; Claude Code starts a branch with empty `$.state`, so it is read from the session that just
@@ -35,7 +50,7 @@
   never shows a session's setup under another session.
 - After `/resume` or `/branch` of a locked session whose playbook the server has saved again, the setup
   carries on with the server's version: the line and the status line show it, and a toast says once *oim-full moved
-  from v3 to v4 since the setup was locked; answers from now on use v4.* (D-20).
+  from v3 to v4 since the setup was locked; answers from now on use v4.*
 - A question that entered the session is never reported as dropped, even when saving the lock fails;
   the lock then holds for this session, and `/resume` finds the setup unlocked.
 - The saved setups (`setup:<session id>`) are a few hundred bytes each, in the plugin's 4 MiB store. They
@@ -47,18 +62,12 @@
 
 | Piece | Where |
 | --- | --- |
-| Rules (catalogue, defaults, picks, read-only line, D-20) and hooks | `plugins/yvoke/src/setup.ts` |
+| Rules (catalogue, defaults, picks, read-only line, version upgrade on resume/branch) and hooks | `plugins/yvoke/src/setup.ts` |
 | Band | `ui.render` on `AbovePrompt` (terminal and desktop); `Select` keys `yvoke-area`, `yvoke-mode`, `yvoke-playbook`, `yvoke-profile`; Button `yvoke-retry` |
 | Loading | `command.run` on `yvoke`, `classic.SessionStart` (`resume`, `fork`), Retry, or a question with no lists |
-| Lock | `prompt.submit` (matcher `{ text: /^/ }`, so it can sit beside another module's unmatched hook) |
-| `$.state` `yvoke.setup` | `{ area, mode: 'single' \| 'multi', playbook, version, profile, lockedSessionId }`; P1-07 reads area, mode and playbook |
-| `$.state` `yvoke.catalogue` | the lists as the band shows them, or the error; each playbook carries the `tools` it declares, null when it declares none (an empty list or no field), `'unreadable'` when the server sent something else, which the tool gate reads ([tool-policy.md](tool-policy.md), P2-02) |
+| Lock | `prompt.submit` (matcher `{ text: /^/ }`, so it can sit beside `src/system-prompt.ts`'s unmatched hook) |
+| `$.state` `yvoke.setup` | `{ area, mode: 'single' \| 'multi', playbook, version, profile, lockedSessionId }` (read by `src/system-prompt.ts` and `src/policy.ts`) |
+| `$.state` `yvoke.catalogue` | the lists as the band shows them, or the error; each playbook carries the `tools` it declares, null when it declares none (an empty list or no field), `'unreadable'` when the server sent something else, which the tool gate reads ([tool-policy.md](tool-policy.md)) |
 | `$.store` `setup:<session id>` | the setup, saved on every pick, before a question goes down, and at the lock |
 | Setting `showPrototypes` | `plugin.json` `userConfig`, boolean, default off |
 | Server tools | `list_areas`, `list_playbooks` (through [server-client.md](server-client.md)) |
-
-
-## History
-
-- P1-08 ([#22](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/22)): the setup band.
-- P1-08 ([#29](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/29)): the setup survives `/branch` with empty `$.state`.

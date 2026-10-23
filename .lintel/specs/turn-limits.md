@@ -11,17 +11,22 @@
 - Request `n` is the answer. Any tool calls it still asks for are dropped from the response (a `tool_use`
   stop becomes `end_turn`), so Claude Code runs none and the turn ends with the text written so far.
 - A main-loop answer that reached request `n` gets one line beneath it: *Yvoke: stopped at the turn limit
-  (n model requests). The answer may be incomplete.* The transcript is not changed. A subagent's report
+  (n model requests). The answer may be incomplete.* `turn.complete` verifies `at.turnId === e.turnId`
+  before adding the turn-limit flag line so a subsequent turn finishing before any `turn.step` does not
+  carry over the previous turn's flag line. The transcript is not changed. A subagent's report
   gets no line; its own text, told to say it may be incomplete, is what the lead receives.
 - Ceilings: single agent 25, lead 60 (the main loop when the setup's mode is set and not `single`), every
-  subagent 20, specialists and reviewer alike (D-24). `0` turns a ceiling off; any other value below 2
-  counts as 2; a fraction is rounded down.
+  subagent 20, specialists and reviewer alike. `0` turns a ceiling off; any other value below 2
+  counts as 2; a fraction is rounded down. Numeric strings (for example `'12'`) are parsed while
+  non-numeric strings (`'many'`), booleans, `NaN`, or `Infinity` fall back to the default ceiling.
 - At the limit every tool call is refused with the wrap-up message, also one the tool policy would refuse,
   so the model is told to answer rather than pointed to other tools.
 - Fails closed: when the tool-call check fails, the tool is denied with *Yvoke: the turn-limit check
   failed, so this tool was not run.* When a request cannot read the setup or record where its loop stands,
   it is treated as the last one and its tool calls are dropped. When the end-of-turn hook fails, the answer
   stands without the line.
+
+> unverified: Live interactive Claude Code session check for a hook that overruns its budget and how the turn-limit flag line renders on screen.
 
 ## Interfaces
 
@@ -36,9 +41,3 @@
 
 The request number comes from `turn.step`'s own `index`, so nothing is counted in module variables, and
 parallel specialists each write their own family member.
-
-
-## History
-
-- P2-08 ([#26](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/26)): turn ceilings, delivered
-  rather than discarded at the limit; D-24 gives the reviewer the specialists' 20.

@@ -13,7 +13,7 @@
   Its address is the setting `serverUrl`.
 - Six settings (`userConfig`), set with `claude plugin install yvoke@yvoke --config KEY=VALUE` or
   `/plugin configure yvoke@yvoke`, and stored in the user's `settings.json`, never in the repository:
-  - `serverUrl`: the Yvoke MCP endpoint. No default yet (P1-02 adds production). While it is unset the
+  - `serverUrl`: the Yvoke MCP endpoint (currently defaulting to local development until a production URL is configured). While it is unset the
     `yvoke` server does not connect ("URL is unset or invalid"); the mod still loads.
   - `devMode`, off by default: the plugin always sends `X-Yvoke-Dev-Mode: true|false`. A yvoke-web in
     mock mode accepts `true` in place of a sign-in; any other server ignores it. Off, the normal OAuth
@@ -38,15 +38,3 @@
 | Mod entry point | `plugins/yvoke/hooks/register.tsx` |
 | `$.state` contract (`PluginState.yvoke`) | `plugins/yvoke/types/index.d.ts` |
 | Type declarations for `tsc`, laid by `npm run types` | `plugins/yvoke/.claude-plugin/types/` (not committed) |
-
-
-## History
-
-- P0-01 ([#7](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/7)): marketplace, plugin, empty mod,
-  type-checking and the first test.
-- P0-02 ([#9](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/9)): CI runs the plugin checks on the
-  oldest and newest Claude Code.
-- P0-11 ([#10](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/10)): settings `serverUrl` and
-  `devMode`, the `yvoke` MCP server, and the README's "Use it locally".
-- P1-10 ([#12](https://github.com/yvoke-dev/yvoke-claude-plugin/pull/12)): the mod's first hooks, for the
-  `/yvoke` session start.

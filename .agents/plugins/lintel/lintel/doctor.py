@@ -672,13 +672,14 @@ def doctor(
                 for s_name, _ in resolved_steering:
                     if (st_role, s_name) not in seen_steering:
                         seen_steering.add((st_role, s_name))
-                        target_sf = proj / ".lintel" / "steering" / s_name
+                        rel_sf = s_name if s_name.startswith(".lintel/steering/") else f".lintel/steering/{s_name}"
+                        target_sf = proj / rel_sf
                         if not target_sf.is_file():
                             report.issues.append(
                                 DoctorIssue(
                                     "warning",
                                     "steering",
-                                    f"Mapped steering file does not exist: .lintel/steering/{s_name} (role {st_role})",
+                                    f"Mapped steering file does not exist: {rel_sf} (role {st_role})",
                                 )
                             )
             except Exception as exc:
