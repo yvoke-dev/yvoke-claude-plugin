@@ -93,6 +93,12 @@ for (const prefix of ['mcp__plugin_yvoke_yvoke__', 'mcp__claude_ai_yvoke__']) {
       expect(qualifyTool('WebSearchExtra', prefix)).toBe(`${prefix}WebSearchExtra`)
     })
 
+    test('ask_clarifying_question is a server tool, not AskUserQuestion: the gate catches the call', () => {
+      expect(qualifyTool('ask_clarifying_question', prefix)).toBe(`${prefix}ask_clarifying_question`)
+      expect(qualifyTool('mcp__yvoke__ask_clarifying_question', prefix)).toBe(`${prefix}ask_clarifying_question`)
+      expect(builtinTool('ask_clarifying_question')).toBeUndefined()
+    })
+
     test('trims before stripping a prefix, so a padded prefixed name is read like the plain one', () => {
       expect(qualifyTool(' mcp__oim__WebSearch', prefix)).toBe('WebSearch')
       expect(qualifyTool(' mcp__oim__search_corpus ', prefix)).toBe(`${prefix}search_corpus`)

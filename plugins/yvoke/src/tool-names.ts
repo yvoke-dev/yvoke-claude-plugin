@@ -48,6 +48,12 @@ export const qualifyTool = (tool: string, serverPrefix: string): string => {
 // `isComputeTool` (src/main/agent/computeTools.ts). Web and compute names are dropped, so a declaration
 // alone never grants them: P2-04 and P2-05 grant those under their own rules.
 
+/**
+ * yvoke-web's tool for asking the user. Its reply over MCP says nobody was asked, so the gate catches
+ * the call and asks the user itself.
+ */
+export const ASK_CLARIFYING_QUESTION = 'ask_clarifying_question'
+
 /** What a playbook that declares no tools gets, as in yvoke-desktop. */
 export const DEFAULT_KB_TOOLS = [
   'query_json_objects',
