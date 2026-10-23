@@ -51,6 +51,19 @@
 - After `/resume` or `/branch` of a locked session whose playbook the server has saved again, the setup
   carries on with the server's version: the line and the status line show it, and a toast says once *oim-full moved
   from v3 to v4 since the setup was locked; answers from now on use v4.*
+- If the lists fail to load on `/resume` or `/branch` of a locked session (the server is down, still
+  connecting or needs a sign-in), the setup stays locked, and the tool gate refuses every Yvoke tool until
+  they load ([tool-policy.md](tool-policy.md)). The session recovers without `/clear`:
+  - The band shows the locked line, the `Yvoke Backend:` error and a **Retry** button.
+  - The next question loads the lists again before it goes on. If they still fail, the question is
+    dropped with the same `Yvoke Backend:` error and the setup stays as it was. If they load, the question
+    goes on, the band shows the locked line alone, and later questions load no list.
+  - **Retry** loads them the same way, without a question.
+  - A late load applies the same version upgrade as `/resume`: if the server has a newer version of the
+    locked playbook, the setup moves to it, the toast is shown once and the status line shows the new
+    version. The question hook saves the moved setup before the question goes down, so
+    `src/system-prompt.ts` loads the instructions for it. Only the version can change; the area, mode,
+    playbook and lock stay as they were.
 - A question that entered the session is never reported as dropped, even when saving the lock fails;
   the lock then holds for this session, and `/resume` finds the setup unlocked.
 - The saved setups (`setup:<session id>`) are a few hundred bytes each, in the plugin's 4 MiB store. They
@@ -62,9 +75,9 @@
 
 | Piece | Where |
 | --- | --- |
-| Rules (catalogue, defaults, picks, read-only line, version upgrade on resume/branch) and hooks | `plugins/yvoke/src/setup.ts` |
+| Rules (catalogue, defaults, picks, read-only line, version upgrade on resume/branch or a late load) and hooks | `plugins/yvoke/src/setup.ts` |
 | Band | `ui.render` on `AbovePrompt` (terminal and desktop); `Select` keys `yvoke-area`, `yvoke-mode`, `yvoke-playbook`, `yvoke-profile`; Button `yvoke-retry` |
-| Loading | `command.run` on `yvoke`, `classic.SessionStart` (`resume`, `fork`), Retry, or a question with no lists |
+| Loading | `command.run` on `yvoke`, `classic.SessionStart` (`resume`, `fork`), Retry, or a question with no lists or failed ones, locked or not |
 | Lock | `prompt.submit` (matcher `{ text: /^/ }`, so it can sit beside `src/system-prompt.ts`'s unmatched hook) |
 | `$.state` `yvoke.setup` | `{ area, mode: 'single' \| 'multi', playbook, version, profile, lockedSessionId }` (read by `src/system-prompt.ts` and `src/policy.ts`) |
 | `$.state` `yvoke.catalogue` | the lists as the band shows them, or the error; each playbook carries the `tools` it declares, null when it declares none (an empty list or no field), `'unreadable'` when the server sent something else, which the tool gate reads ([tool-policy.md](tool-policy.md)) |

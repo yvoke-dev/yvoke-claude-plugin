@@ -172,9 +172,9 @@ export const lineFor = (setup: Setup, catalogue: Catalogue | null) => {
 }
 
 /**
- * D-20: after /resume, a locked single-agent setup takes the version the server now has for its playbook.
- * Null when nothing moved, the playbook is gone (its fetch then fails on the next question), or no
- * playbook applies.
+ * D-20: once the lists load after /resume or /branch, a locked single-agent setup takes the version the
+ * server now has for its playbook. Null when nothing moved, the playbook is gone (its fetch then fails on
+ * the next question), or no playbook applies.
  */
 export const movedOn = (setup: Setup, catalogue: Catalogue): { setup: Setup; from: number | null; to: number } | null => {
   if (setup.mode !== 'single' || setup.playbook === null) return null
@@ -237,6 +237,27 @@ export function registerSetup(on: On, options: PluginOptions) {
         : toCatalogue(areas.text, playbooks.text, showPrototypes)
     await write(answer, answer.ok ? fitted(await getSetup(), answer.catalogue) : ((await getSetup()) ?? null))
     return answer
+  }
+
+  // D-20: after a load, a locked setup carries on with the playbook version the server has now. It is
+  // saved, a toast says so, and the status line shows it. /resume and /branch, the next question and
+  // Retry all need it, so it takes closures written where `$` lives, as `load` does.
+  const upgrade = async (
+    locked: Setup,
+    catalogue: CatalogueState,
+    save: (setup: Setup) => Promise<void>,
+    toast: (text: string) => void,
+    status: (text: string) => void,
+  ): Promise<void> => {
+    const moved = catalogue.ok ? movedOn(locked, catalogue.catalogue) : null
+    if (moved) {
+      await save(moved.setup)
+      await toast(
+        `${moved.setup.playbook} moved from v${moved.from} to v${moved.to} since the setup was locked; ` +
+          `answers from now on use v${moved.to}.`,
+      )
+    }
+    await status(lineFor(moved?.setup ?? locked, catalogue.ok ? catalogue.catalogue : null))
   }
 
   on('command.run', { command: 'yvoke' }, async ($, e, next) => {
@@ -306,20 +327,19 @@ export function registerSetup(on: On, options: PluginOptions) {
       },
     )
     if (saved && saved.lockedSessionId !== null) {
-      let shown = saved
       // D-20: a resumed or branched session carries on with the playbook version the server has now. Both
-      // have a new session id to P1-07, so their first question fetches the server's current text.
-      const moved = catalogue.ok ? movedOn(saved, catalogue.catalogue) : null
-      if (moved) {
-        shown = moved.setup
-        await $.state.set({ plugin: 'yvoke', key: 'setup' }, shown)
-        await $.store.set(setupKey(e.session_id), shown)
-        await $.ui.toast(
-          `${shown.playbook} moved from v${moved.from} to v${moved.to} since the setup was locked; ` +
-            `answers from now on use v${moved.to}.`,
-        )
-      }
-      await $.ui.status(lineFor(shown, catalogue.ok ? catalogue.catalogue : null))
+      // have a new session id to P1-07, so their first question fetches the server's current text. If the
+      // lists fail here, the next question or Retry loads them and upgrades the setup then.
+      await upgrade(
+        saved,
+        catalogue,
+        async (s) => {
+          await $.state.set({ plugin: 'yvoke', key: 'setup' }, s)
+          await $.store.set(setupKey(e.session_id), s)
+        },
+        (text) => $.ui.toast(text),
+        (text) => $.ui.status(text),
+      )
     }
     return started
   })
@@ -332,9 +352,12 @@ export function registerSetup(on: On, options: PluginOptions) {
 
     const sessionId = await $.session.id()
     let { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
-    if (setup && setup.lockedSessionId === sessionId) return next(e)
-
     let { value: catalogue } = await $.state.get({ plugin: 'yvoke', key: 'catalogue' })
+    const already = setup && setup.lockedSessionId === sessionId ? setup : null
+    if (already && catalogue?.ok) return next(e)
+
+    // No lists yet, or they failed: before the first question, or on /resume or /branch of a locked
+    // session, where the tool gate cannot grant the playbook's tools until they load.
     if (!catalogue || !catalogue.ok) {
       const io: ServerIo = {
         connect: (server) => $.mcp.connect(server),
@@ -352,6 +375,20 @@ export function registerSetup(on: On, options: PluginOptions) {
       setup = (await $.state.get({ plugin: 'yvoke', key: 'setup' })).value
     }
     if (!catalogue.ok) return { drop: catalogue.error }
+    if (already) {
+      // Before the question goes down, so P1-07's hook loads the instructions for the version moved to.
+      await upgrade(
+        already,
+        catalogue,
+        async (s) => {
+          await $.state.set({ plugin: 'yvoke', key: 'setup' }, s)
+          await $.store.set(setupKey(sessionId), s)
+        },
+        (text) => $.ui.toast(text),
+        (text) => $.ui.status(text),
+      )
+      return next(e)
+    }
     const chosen = fitted(setup, catalogue.catalogue)
     if (chosen.mode === 'single' && chosen.playbook === null) return { drop: noPlaybooks(chosen.area) }
 
@@ -385,33 +422,45 @@ export function registerSetup(on: On, options: PluginOptions) {
     const { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
     const sessionId = await $.session.id()
 
+    // Loads the lists again. A setup locked in this session then takes the server's version, as on /resume.
+    const retry = async () => {
+      const io: ServerIo = {
+        connect: (server) => $.mcp.connect(server),
+        call: (server, tool, args) => $.mcp.call(server, tool, args),
+        sleep: (ms, signal) => $.clock.sleep(ms, { signal }),
+      }
+      const { value: now } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
+      const answer = await load(
+        io,
+        async () => now,
+        async (c, s) => {
+          await $.state.set({ plugin: 'yvoke', key: 'catalogue' }, c)
+          await $.state.set({ plugin: 'yvoke', key: 'setup' }, s)
+        },
+      )
+      if (!answer.ok || !now || now.lockedSessionId !== sessionId) return
+      await upgrade(
+        now,
+        answer,
+        async (s) => {
+          await $.state.set({ plugin: 'yvoke', key: 'setup' }, s)
+          await $.store.set(setupKey(sessionId), s)
+        },
+        (text) => $.ui.toast(text),
+        (text) => $.ui.status(text),
+      )
+    }
+    const failed = (error: string) =>
+      h(Box, { gap: 1 }, h(Text, { color: 'red' }, error), h(Button, { key: 'yvoke-retry', label: 'Retry', onPress: retry }))
+
     if (setup && setup.lockedSessionId === sessionId) {
-      return h(Text, {}, lineFor(setup, catalogue?.ok ? catalogue.catalogue : null)) as RenderElement
+      const line = h(Text, {}, lineFor(setup, catalogue?.ok ? catalogue.catalogue : null))
+      if (!catalogue || catalogue.ok) return line as RenderElement
+      // The lists failed on /resume or /branch: the tool gate refuses the server's tools until they load.
+      return h(Box, { flexDirection: 'column' }, line, failed(catalogue.error)) as RenderElement
     }
     if (!catalogue) return h(Text, { dimColor: true }, LOADING) as RenderElement
-    if (!catalogue.ok) {
-      const retry = async () => {
-        const io: ServerIo = {
-          connect: (server) => $.mcp.connect(server),
-          call: (server, tool, args) => $.mcp.call(server, tool, args),
-          sleep: (ms, signal) => $.clock.sleep(ms, { signal }),
-        }
-        await load(
-          io,
-          async () => (await $.state.get({ plugin: 'yvoke', key: 'setup' })).value,
-          async (c, s) => {
-            await $.state.set({ plugin: 'yvoke', key: 'catalogue' }, c)
-            await $.state.set({ plugin: 'yvoke', key: 'setup' }, s)
-          },
-        )
-      }
-      return h(
-        Box,
-        { gap: 1 },
-        h(Text, { color: 'red' }, catalogue.error),
-        h(Button, { key: 'yvoke-retry', label: 'Retry', onPress: retry }),
-      ) as RenderElement
-    }
+    if (!catalogue.ok) return failed(catalogue.error) as RenderElement
 
     const cat = catalogue.catalogue
     const current = fitted(setup, cat)

@@ -18,7 +18,8 @@
   refused call runs.
 - **The playbook's tools**. The session's playbook is the one in its setup ([setup.md](setup.md)),
   with the `tools` `list_playbooks` gave for it when the lists were last loaded (on `/yvoke`, `/resume` or
-  `/branch`, so a playbook edit during a running session takes effect in the next session):
+  `/branch`, or later on a question or Retry when that load failed; so a playbook edit during a running
+  session takes effect in the next session):
   - A playbook that declares tools gets exactly those, each named as below. Declared web tools
     (`WebSearch`, `WebFetch`) and compute tools (`execute_code`, the retired `calculate`, `statistics`,
     `date_diff`, anything under `mcp__compute__`) are left out: a declaration alone never grants them.

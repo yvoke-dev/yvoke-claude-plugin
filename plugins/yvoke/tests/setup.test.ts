@@ -46,6 +46,8 @@ type World = {
   failId: boolean
   failLockedSave: boolean
   savedAtSubmit: unknown[]
+  /** The saved setup each time P1-07 fetched a playbook's text. */
+  savedAtFetch: unknown[]
 }
 
 function engine(on: On, start: Partial<World> = {}): World {
@@ -66,6 +68,7 @@ function engine(on: On, start: Partial<World> = {}): World {
     failId: false,
     failLockedSave: false,
     savedAtSubmit: [],
+    savedAtFetch: [],
     ...start,
   }
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
@@ -94,10 +97,15 @@ function engine(on: On, start: Partial<World> = {}): World {
     if (e.tool === 'list_areas') return { value: text(JSON.stringify(w.server.areas)) }
     if (e.tool === 'list_playbooks') return { value: text(JSON.stringify(w.server.playbooks)) }
     // P1-07's calls, when its module is loaded too: answer them so a question can enter.
-    if (e.tool === 'get_playbook') return { value: text(JSON.stringify({ name: e.args.name, text: 'PLAYBOOK' })) }
+    if (e.tool === 'get_playbook') {
+      w.savedAtFetch.push(w.store.get(`setup:${w.sessionId}`))
+      return { value: text(JSON.stringify({ name: e.args.name, text: 'PLAYBOOK' })) }
+    }
     if (e.tool === 'get_system_prompt') return { value: text('BASE') }
     return { value: text(`ERROR: no tool ${e.tool}`) }
   })
+  // The tools themselves, behind P2-01's gate.
+  on('tool.call', (_$, e) => ({ result: `ran ${e.tool}` }))
   on('prompt.submit', (_$, e) => {
     w.savedAtSubmit.push(w.store.get(`setup:${w.sessionId}`))
     if (w.dropBeneath !== null) return { drop: w.dropBeneath }
@@ -130,6 +138,7 @@ const yvoke = ($: Engine) =>
     presentation: { isFullscreen: false, columns: 80 },
   })
 const ask = ($: Engine, question: string) => $.prompt.submit({ text: question, wait: false, origin: { kind: 'composer' } })
+const useTool = ($: Engine, tool: string) => $.tool.call({ tool } as Parameters<Engine['tool']['call']>[0])
 const band = <S extends (typeof SURFACES)[number]>($: Engine, surface: S) =>
   $.ui.mount({ plugin: 'yvoke', surface, ...BAND })
 const selected = async (ui: { find: (q: { key: string }) => Promise<{ props: Record<string, unknown> } | undefined> }, key: string) =>
@@ -465,6 +474,172 @@ test('/branch keeps a locked setup in the new session', async ($, on) => {
   expect(w.store.get('setup:session-b')).toMatchObject({ playbook: 'oim-full', version: 3, lockedSessionId: 'session-b' })
   const ui = await band($, 'terminal')
   expect(await lineOf(ui)).toBe(LINE)
+})
+
+// A locked session whose lists fail on /resume or /branch: the server is down, still connecting or needs a
+// sign-in. Until the lists load, the tool gate cannot read the playbook, so it refuses every Yvoke tool.
+const DOWN = 'Yvoke Backend: yvoke is not connected.'
+const SEARCH = 'mcp__plugin_yvoke_yvoke__search_corpus'
+const PLAYBOOK_UNKNOWN = "Yvoke: the session's playbook could not be read, so this tool was not run."
+const QUICK = 'OIM · Single agent · oim-quick v2'
+const MOVED = 'oim-quick moved from v2 to v4 since the setup was locked; answers from now on use v4.'
+
+const resumedDown = async ($: Engine, on: On) => {
+  const w = engine(on, {
+    sessionId: 'old',
+    store: new Map<string, unknown>([
+      ['session:old', { yvoke: true }],
+      ['setup:old', LOCKED],
+    ]),
+  })
+  w.server.down = true
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  return w
+}
+
+test('/resume of a locked session whose lists fail: the locked line, the error and Retry', async ($, on) => {
+  const w = await resumedDown($, on)
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    expect(await lineOf(ui)).toBe(QUICK)
+    expect(await errorOf(ui)).toBe(DOWN)
+    expect(await ui.find({ key: 'yvoke-retry' })).toBeDefined()
+    expect(await ui.find({ key: 'yvoke-area' })).toBeUndefined()
+    await ui.unmount()
+  }
+  expect(w.status.at(-1)).toBe(QUICK)
+})
+
+test('a locked session whose lists failed: a question with the server still down is dropped, the setup unchanged', async ($, on) => {
+  const w = await resumedDown($, on)
+  expect(await ask($, 'q')).toEqual({ drop: DOWN })
+  expect(w.entered).toEqual([])
+  expect(w.store.get('setup:old')).toEqual(LOCKED)
+  expect(w.toasts).toEqual([])
+
+  const ui = await band($, 'terminal')
+  expect(await lineOf(ui)).toBe(QUICK)
+  expect(await errorOf(ui)).toBe(DOWN)
+  expect(await ui.find({ key: 'yvoke-retry' })).toBeDefined()
+  expect(await ui.find({ key: 'yvoke-playbook' })).toBeUndefined()
+})
+
+test('a locked session whose lists failed: a question with the server back loads them, and the Yvoke tools come back', async ($, on) => {
+  const w = await resumedDown($, on)
+  w.server.down = false
+  expect(await useTool($, SEARCH)).toEqual({ deny: PLAYBOOK_UNKNOWN })
+
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+  expect(w.server.calls).toContain('list_playbooks')
+  expect(await useTool($, SEARCH)).toEqual({ result: `ran ${SEARCH}` })
+  expect(w.store.get('setup:old')).toEqual(LOCKED)
+  expect(w.status.at(-1)).toBe(QUICK)
+  expect(w.toasts).toEqual([])
+  const ui = await band($, 'terminal')
+  expect(await lineOf(ui)).toBe(QUICK)
+  expect(await ui.find({ key: 'yvoke-retry' })).toBeUndefined()
+  await ui.unmount()
+
+  // Loaded now: the next question takes the fast path again.
+  w.server.calls = []
+  expect(await ask($, 'q2')).toEqual({ text: 'q2' })
+  expect(w.server.calls).toEqual([])
+})
+
+test('a late load that finds a newer playbook: the setup moves to it before the question goes down (D-20)', async ($, on) => {
+  const w = await resumedDown($, on)
+  w.server.down = false
+  w.server.playbooks = [playbook('oim-quick', { version: 4 })]
+
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+  // P1-07 fetched the instructions with the moved setup already saved.
+  expect(w.savedAtFetch).toEqual([{ ...LOCKED, version: 4 }])
+  expect(w.savedAtSubmit).toEqual([{ ...LOCKED, version: 4 }])
+  expect(w.store.get('setup:old')).toEqual({ ...LOCKED, version: 4 })
+  expect(w.toasts).toEqual([MOVED])
+  expect(w.status.at(-1)).toBe('OIM · Single agent · oim-quick v4')
+  const ui = await band($, 'terminal')
+  expect(await lineOf(ui)).toBe('OIM · Single agent · oim-quick v4')
+  await ui.unmount()
+
+  await ask($, 'q2')
+  expect(w.toasts).toEqual([MOVED])
+})
+
+test('Retry in the locked band loads the lists and moves the setup the same way (D-20)', async ($, on) => {
+  const w = await resumedDown($, on)
+  w.server.playbooks = [playbook('oim-quick', { version: 4 })]
+  for (const surface of SURFACES) {
+    // Each surface from the same failed /resume.
+    w.store.set('setup:old', LOCKED)
+    w.toasts = []
+    w.server.down = true
+    await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+    w.server.down = false
+
+    const ui = await band($, surface)
+    await ui.press({ key: 'yvoke-retry' })
+    expect(await lineOf(ui)).toBe('OIM · Single agent · oim-quick v4')
+    expect(await errorOf(ui)).toBeUndefined()
+    expect(await ui.find({ key: 'yvoke-retry' })).toBeUndefined()
+    expect(await ui.find({ key: 'yvoke-playbook' })).toBeUndefined()
+    await ui.unmount()
+    expect(w.store.get('setup:old')).toEqual({ ...LOCKED, version: 4 })
+    expect(w.toasts).toEqual([MOVED])
+    expect(w.status.at(-1)).toBe('OIM · Single agent · oim-quick v4')
+    expect(await useTool($, SEARCH)).toEqual({ result: `ran ${SEARCH}` })
+  }
+})
+
+test('/branch of a locked session whose lists fail: the same as /resume', async ($, on) => {
+  const w = engine(on)
+  await begin($)
+  await yvoke($)
+  await ask($, 'q')
+  w.server.down = true
+  w.sessionId = 'session-b'
+  await $.classic.SessionStart({ source: 'fork', session_id: 'session-b' })
+  const branched = { area: 'OIM', mode: 'single', playbook: 'oim-full', version: 3, profile: null, lockedSessionId: 'session-b' }
+
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    expect(await lineOf(ui)).toBe(LINE)
+    expect(await errorOf(ui)).toBe(DOWN)
+    expect(await ui.find({ key: 'yvoke-retry' })).toBeDefined()
+    await ui.unmount()
+  }
+  expect(await ask($, 'q2')).toEqual({ drop: DOWN })
+  expect(w.store.get('setup:session-b')).toEqual(branched)
+
+  w.server.down = false
+  w.server.playbooks = [playbook('oim-full', { version: 4 })]
+  expect(await useTool($, SEARCH)).toEqual({ deny: PLAYBOOK_UNKNOWN })
+  expect(await ask($, 'q3')).toEqual({ text: 'q3' })
+  expect(await useTool($, SEARCH)).toEqual({ result: `ran ${SEARCH}` })
+  expect(w.store.get('setup:session-b')).toEqual({ ...branched, version: 4 })
+  expect(w.toasts).toEqual(['oim-full moved from v3 to v4 since the setup was locked; answers from now on use v4.'])
+  expect(w.status.at(-1)).toBe('OIM · Single agent · oim-full v4')
+})
+
+test('a locked session with its lists loaded: a question asks the server for no list (the fast path)', async ($, on) => {
+  const w = engine(on, {
+    sessionId: 'old',
+    store: new Map<string, unknown>([
+      ['session:old', { yvoke: true }],
+      ['setup:old', LOCKED],
+    ]),
+  })
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  w.server.calls = []
+
+  // Only P1-07's first load of the instructions.
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+  expect(w.server.calls.sort()).toEqual(['get_playbook', 'get_system_prompt', 'list_areas'])
+  w.server.calls = []
+  expect(await ask($, 'q2')).toEqual({ text: 'q2' })
+  expect(w.server.calls).toEqual([])
 })
 
 test('a failing hook drops the question (fails closed)', async ($, on) => {

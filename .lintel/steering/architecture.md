@@ -48,9 +48,9 @@ Claude Code engine (Desktop Code tab / terminal)
      ├─ command.run          setup.ts runs outermost, calls next(e) so session.ts activates the Yvoke session, then loads areas & playbooks
      ├─ classic.SessionStart clears on /clear; restores Yvoke flag & setup on /resume and /branch (fork)
      ├─ session.end          records the ending session ID under $.store key 'ended' for /branch inheritance
-     ├─ ui.render            renders AbovePrompt setup band (Selects when unlocked, read-only line when locked, or Retry)
+     ├─ ui.render            renders AbovePrompt setup band (Selects when unlocked, read-only line when locked; the error and Retry when the lists failed, under the locked line too)
      ├─ ui.press             handles Retry button on AbovePrompt when catalogue loading failed
-     ├─ prompt.submit        setup.ts ensures catalogue/setup and wraps system-prompt.ts, which loads instructions from yvoke-web; setup.ts locks only if not dropped
+     ├─ prompt.submit        setup.ts loads missing or failed lists (for a locked setup too, with the D-20 version upgrade) and wraps system-prompt.ts, which loads instructions from yvoke-web; setup.ts locks only if not dropped
      ├─ prompt.compose       appends session section `yvoke:instructions` (base + `\n\n---\n\n` + playbook)
      ├─ tool.call            single gate in src/policy.ts: turn limit check first, then playbook tool policy
      ├─ turn.step            tracks request index per loop; strips tool uses at request ceiling `n`
