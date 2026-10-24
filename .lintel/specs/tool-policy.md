@@ -16,6 +16,19 @@
   instead.* That includes `Bash`, the file tools, `Skill`, `TodoWrite`, `WebSearch`, `WebFetch`,
   `Agent`/`Task`, the mod's own `mcp__yvoke__…` tools and every other MCP server's tools. Nothing of a
   refused call runs.
+- The mod's own calls to the Yvoke server are not the model's, and pass the gate unchanged. The engine
+  sends the mod's `$.mcp.call` (`list_areas`, `list_playbooks`, `get_system_prompt`, `get_playbook`)
+  through the `tool.call` hooks as a call of its own, with the origin set to this plugin. A call passes
+  when that origin is this plugin and the tool is one of the Yvoke server's (it starts with the prefix of
+  the name `$.mcp.connect('yvoke')` gives). The check comes first, before the turn limit and the
+  playbook's tools, so setup, the playbook's grants and the wrap-up step never refuse the mod's own
+  reads. Only the origin counts, which the engine sets and nothing a plugin writes reaches. The model's
+  calls (origin `engine`), another plugin's calls and the mod's calls to any other tool are decided as
+  below.
+
+  > unverified: the test kit does not send the mod's own `$.mcp.call` through the `tool.call` hooks, so
+  > only the pure rule (`isOwnServerCall`) is pinned by a test, not the gate's use of it. Check it in a
+  > live `/yvoke` session.
 - **The playbook's tools**. The session's playbook is the one in its setup ([setup.md](setup.md)),
   with the `tools` `list_playbooks` gave for it when the lists were last loaded (on `/yvoke`, `/resume` or
   `/branch`, or later on a question or Retry when that load failed; so a playbook edit during a running
@@ -59,8 +72,8 @@
 - Built-in tools are decided without asking for the server's connection or reading the setup.
 - The mod's own `mcp__yvoke__execute_code` is refused also when the Yvoke server is configured under the
   bare name `yvoke` and its tools share that prefix: compute tools are never in the granted set.
-- At the turn limit ([turn-limits.md](turn-limits.md)) every call is refused with the turn-limit
-  message before this policy is checked.
+- At the turn limit ([turn-limits.md](turn-limits.md)) every call but the mod's own to the Yvoke
+  server is refused with the turn-limit message before this policy is checked.
 - If the check itself fails, the call is refused with *Yvoke: the policy check failed, so this tool was
   not run.* A failure beneath the gate, after the check let the call through, is passed on as it settled, the same
   as outside a Yvoke session.
@@ -79,13 +92,13 @@
 
 | Piece | Where |
 | --- | --- |
-| `tool.call` hook, `isAllowed`, `declaredTools`, `denied`, `POLICY_FAILED`, `PLAYBOOK_UNKNOWN` | `plugins/yvoke/src/policy.ts` |
+| `tool.call` hook, `isAllowed`, `declaredTools`, `isOwnServerCall(origin, tool, prefix)`, `denied`, `POLICY_FAILED`, `PLAYBOOK_UNKNOWN` | `plugins/yvoke/src/policy.ts` |
 | `clarifyingQuestion(input)`, `answered(answer)`, `SKIPPED`, `NOT_ASKED`, `USE_ASK_USER_QUESTION` | same file |
-| The plugin's only `tool.call` hook: its checks run in order, the turn limit first, then this policy | same file |
+| The plugin's only `tool.call` hook: its checks run in order, the mod's own server calls first, then the turn limit, then this policy | same file |
 | `serverToolPrefix(server)`: a server name → its tools' prefix, by the engine's rule | `plugins/yvoke/src/tool-names.ts` |
 | `qualifyTool(tool, serverPrefix)`: a playbook's tool name → the name the model calls; `builtinTool(tool)` | `plugins/yvoke/src/tool-names.ts` |
 | `allowedServerTools(declared, serverPrefix)`, `DEFAULT_KB_TOOLS`, `ASK_CLARIFYING_QUESTION`, `isWebTool`, `isComputeTool` | `plugins/yvoke/src/tool-names.ts` |
-| Engine calls | `$.state.get` (the Yvoke flag; `setup` and `catalogue` for Yvoke server tools only), `$.mcp.connect('yvoke')` (MCP tools only), `$.ui.ask` (the server's `ask_clarifying_question` only) |
+| Engine calls | `$.state.get` (the Yvoke flag; `setup` and `catalogue` for Yvoke server tools only), `$.mcp.connect('yvoke')` (MCP tools only), `$.ui.ask` (the server's `ask_clarifying_question` only); `next.origin` (who made the call) |
 
 The engine's naming rule, read from Claude Code 2.1.304: every character of the server name outside
 `[a-zA-Z0-9_-]` becomes `_`; for a claude.ai connector, runs of `_` then collapse and a leading or

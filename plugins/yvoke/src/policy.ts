@@ -1,8 +1,8 @@
 // tool-policy.md, D-09: in a Yvoke session the model may use only the tools Yvoke grants; every other tool
 // call is refused with a pointer to the Yvoke tools. This is the plugin's one `tool.call` gate (the engine
 // refuses a second unmatched `tool.call` hook), so every tool rule is a check here, in a fixed order: the
-// turn limit first (turn-limits.md), so a model at its limit is told to answer and never pointed to other
-// tools, then the policy. Ported from yvoke-desktop's `isToolAllowed` and `buildCanUseTool`
+// mod's own calls to the Yvoke server pass first, then the turn limit (turn-limits.md), so a model at its
+// limit is told to answer and never pointed to other tools, then the policy. Ported from yvoke-desktop's `isToolAllowed` and `buildCanUseTool`
 // (src/main/agent/policy.ts). PLAN.md adds its own classes here: the web tools, and `execute_code` with the
 // mod's own `Bash` call behind it (Milestone 2); delegation while a profile is active (Milestone 4). Until
 // then each stays denied. Of the server's tools, only those the session's playbook declares, or the
@@ -46,6 +46,18 @@ export const clarifyingQuestion = (input: { readonly [arg: string]: unknown }) =
   return question !== '' && options.length >= 2 ? { question, options } : null
 }
 
+/** The plugin's own name: what `next.origin.plugin` reads for a call its mod made. */
+const PLUGIN = 'yvoke'
+
+/**
+ * Whether the mod itself made this call, to a tool of the Yvoke server: its origin is this plugin and the
+ * tool starts with the server's `prefix` (null when the server is not connected). The engine sends the mod's
+ * `$.mcp.call` through this gate as a `tool.call`, so without the pass the gate would refuse the mod's own
+ * `list_areas` or `get_playbook` as it refuses the model's tools. The origin is set by the engine alone.
+ */
+export const isOwnServerCall = (origin: { readonly plugin: string } | undefined, tool: string, prefix: string | null): boolean =>
+  origin?.plugin === PLUGIN && prefix !== null && tool.startsWith(prefix)
+
 export const POLICY_FAILED = 'Yvoke: the policy check failed, so this tool was not run.'
 
 /** Built-in tools a Yvoke session always keeps: tool discovery and asking the user. */
@@ -84,6 +96,12 @@ export function registerPolicy(on: On) {
   on('tool.call', async ($, e, next) => {
     const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
     if (isYvoke !== true) return next(e)
+    // The mod's own calls to the Yvoke server (tool-policy.md): before the turn limit, which would refuse
+    // them too. Only an MCP tool can be the server's, so any other call never waits on the connection.
+    if (next.origin?.plugin === PLUGIN && e.tool.startsWith('mcp__')) {
+      const own = await $.mcp.connect(SERVER)
+      if (isOwnServerCall(next.origin, e.tool, own.isConnected ? serverToolPrefix(own.server) : null)) return next(e)
+    }
     // The turn limit (turn-limits.md), with its own failure message. Written by src/turn-limits.ts per loop.
     let isAtLimit: boolean
     try {
