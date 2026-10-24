@@ -9,7 +9,8 @@
 //   src/system-prompt.ts; src/setup.ts reads it to lock the setup with the version that loaded.
 // setup: the area, mode, playbook (with its version) or profile the session runs on, and the id of the
 //   session it locked in, null before the first question (P1-08). Written only by src/setup.ts; P1-07
-//   reads area, mode, playbook and version.
+//   reads area, mode, playbook and version, and lockedSessionId to refuse a locked turn that has no
+//   instructions.
 // catalogue: the areas and playbooks the band offers, or why they could not be loaded (P1-08). A playbook's
 //   `tools` are the names it declares, null when it declares none (an empty list or no field),
 //   'unreadable' when the server sent something else; the tool gate reads them (P2-02).

@@ -2,7 +2,8 @@
 // mod loads the base instructions (`get_system_prompt`, D-12, D-16) and, in single-agent mode, the
 // playbook's text (`get_playbook`), and serves them from `prompt.compose` as one `session` section: base
 // instructions first, the playbook after them, so the playbook wins a conflict. A failed load drops the
-// question; nothing is cached as a fallback (requirements 1).
+// question; nothing is cached as a fallback (requirements 1). Once the setup is locked in this session, a
+// prompt composed without them is replaced by MISSING_SECTION alone.
 //
 // The setup (area, mode, playbook) is P1-08's to choose. Until it writes `$.state` `yvoke.setup`, the
 // session runs on DEFAULT_SETUP: area OIM, single agent, the area's default playbook from `list_areas`.
@@ -45,7 +46,10 @@ export const SEPARATOR = '\n\n---\n\n'
 export const DROP_FAILED = 'Yvoke Backend: the instructions could not be loaded, so the question was not sent.'
 const NO_TIME = 'there was not enough time left to load the instructions. Send the question again.'
 
-/** Served in place of the prompt when the `prompt.compose` hook itself fails: a turn never runs bare. */
+/**
+ * Served in place of the prompt when the `prompt.compose` hook itself fails, or when the setup is locked in
+ * this session and its instructions are not there: a turn never runs bare.
+ */
 export const MISSING_SECTION: PromptComposeSection = {
   id: SECTION_ID,
   text:
@@ -238,7 +242,15 @@ export function registerSystemPrompt(on: On) {
     const { value: loaded } = await $.state.get({ plugin: 'yvoke', key: 'instructions' })
     const sessionId = await $.session.id()
     const composed = await next(e)
-    if (loaded?.sessionId !== sessionId) return composed
-    return { sections: [...composed.sections, { id: SECTION_ID, text: loaded.text, scope: 'session' }] }
+    // What loaded for this session serves, locked or not: setup.ts takes the loaded version only after the
+    // question has entered, so the setup is not checked here.
+    if (loaded?.sessionId === sessionId && typeof loaded.text === 'string') {
+      return { sections: [...composed.sections, { id: SECTION_ID, text: loaded.text, scope: 'session' }] }
+    }
+    // Locked in this session: a question entered without its instructions, so the refusal replaces the
+    // prompt. Before the first question, Claude Code's own prompts pass unchanged.
+    const { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
+    if (setup?.lockedSessionId === sessionId) return { sections: [MISSING_SECTION] }
+    return composed
   }).catch(() => ({ sections: [MISSING_SECTION] }))
 }

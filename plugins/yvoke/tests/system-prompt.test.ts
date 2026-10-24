@@ -96,6 +96,14 @@ const compose = async ($: Engine) => (await $.prompt.compose(RENDER)).sections
 
 const OURS: PromptComposeSection = { id: 'yvoke:instructions', text: 'BASE\n\n---\n\nPLAYBOOK', scope: 'session' }
 const LOAD = ['list_areas', 'get_playbook', 'get_system_prompt']
+// The refusal that replaces the whole prompt when a turn would otherwise run without the instructions.
+const MISSING_SECTION: PromptComposeSection = {
+  id: 'yvoke:instructions',
+  text:
+    'The Yvoke instructions for this session could not be loaded. Do not answer the question and do not call any ' +
+    'tool. Reply only: "Yvoke could not load its instructions. Please send your question again."',
+  scope: 'session',
+}
 
 // What the plugin writes to `yvoke.instructions`, seen on its way to the kit's store.
 const keptInstructions = (on: On) => {
@@ -113,6 +121,11 @@ const setupIs = (on: On, start: Record<string, unknown>) => {
   return s
 }
 const FULL = { area: 'OIM', mode: 'single', playbook: 'oim-full', version: 1, profile: null, lockedSessionId: null }
+const LOCKED = { ...FULL, lockedSessionId: 'session-a' }
+// What `yvoke.instructions` holds, as a test sets it: a hook here answers the plugin's reads of the key.
+const instructionsAre = (on: On, kept: unknown) =>
+  on('state.get', { plugin: 'yvoke', key: 'instructions' }, () => ({ value: { value: kept as never, version: 1 } }))
+const LOADED_FOR = { area: 'OIM', mode: 'single', playbook: 'oim-full', version: 1 }
 
 test('a plain session: questions and the system prompt pass through, and the server is never called', async ($, on) => {
   const w = engine(on)
@@ -295,7 +308,8 @@ test('a new session id (/clear, /resume, /branch) loads its own instructions on 
 
   w.sessionId = 'session-b'
   await $.classic.SessionStart({ source: 'fork', session_id: 'session-b' })
-  expect(await compose($)).toEqual(CORE)
+  // The setup is locked in session-b now, and what loaded is session-a's: the refusal, not session-a's text.
+  expect(await compose($)).toEqual([MISSING_SECTION])
   w.server.calls = [] // P1-08 reloads its lists for the new session
 
   w.server.playbook = 'NEWER'
@@ -343,4 +357,91 @@ test('a throw in prompt.compose serves the refusal section in place of the promp
   expect(sections).toHaveLength(1)
   expect(sections[0]).toMatchObject({ id: 'yvoke:instructions', scope: 'session' })
   expect(sections[0]?.text).toContain('could not load its instructions')
+})
+
+// Once the setup is locked in this session, a turn never runs on Claude Code's prompt alone: a question that
+// entered without its instructions (another plugin's prompt.submit above this one answered it, say) gets the
+// refusal in place of the whole prompt.
+test('a setup locked in this session and no instructions: the refusal section replaces the prompt', async ($, on) => {
+  const w = engine(on)
+  setupIs(on, LOCKED)
+  await begin($)
+  await yvoke($, w)
+
+  expect(await compose($)).toEqual([MISSING_SECTION])
+  expect(w.server.calls).toEqual([])
+})
+
+test('a setup locked in this session and instructions kept for another session id: the refusal section', async ($, on) => {
+  const w = engine(on)
+  setupIs(on, LOCKED)
+  instructionsAre(on, { sessionId: 'session-z', text: 'BASE\n\n---\n\nOTHER', loadedFor: LOADED_FOR })
+  await begin($)
+  await yvoke($, w)
+
+  expect(await compose($)).toEqual([MISSING_SECTION])
+})
+
+for (const [what, kept] of [
+  ['text that is not a string', { sessionId: 'session-a', text: 42, loadedFor: LOADED_FOR }],
+  ['the text alone, not a record', 'BASE\n\n---\n\nPLAYBOOK'],
+] as const) {
+  test(`a setup locked in this session and an entry with ${what}: the refusal section`, async ($, on) => {
+    const w = engine(on)
+    setupIs(on, LOCKED)
+    instructionsAre(on, kept)
+    await begin($)
+    await yvoke($, w)
+
+    expect(await compose($)).toEqual([MISSING_SECTION])
+  })
+}
+
+// Claude Code may compose prompts for its own side requests before the first question locks the setup.
+for (const [what, setup] of [
+  ['not locked', FULL],
+  ['locked in another session', { ...FULL, lockedSessionId: 'session-old' }],
+] as const) {
+  test(`a setup ${what} and no instructions: Claude Code's prompt passes unchanged`, async ($, on) => {
+    const w = engine(on)
+    setupIs(on, setup)
+    await begin($)
+    await yvoke($, w)
+
+    expect(await compose($)).toEqual(CORE)
+  })
+}
+
+test('a setup locked in this session and instructions loaded for it: the prompt ends with the section', async ($, on) => {
+  const w = engine(on)
+  setupIs(on, LOCKED)
+  await begin($)
+  await yvoke($, w)
+
+  expect(await ask($, 'one')).toEqual({ text: 'one' })
+
+  expect(w.server.calls).toEqual(LOAD)
+  expect(await compose($)).toEqual([...CORE, OURS])
+})
+
+test('loaded for another version than the locked setup shows: the prompt still ends with the section', async ($, on) => {
+  const w = engine(on)
+  // The server saved the playbook again since the lists loaded, so v2 loads. The hook here keeps answering
+  // the setup at v1, as a prompt composed before setup.ts takes the loaded version would see it.
+  setupIs(on, LOCKED)
+  w.server.version = 2
+  await begin($)
+  await yvoke($, w)
+  await ask($, 'one')
+
+  expect(await compose($)).toEqual([...CORE, OURS])
+})
+
+test('outside a Yvoke session a locked setup changes nothing: the prompt passes unchanged', async ($, on) => {
+  const w = engine(on)
+  setupIs(on, LOCKED)
+  await begin($)
+
+  expect(await compose($)).toEqual(CORE)
+  expect(w.server.calls).toEqual([])
 })

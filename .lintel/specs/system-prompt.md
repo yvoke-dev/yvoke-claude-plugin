@@ -47,9 +47,17 @@
   start a new session id, so that session loads again on its first question.
 - Fails closed: if the hook that loads the instructions fails, the question is dropped with *Yvoke Backend:
   the instructions could not be loaded, so the question was not sent.* If the hook that adds the section
-  fails or `yvoke.instructions` is missing or unreadable for the current session, the system prompt is
-  replaced by one refusal section (`yvoke:instructions`):
+  fails, or, once the setup is locked for this session (`lockedSessionId` is the current session id),
+  `yvoke.instructions` is missing or unreadable for the current session, the system prompt is replaced by
+  one refusal section (`yvoke:instructions`):
   `The Yvoke instructions for this session could not be loaded. Do not answer the question and do not call any tool. Reply only: "Yvoke could not load its instructions. Please send your question again."`
+  This covers a question that entered without its instructions, for example when another plugin's
+  `prompt.submit` hook answers it without passing it on, so the loading hook never runs. Text loaded for
+  the current session is served whether the setup is locked or not, and whatever version it was loaded
+  for: `setup.ts` takes the loaded version only after the question has entered. Before the first question
+  locks the setup, Claude Code's prompt passes unchanged, since Claude Code may compose prompts for its own
+  requests then. `/resume` and `/branch` of a locked session lock the setup under the new session id at
+  once, so there the refusal applies until that session's first question loads its instructions.
 - Outside a Yvoke session neither hook changes anything, and the server is not called.
 - Where an organization manages Claude Code, a plugin installed by the user from a local clone runs the
   loading hook (`prompt.submit`) but not `prompt.compose`, so the organization must install the plugin
@@ -74,7 +82,7 @@ is smaller. If the remaining hook budget minus the 1,500 ms reserve is under 1,0
 | --- | --- |
 | `prompt.submit` hook (loads, or drops the question) and `prompt.compose` hook (adds the section) | `plugins/yvoke/src/system-prompt.ts` |
 | `$.state` `yvoke.instructions` = `{ sessionId, text, loadedFor: { area, mode, playbook, version } }`, written only by `system-prompt.ts`, read by `src/setup.ts` to lock with the loaded version | contract in `plugins/yvoke/types/index.d.ts` |
-| `$.state` `yvoke.setup` = `{ area, mode, playbook, version }` (playbook null = the area's default; version checked against `loadedFor`), read here, written by `src/setup.ts` | same |
+| `$.state` `yvoke.setup` = `{ area, mode, playbook, version, lockedSessionId }` (playbook null = the area's default; version checked against `loadedFor`; `lockedSessionId` decides the refusal in `prompt.compose`), read here, written by `src/setup.ts` | same |
 | Server tools `list_areas` (`defaultPlaybook`, `defaultSystemPrompt`, `systemPrompts`), `get_playbook(name)` (`systemPrompt`, `text`, `version`), `get_system_prompt(name?)` | through `callYvoke` ([server-client.md](server-client.md)) |
 
 Hooks nest in registration order: the first registered hook is on the outside and runs first, and a hook
