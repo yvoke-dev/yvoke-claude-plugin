@@ -2,7 +2,7 @@
 
 The decisions behind the plugin and why they were made; where an entry disagrees with the specs or PLAN.md, those win.
 
-To add one, append `### D-29: <short title>` (the next free number) with status, date, decision and why; keep IDs stable and never reuse one.
+To add one, append `### D-36: <short title>` (the next free number) with status, date, decision and why; keep IDs stable and never reuse one.
 
 ### D-01: Claude plans and install route
 
@@ -184,7 +184,7 @@ To add one, append `### D-29: <short title>` (the next free number) with status,
 
 ### D-20: Resumed and branched sessions take the new playbook version
 
-- **Status:** live
+- **Status:** live; a locked setup that cannot be restored fails closed instead (D-29)
 - **Decided:** 2026-10-20; extended to `/branch` 2026-10-21
 - **Decision:** After `/resume` or `/branch`, a locked setup moves to the playbook version the server has
   now, and the setup line, the status line and one toast say so. Within one session the text is fetched
@@ -192,6 +192,10 @@ To add one, append `### D-29: <short title>` (the next free number) with status,
 - **Why:** yvoke-web keeps no old playbook text, so a new session id can only fetch the current one. The
   band should show the version the answers use; [setup.md](../specs/setup.md) applies the same rule at the
   first lock.
+
+### D-21: (not used)
+
+- **Status:** retired. The number is not used and is never reused.
 
 ### D-22: Playbook descriptions in the public stubs
 
@@ -265,6 +269,88 @@ To add one, append `### D-29: <short title>` (the next free number) with status,
   sessions take about 1.25 MiB, under a third of the store. Even at 50 Yvoke sessions a day that is about
   100 days, well past Claude Code's default 30-day transcript cleanup, after which `/resume` cannot reopen
   them anyway.
+
+### D-29: A resumed session whose setup cannot be restored fails closed
+
+- **Status:** live
+- **Decided:** 2026-10-24
+- **Decision:** On `/resume` or `/branch` of a locked Yvoke session whose saved setup cannot be restored,
+  the session stays a Yvoke session but drops every question, with a message to type `/clear`, then
+  `/yvoke`. It never falls back to the area's defaults.
+- **Why:** A playbook must not change mid-conversation (D-11). Falling back to the area's default playbook
+  could swap the playbook under a running conversation without the user noticing, and the answers would
+  stop matching the setup line.
+
+### D-30: The gate lets the mod's own server calls through by origin
+
+- **Status:** live
+- **Decided:** 2026-10-24
+- **Decision:** The `tool.call` gate lets the plugin's own calls to its Yvoke server through, recognised by
+  `next.origin.plugin === 'yvoke'`, before the turn-limit check
+  ([tool-policy.md](../specs/tool-policy.md)). The model's calls are judged as before.
+- **Why:** In a real Claude Code session the engine routes the mod's own `$.mcp.call` through the plugin's
+  own `tool.call` hook. The gate refused the mod's `list_areas`, `list_playbooks`, `get_playbook` and
+  `get_system_prompt` calls, so every Yvoke question was dropped (seen on Claude Code 2.1.287 and 2.1.310).
+  The unit tests could not see it, because the `claude-code/testing` kit does not route `$.mcp.call`
+  through `tool.call`. A live headless integration test now runs in CI
+  ([testing.md](testing.md)).
+
+### D-31: Tools follow the playbook text that loaded
+
+- **Status:** live
+- **Decided:** 2026-10-24
+- **Decision:** Once the setup locks, the gate enforces the tools of the playbook text that actually loaded
+  (from `get_playbook`), not the `list_playbooks` entry from when the band loaded.
+- **Why:** A playbook saved on the server in between could leave the band and the instructions at one
+  version while the gate enforced the tools of the other. One source for text and tools keeps them
+  together (D-11).
+
+### D-32: Playbook preflight follows yvoke-desktop 1.3.0
+
+- **Status:** live (not built yet, PLAN.md section 3.2)
+- **Decided:** 2026-10-24
+- **Decision:** The preflight check has two settings, an on/off switch (default on) and an exclusion list
+  (default `oim-full`, by playbook name or title, case-insensitive). It is skipped in multi-agent mode,
+  for an excluded playbook, and when fewer than 2 candidates exist. The candidates include the area's
+  default playbook, and a suggestion of any playbook other than the selected one is valid. The check
+  runs on the session's own model. Two deliberate differences stay: the candidates are the area's
+  playbooks (the plugin's setup is area-first), and the timeout is 8 s.
+- **Why:** The same playbooks run on every client, so the check should behave alike. The earlier plan
+  skipped the area's default playbook and counted a suggestion of it as a fit, which yvoke-desktop does
+  not do.
+
+### D-33: Compute and the specialist budget follow yvoke-desktop 1.3.0
+
+- **Status:** live (not built yet, PLAN.md sections 4.2 and 6.5)
+- **Decided:** 2026-10-24
+- **Decision:** Compute is granted exactly when the playbook's `codeExecution` is not `false`; a declared
+  `tools` list never removes or adds it. `maxSpecialistCalls` is guidance in the lead's prompt ("aim for
+  at most N"), not a denial; the lead's turn ceiling is the hard bound.
+- **Why:** yvoke-desktop does both, for the single agent and for specialists. A playbook that behaves one
+  way on the desktop and another here would be a surprise, and a hard deny on spawns would cut a
+  question short that the desktop lets finish.
+
+### D-34: The web allow-list is deployment configuration
+
+- **Status:** live (not built yet, PLAN.md section 4.1)
+- **Decided:** 2026-10-24
+- **Decision:** The domains `WebSearch` and `WebFetch` may reach, and the on/off switch for web access,
+  are set by the organisation through managed settings (`pluginConfigs`), not by the user with
+  `/plugin configure`. If a user turns out to be able to override a managed value, the allow-list is
+  served from yvoke-web instead.
+- **Why:** On yvoke-desktop the allow-list is deployment configuration for a reason: the domains worth
+  searching belong to the knowledge base, so they ship with the deployment and are never read from a
+  user's profile, and an empty list was never a working user choice. (The desktop's own switch is still a
+  user preference; the plugin is stricter there on purpose.) The server stays the source of truth if
+  managed settings cannot hold the line.
+
+### D-35: The repository is licensed Apache-2.0
+
+- **Status:** live
+- **Decided:** 2026-10-24
+- **Decision:** The repository and the plugin are under the Apache License 2.0 (`LICENSE` at the root, and
+  `license` in `plugin.json`).
+- **Why:** The repository is public (D-02), and the plugin directory requires a licence.
 
 ## Known gaps and not planned
 

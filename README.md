@@ -6,17 +6,17 @@ Yvoke knowledge base, and multi-agent investigations with enforced review.
 - **Claude Code** (the Claude Desktop app's **Code** tab and the terminal): full feature set, through a mod.
 - **Cowork** and **Chat**: not in v1; to check after v1.
 
-**Status:** single-agent MVP works against a local `yvoke-web` server. `/yvoke` starts a Yvoke session with the
-setup band above the prompt (area and versioned playbook selection, locked on the first question and preserved
-across `/resume` and `/branch`), composes base instructions and the active playbook from the server, enforces a
-deny-by-default tool gate scoped to the playbook's knowledge-base tools, and caps model requests per question.
-Production Entra ID sign-in, citations, web and compute tool rules, playbook preflight checks, and multi-agent
-investigations are tracked in [PLAN.md](PLAN.md).
+**Status:** single-agent MVP works against a local `yvoke-web` server, in a real Claude Code session. `/yvoke`
+starts a Yvoke session with the setup band above the prompt (area and versioned playbook selection, locked on
+the first question and preserved across `/resume` and `/branch`), composes base instructions and the active
+playbook from the server, enforces a deny-by-default tool gate scoped to the playbook's knowledge-base tools,
+and caps model requests per question. Production Entra ID sign-in, citations, web and compute tool rules,
+playbook preflight checks, and multi-agent investigations are tracked in [PLAN.md](PLAN.md).
 
 ## Use it locally
 
 Run the plugin from your clone against a [yvoke-web](https://github.com/yvoke-dev/yvoke-web) on your own
-machine. Checked with Claude Code 2.1.308.
+machine. Checked with Claude Code 2.1.287 and 2.1.310.
 
 1. **Start yvoke-web in mock mode.** Use an up-to-date `main` (the dev switch needs
    [yvoke-web#6](https://github.com/yvoke-dev/yvoke-web/pull/6)). In your yvoke-web clone, make sure `.env` has
@@ -76,4 +76,8 @@ Use the steps above when you need it connected to a server. To work on the mod w
 | [.lintel/steering/decisions.md](.lintel/steering/decisions.md) | Decisions with their reasons, and the known gaps |
 | [.lintel/steering/tech.md](.lintel/steering/tech.md) | Technology stack and mod runtime environment |
 | [.lintel/steering/conventions.md](.lintel/steering/conventions.md) | Coding and security conventions |
-| [.lintel/steering/testing.md](.lintel/steering/testing.md) | Headless mod test runner and testing patterns |
+| [.lintel/steering/testing.md](.lintel/steering/testing.md) | Headless mod test runner, the live integration test, and testing patterns |
+
+## Licence
+
+Apache License 2.0. See [LICENSE](LICENSE).

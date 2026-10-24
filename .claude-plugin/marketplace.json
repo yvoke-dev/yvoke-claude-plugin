@@ -5,7 +5,7 @@
     "url": "https://github.com/yvoke-dev"
   },
   "metadata": {
-    "description": "Yvoke for Claude: the Yvoke knowledge base in Claude Code, Chat and Cowork."
+    "description": "Yvoke for Claude: the Yvoke knowledge base in Claude Code."
   },
   "plugins": [
     {
