@@ -168,7 +168,7 @@ This is both a plugin and a server task. An MCP call carries no session context,
     4. Making network requests (`fetch`, `net`).
   - The same spike also answers three questions about what `execute_code` costs:
     - **Node on every machine:** `node -e` needs Node installed on each consultant's machine, and the native Claude Code install neither needs nor ships it. Check what the `Bash` call does when `node` is missing. Without `node`, `execute_code` is refused and runs nothing (check 4 below).
-    - **Permission prompts:** Check whether a plugin-originated `Bash` call through `$.tool.call` asks the user for permission each time. If it does, find out whether it can be pre-allowed for that one command without also allowing the model's own `Bash`.
+    - **Permission prompts:** Check whether a plugin-originated `Bash` call through `$.tool.call` asks the user for permission each time. If it does, find out whether it can be pre-allowed for that one command without also allowing the model's own `Bash`. The plugin's `tool.check` hook (D-36) is where such a grant would go.
     - **Sandbox state:** The mod API (checked in Claude Code 2.1.309's declarations, `plugins/yvoke/.claude-plugin/types/claude-code/index.d.ts`) has no way to read whether Claude Code's sandbox is on, so check 2 below has nothing to call. The spike must find a way.
   - **Pass/Fail Gate:** If any of the four escape vectors succeeds on any supported platform where the sandbox reports active, or the spike finds no way to read the sandbox state, `execute_code` is dropped from v1.
 - **Implementation (If Spike Passes):**

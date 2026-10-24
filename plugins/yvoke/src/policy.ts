@@ -59,6 +59,33 @@ const PLUGIN = 'yvoke'
 export const isOwnServerCall = (origin: { readonly plugin: string } | undefined, tool: string, prefix: string | null): boolean =>
   origin?.plugin === PLUGIN && prefix !== null && tool.startsWith(prefix)
 
+/**
+ * Whether the organisation's ceiling on the tool (`e.ceiling` of a permission check) leaves room for the
+ * hook's allow. A ceiling of `ask` is the most the organisation lets this tool reach, so the hook leaves
+ * the verdict to the engine.
+ */
+export const mayGrant = (ceiling: 'allow' | 'ask' | 'deny' | undefined): boolean => ceiling === undefined || ceiling === 'allow'
+
+/**
+ * Whether `tool` is one the session's playbook grants, out of `serverTools` (`allowedServerTools`, the
+ * exact full names under `prefix`). `ask_clarifying_question` is never granted here: the gate answers it
+ * itself, and the server never runs it.
+ */
+export const isGrantedServerTool = (tool: string, prefix: string, serverTools: readonly string[]): boolean =>
+  tool.startsWith(prefix) && tool !== `${prefix}${ASK_CLARIFYING_QUESTION}` && serverTools.includes(tool)
+
+/**
+ * Whether the engine's verdict is its own plain ask: no settings rule, option, classic hook or plugin's
+ * hook behind it. Only that ask is the engine saying nobody has granted the tool yet; any other ask was
+ * chosen by someone, and a deny is never the hook's to lift.
+ */
+export const isPlainAsk = (verdict: { decision: string; [field: string]: unknown }): boolean =>
+  verdict.decision === 'ask' &&
+  verdict.rule === undefined &&
+  verdict.setting === undefined &&
+  verdict.hook === undefined &&
+  verdict.plugin === undefined
+
 export const POLICY_FAILED = 'Yvoke: the policy check failed, so this tool was not run.'
 
 /** Built-in tools a Yvoke session always keeps: tool discovery and asking the user. */
@@ -165,4 +192,26 @@ export function registerPolicy(on: On) {
     // Once the gate has let the call through, a failure beneath is the tool's, not the check's: hand on
     // what `next` settled to rather than claim the tool did not run.
   }).catch((_$, e, next) => (next.called ? next(e) : { deny: POLICY_FAILED }))
+
+  // D-36. Written apart from the gate: this hook only grants, and whatever it cannot place it passes on.
+  on('tool.check', async ($, e, next) => {
+    const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
+    if (isYvoke !== true) return next(e)
+    // Only an MCP tool can be the server's, so a built-in never waits on the connection or the setup.
+    if (!mayGrant(e.ceiling) || !e.tool.startsWith('mcp__')) return next(e)
+    const connected = await $.mcp.connect(SERVER)
+    const prefix = connected.isConnected ? serverToolPrefix(connected.server) : null
+    if (prefix === null || !e.tool.startsWith(prefix)) return next(e)
+    if (!isOwnServerCall(next.origin, e.tool, prefix)) {
+      // Decided as the gate decides: the tools of the playbook that loaded, else those of the lists.
+      const { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
+      const { value: catalogue } = await $.state.get({ plugin: 'yvoke', key: 'catalogue' })
+      const { value: instructions } = await $.state.get({ plugin: 'yvoke', key: 'instructions' })
+      const declared = declaredTools(setup, catalogue, loadedTools(instructions, await $.session.id(), setup))
+      if (declared === undefined || !isGrantedServerTool(e.tool, prefix, allowedServerTools(declared, prefix))) return next(e)
+    }
+    const verdict = await next(e)
+    return isPlainAsk(verdict) ? { decision: 'allow' } : verdict
+    // A failure grants nothing: the engine's own verdict stands.
+  }).catch((_$, e, next) => next(e))
 }

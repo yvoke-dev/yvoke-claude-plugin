@@ -41,6 +41,7 @@ Authoritative reference for designing, writing, and wiring in-process Claude Cod
    - Registering two unmatched `on(event, handler)` hooks for the same `event` across the plugin causes module load failure (`registered twice without a matcher`).
    - **Current Unmatched Hook Owners:**
      - `tool.call`: owned by `plugins/yvoke/src/policy.ts` (`registerPolicy`). Every tool rule (`turn-limits`, playbook scoping, and planned web/compute/lead-mode rules) is evaluated inside this single `tool.call` gate in explicit order so failure messages and precedence are deterministic.
+     - `tool.check`: owned by `plugins/yvoke/src/policy.ts` (`registerPolicy`), beside the `tool.call` gate. It only grants: in a Yvoke session it turns the engine's plain ask into an allow for the mod's own Yvoke server calls and the playbook's Yvoke tools (D-36), and passes everything else on with `next(e)`.
      - `prompt.submit` and `prompt.compose`: unmatched hooks owned by `plugins/yvoke/src/system-prompt.ts` (`registerSystemPrompt`). Other `prompt.submit` hooks (such as `registerSetup` in `plugins/yvoke/src/setup.ts` or a playbook preflight check) must specify a matcher (e.g., `{ text: /^/ }`).
      - `classic.SessionStart`: unmatched hook owned by `plugins/yvoke/src/session.ts` (`registerSession`). `registerSetup` uses matcher `{ source: /^(clear|resume|fork)$/ }`.
    - **Registration Order in `plugins/yvoke/hooks/register.tsx`:**

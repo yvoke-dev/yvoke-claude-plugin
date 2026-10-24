@@ -1,9 +1,9 @@
 import { test, expect, describe } from 'claude-code/testing'
-import { declaredTools, isOwnServerCall, loadedTools } from '../src/policy'
+import { declaredTools, isGrantedServerTool, isOwnServerCall, isPlainAsk, loadedTools, mayGrant } from '../src/policy'
 import type { CatalogueState, Setup } from '../src/setup'
 
 // tool-policy.md: the pure rule behind the gate's pass for the mod's own calls to its Yvoke server. The gate
-// is tested through the engine in policy.test.ts.
+// and the `tool.check` hook are tested through the engine in policy.test.ts.
 
 const PREFIX = 'mcp__plugin_yvoke_yvoke__'
 const TOOL = `${PREFIX}list_areas`
@@ -34,6 +34,69 @@ describe('isOwnServerCall', () => {
 
   test('the server not connected: nothing is its tool', () => {
     expect(isOwnServerCall({ plugin: 'yvoke' }, TOOL, null)).toBe(false)
+  })
+})
+
+// tool-policy.md: the pure rules behind the `tool.check` hook, which grants what the gate has let through
+// (no permission prompt).
+describe('mayGrant', () => {
+  test('no ceiling: the hook may grant', () => {
+    expect(mayGrant(undefined)).toBe(true)
+  })
+
+  test('a ceiling of ask or deny, set by the organisation, is not lifted by the hook', () => {
+    expect(mayGrant('ask')).toBe(false)
+    expect(mayGrant('deny')).toBe(false)
+  })
+
+  test('a ceiling of allow caps nothing', () => {
+    expect(mayGrant('allow')).toBe(true)
+  })
+})
+
+describe('isGrantedServerTool', () => {
+  const GRANTED = [`${PREFIX}search_corpus`, `${PREFIX}ask_clarifying_question`]
+
+  test('a server tool the playbook grants', () => {
+    expect(isGrantedServerTool(`${PREFIX}search_corpus`, PREFIX, GRANTED)).toBe(true)
+  })
+
+  test('a server tool the playbook does not grant', () => {
+    expect(isGrantedServerTool(`${PREFIX}get_toc`, PREFIX, GRANTED)).toBe(false)
+  })
+
+  test('nothing granted: nothing passes', () => {
+    expect(isGrantedServerTool(`${PREFIX}search_corpus`, PREFIX, [])).toBe(false)
+  })
+
+  test('ask_clarifying_question is answered by the gate, so the hook never grants it', () => {
+    expect(isGrantedServerTool(`${PREFIX}ask_clarifying_question`, PREFIX, GRANTED)).toBe(false)
+  })
+
+  test('only by the exact name: a tool outside the granted list is not matched by prefix', () => {
+    expect(isGrantedServerTool(`${PREFIX}search_corpus_all`, PREFIX, GRANTED)).toBe(false)
+    expect(isGrantedServerTool('Bash', PREFIX, ['Bash'])).toBe(false)
+  })
+})
+
+describe('isPlainAsk', () => {
+  test("the engine's own ask, with no rule, setting, hook or plugin behind it", () => {
+    expect(isPlainAsk({ decision: 'ask' })).toBe(true)
+    expect(isPlainAsk({ decision: 'ask', reason: 'Claude requested permissions to use a tool.' })).toBe(true)
+    expect(isPlainAsk({ decision: 'ask', ceiling: 'ask' })).toBe(true)
+  })
+
+  test('an allow or a deny is not an ask, and stays as it is', () => {
+    expect(isPlainAsk({ decision: 'allow' })).toBe(false)
+    expect(isPlainAsk({ decision: 'deny' })).toBe(false)
+    expect(isPlainAsk({ decision: 'deny', rule: 'mcp__plugin_yvoke_yvoke__search_corpus' })).toBe(false)
+  })
+
+  test("an ask that somebody chose is theirs: a settings rule, an option, a classic hook or another plugin's hook", () => {
+    expect(isPlainAsk({ decision: 'ask', rule: 'mcp__plugin_yvoke_yvoke__search_corpus' })).toBe(false)
+    expect(isPlainAsk({ decision: 'ask', setting: 'permissions.blockReadsOutsideWorkingDirectories' })).toBe(false)
+    expect(isPlainAsk({ decision: 'ask', hook: 'PreToolUse' })).toBe(false)
+    expect(isPlainAsk({ decision: 'ask', plugin: 'other' })).toBe(false)
   })
 })
 

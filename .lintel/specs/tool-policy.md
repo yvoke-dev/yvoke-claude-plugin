@@ -26,9 +26,35 @@
   calls (origin `engine`), another plugin's calls and the mod's calls to any other tool are decided as
   below.
 
-  > unverified: the test kit does not send the mod's own `$.mcp.call` through the `tool.call` hooks, so
-  > only the pure rule (`isOwnServerCall`) is pinned by a test, not the gate's use of it. Check it in a
-  > live `/yvoke` session.
+  The test kit does not send the mod's own `$.mcp.call` through the `tool.call` hooks, so only the pure
+  rule (`isOwnServerCall`) is pinned by a unit test. The gate's use of it, and the grant in the next
+  section, are pinned by the live headless test (`tests/integration/live-session.test.mjs`).
+- **No permission prompt for what Yvoke grants (D-36).** Passing the gate is not enough: Claude Code's own
+  permission check still decides the call afterwards, and without a grant it would ask the user (a `-p`
+  run cannot ask, so it refuses). In a Yvoke session the plugin's `tool.check` hook grants, so these run
+  with no prompt:
+  - the mod's own calls to the Yvoke server, by the same origin rule as the gate;
+  - the model's calls to the Yvoke server tools the session's playbook grants, decided exactly as the gate
+    decides them (the same `declaredTools` rule, the loaded playbook's tools first).
+
+  Everything else keeps Claude Code's normal permission behaviour, so the user is asked or the user's own
+  rules apply as in any session. In detail:
+  - The hook only grants. A call the gate refuses never reaches it, and it grants nothing the gate would
+    not let through. Web and compute tools are not granted today.
+  - It turns only the engine's own plain ask into an allow. A deny (the user's rule, say), an ask that a
+    settings rule, an option, a classic hook or another plugin's hook made, and an allow already given
+    stand as they are.
+  - `ask_clarifying_question` is answered by the gate and never reaches the check, so the hook does not
+    grant it either.
+  - When the organisation has set a ceiling on the tool (`ceiling` is `ask` or `deny`, set by the engine,
+    for example by an administrator on a connector's tool), the hook grants nothing and leaves the verdict
+    to the engine.
+  - Outside a Yvoke session, and for any tool that is not an MCP tool of the Yvoke server, the verdict is
+    the engine's unchanged. A built-in never waits on the connection or the setup.
+  - If the hook fails, it grants nothing: the engine's own verdict stands.
+
+  > unverified: the engine sets the ceiling, and neither the test kit nor a headless run can set one, so
+  > the rule is pinned only as a pure function (`mayGrant`), not in the hook's use of it.
 - **The playbook's tools**. The session's playbook is the one in its setup ([setup.md](setup.md)).
   Whose `tools` count depends on whether the session's instructions have loaded ([system-prompt.md](system-prompt.md)):
   - Once instructions have loaded for this session, the gate enforces the `tools` of the `get_playbook`
@@ -107,12 +133,13 @@
 | --- | --- |
 | `tool.call` hook, `isAllowed`, `declaredTools(setup, catalogue, loaded)`, `loadedTools(instructions, sessionId, setup)`, `isOwnServerCall(origin, tool, prefix)`, `denied`, `POLICY_FAILED`, `PLAYBOOK_UNKNOWN` | `plugins/yvoke/src/policy.ts` |
 | `clarifyingQuestion(input)`, `answered(answer)`, `SKIPPED`, `NOT_ASKED`, `USE_ASK_USER_QUESTION` | same file |
+| The plugin's `tool.check` hook, `isGrantedServerTool(tool, prefix, serverTools)`, `mayGrant(ceiling)`, `isPlainAsk(verdict)` | same file |
 | The plugin's only `tool.call` hook: its checks run in order, the mod's own server calls first, then the turn limit, then this policy | same file |
 | `serverToolPrefix(server)`: a server name → its tools' prefix, by the engine's rule | `plugins/yvoke/src/tool-names.ts` |
 | `qualifyTool(tool, serverPrefix)`: a playbook's tool name → the name the model calls; `builtinTool(tool)` | `plugins/yvoke/src/tool-names.ts` |
 | `parseTools(playbook)`: the one reading of a playbook's `tools`, shared by the lists and `get_playbook`; `PlaybookTools` | `plugins/yvoke/src/tool-names.ts` |
 | `allowedServerTools(declared, serverPrefix)`, `DEFAULT_KB_TOOLS`, `ASK_CLARIFYING_QUESTION`, `isWebTool`, `isComputeTool` | `plugins/yvoke/src/tool-names.ts` |
-| Engine calls | `$.state.get` (the Yvoke flag; `setup`, `catalogue` and `instructions` for Yvoke server tools only), `$.session.id()` (the same), `$.mcp.connect('yvoke')` (MCP tools only), `$.ui.ask` (the server's `ask_clarifying_question` only); `next.origin` (who made the call) |
+| Engine calls | `$.state.get` (the Yvoke flag; `setup`, `catalogue` and `instructions` for Yvoke server tools only), `$.session.id()` (the same), `$.mcp.connect('yvoke')` (MCP tools only), `$.ui.ask` (the server's `ask_clarifying_question` only); `next.origin` (who made the call); in the `tool.check` hook also `next(e)`, the engine's verdict |
 
 The engine's naming rule, read from Claude Code 2.1.304: every character of the server name outside
 `[a-zA-Z0-9_-]` becomes `_`; for a claude.ai connector, runs of `_` then collapse and a leading or

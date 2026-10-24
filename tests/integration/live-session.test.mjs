@@ -29,6 +29,8 @@ const SEPARATOR = '\n\n---\n\n' // the mod's SEPARATOR: base instructions, then 
 const SECTION = `${STUB_BASE}${SEPARATOR}${STUB_PLAYBOOK}`
 const ANSWER = 'Stub answer.'
 const GRANTED_TOOL = 'mcp__plugin_yvoke_yvoke__search_corpus'
+/** A tool of the Yvoke server that the stub playbook does not grant. */
+const UNGRANTED_TOOL = 'mcp__plugin_yvoke_yvoke__get_section'
 
 // ---------------------------------------------------------------------------------------------------
 // Servers
@@ -59,9 +61,10 @@ const YVOKE_REPLIES = {
     },
   ]),
   list_playbooks: JSON.stringify([{ name: 'oim-full', area: 'OIM', version: 3, tools: ['search_corpus'] }]),
-  get_playbook: JSON.stringify({ name: 'oim-full', text: STUB_PLAYBOOK, version: 3, systemPrompt: null }),
+  get_playbook: JSON.stringify({ name: 'oim-full', text: STUB_PLAYBOOK, version: 3, systemPrompt: null, tools: ['search_corpus'] }),
   get_system_prompt: STUB_BASE,
   search_corpus: 'STUB SEARCH RESULT',
+  get_section: 'STUB SECTION', // listed so the model can call it; the stub playbook does not grant it
 }
 
 /** The stub Yvoke MCP server. `calls` logs every `tools/call` with the dev-mode header it came with. */
@@ -369,10 +372,6 @@ describe('a headless Claude Code session with the plugin installed', () => {
         '--verbose',
         '--debug-file',
         debugFile,
-        // Stands in for the permission dialog a person would answer, which a `-p` run cannot show. It
-        // allows only the Yvoke server's tools, and the mod's `tool.call` gate still runs before it.
-        '--allowedTools',
-        'mcp__plugin_yvoke_yvoke',
       ],
       { cwd, env, lines },
     )
@@ -461,13 +460,18 @@ describe('a headless Claude Code session with the plugin installed', () => {
     }
   })
 
-  test('the granted Yvoke tool runs and every other tool is refused', async () => {
+  // No `--allowedTools` anywhere in these runs: a `-p` session cannot show a permission dialog and refuses
+  // what is not allowed, so a call that passes only because the plugin's `tool.check` hook grants it (the
+  // mod's own `list_areas`, `get_playbook`, and the playbook's `search_corpus`) proves the plugin needs no
+  // grant from the user (D-36).
+  test('the granted Yvoke tool runs with no user grant and every other tool is refused', async () => {
     anthropic.state.script = (body) => {
       if (JSON.stringify(body.messages).includes('"tool_result"')) return answer()
       return {
         blocks: [
           { type: 'tool_use', id: 'toolu_search', name: GRANTED_TOOL, input: { query: 'attestation policy' } },
           { type: 'tool_use', id: 'toolu_bash', name: 'Bash', input: { command: 'echo hi', description: 'say hi' } },
+          { type: 'tool_use', id: 'toolu_section', name: UNGRANTED_TOOL, input: { chunk_id: 'x' } },
         ],
         stopReason: 'tool_use',
       }
@@ -494,5 +498,8 @@ describe('a headless Claude Code session with the plugin installed', () => {
       /The tool "Bash" is not available in this application\. Use the yvoke knowledge-base tools instead\./,
       why("Bash was not refused with the plugin's text"),
     )
+    // The hook grants only what the playbook names: another tool of the same server is still refused by the gate.
+    assert.match(byId.toolu_section ?? '', new RegExp(`The tool "${UNGRANTED_TOOL}" is not available`), why('an ungranted server tool was not refused'))
+    assert.ok(!yvoke.calls.some((c) => c.tool === 'get_section'), why('an ungranted server tool reached the stub'))
   })
 })

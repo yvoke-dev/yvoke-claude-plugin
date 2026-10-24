@@ -36,7 +36,7 @@ The hooks currently wired in `plugins/yvoke/hooks/register.tsx` register in this
 
 1. `registerSetup(on, options)` (`plugins/yvoke/src/setup.ts`)
 2. `registerSession(on)` (`plugins/yvoke/src/session.ts`)
-3. `registerPolicy(on)` (`plugins/yvoke/src/policy.ts`)
+3. `registerPolicy(on)` (`plugins/yvoke/src/policy.ts`, the `tool.call` gate and the `tool.check` hook)
 4. `registerTurnLimits(on, options)` (`plugins/yvoke/src/turn-limits.ts`)
 5. `registerSystemPrompt(on)` (`plugins/yvoke/src/system-prompt.ts`)
 
@@ -52,6 +52,7 @@ Claude Code engine (Desktop Code tab / terminal)
      ├─ prompt.submit        setup.ts loads missing or failed lists (for a locked setup too, with the D-20 version upgrade) and wraps system-prompt.ts, which loads instructions from yvoke-web; setup.ts locks only if not dropped
      ├─ prompt.compose       appends session section `yvoke:instructions` (base + `\n\n---\n\n` + playbook)
      ├─ tool.call            single gate in src/policy.ts: the mod's own Yvoke server calls pass, then the turn limit check, then playbook tool policy
+     ├─ tool.check           beside the gate in src/policy.ts: grants the mod's own Yvoke server calls and the playbook's Yvoke tools, so Claude Code asks no permission (D-36)
      ├─ turn.step            tracks request index per loop; strips tool uses at request ceiling `n`
      └─ turn.complete        appends turn-limit notice line beneath main-loop answers that hit request `n`
 ```
@@ -62,6 +63,7 @@ Claude Code engine (Desktop Code tab / terminal)
 2. **Setup Selection (`AbovePrompt`):** The band offers **Area** (default `OIM`), **Mode** (*Single agent*; *Multi-agent* is gated behind `MULTI_AGENT_READY = false` in `setup.ts`), and **Playbook** (`name vN`, default `area.defaultPlaybook`).
 3. **First Question & Lock (`prompt.submit` + `prompt.compose`):** `registerSetup`'s outer `prompt.submit` hook ensures the catalogue and setup are ready and calls `next(e)`, which runs `registerSystemPrompt`'s inner `prompt.submit` hook to load base instructions (`get_system_prompt`) and the chosen playbook (`get_playbook`), joined by `\n\n---\n\n`. If any server call fails, `system-prompt.ts` drops the question with a `Yvoke Backend:` error and `setup.ts` leaves the setup unlocked. Once `next(e)` returns without dropping the question, `setup.ts` sets `lockedSessionId` and updates `$.ui.status`.
 4. **Tool Gate & Turn Ceilings (`tool.call` + `turn.step` + `turn.complete`):** Every model tool call passes through the single `tool.call` gate in `src/policy.ts`. The mod's own `$.mcp.call` reaches it too, as a call with this plugin as origin, and the gate lets those to the Yvoke server through first. Request `n - 1` denies tool calls with a wrap-up directive; below the limit, only `ToolSearch`, `AskUserQuestion`, and the Yvoke server tools granted by the active playbook (`allowedServerTools`) are permitted. The server's `ask_clarifying_question` asks nobody over MCP, so when the playbook grants it the gate catches the call, asks the user with `$.ui.ask`, and answers the model itself; the server never sees it. This also works in subagents, which Claude Code gives no `AskUserQuestion`. Request `n` strips remaining tool calls in `turn.step` and adds a footer line in `turn.complete`.
+5. **Permission Check (`tool.check`):** A call that passes the gate still goes through Claude Code's permission check, which would ask the user. The `tool.check` hook in `src/policy.ts` turns that plain ask into an allow for the mod's own Yvoke server calls and for the Yvoke server tools the playbook grants (the gate's own rule), so none of them prompts, as on yvoke-desktop. It never refuses and never widens what the gate refused (D-36).
 
 ### Planned Architecture Extensions
 

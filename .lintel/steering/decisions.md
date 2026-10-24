@@ -2,7 +2,7 @@
 
 The decisions behind the plugin and why they were made; where an entry disagrees with the specs or PLAN.md, those win.
 
-To add one, append `### D-36: <short title>` (the next free number) with status, date, decision and why; keep IDs stable and never reuse one.
+To add one, append `### D-37: <short title>` (the next free number) with status, date, decision and why; keep IDs stable and never reuse one.
 
 ### D-01: Claude plans and install route
 
@@ -287,7 +287,9 @@ To add one, append `### D-36: <short title>` (the next free number) with status,
 - **Decided:** 2026-10-24
 - **Decision:** The `tool.call` gate lets the plugin's own calls to its Yvoke server through, recognised by
   `next.origin.plugin === 'yvoke'`, before the turn-limit check
-  ([tool-policy.md](../specs/tool-policy.md)). The model's calls are judged as before.
+  ([tool-policy.md](../specs/tool-policy.md)). The model's calls are judged as before. The plugin's
+  `tool.check` hook grants the mod's own calls too, so Claude Code's permission check does not ask about
+  them (D-36).
 - **Why:** In a real Claude Code session the engine routes the mod's own `$.mcp.call` through the plugin's
   own `tool.call` hook. The gate refused the mod's `list_areas`, `list_playbooks`, `get_playbook` and
   `get_system_prompt` calls, so every Yvoke question was dropped (seen on Claude Code 2.1.287 and 2.1.310).
@@ -351,6 +353,21 @@ To add one, append `### D-36: <short title>` (the next free number) with status,
 - **Decision:** The repository and the plugin are under the Apache License 2.0 (`LICENSE` at the root, and
   `license` in `plugin.json`).
 - **Why:** The repository is public (D-02), and the plugin directory requires a licence.
+
+### D-36: Granted knowledge-base tools run without a permission prompt in a Yvoke session
+
+- **Status:** live
+- **Decided:** 2026-10-24
+- **Decision:** In a Yvoke session the plugin's `tool.check` hook grants two kinds of call, so Claude Code
+  does not ask the user: the mod's own calls to the Yvoke server, and the model's calls to the Yvoke
+  server tools the session's playbook grants. The hook decides the second kind with the gate's own rule
+  and only ever turns the engine's plain ask into an allow ([tool-policy.md](../specs/tool-policy.md)).
+- **Why:** yvoke-desktop auto-approves its knowledge-base tools, so a consultant used to it expects no
+  prompt for `search_corpus`. The gate already decides which tools a playbook grants, so a second prompt
+  asks the user about a call the playbook has already allowed. The mod's own `list_areas` and
+  `get_playbook` calls are not the user's to approve, and a `-p` run cannot ask at all: it refused them
+  and dropped every question (seen live on Claude Code 2.1.310 once the test stopped passing
+  `--allowedTools`).
 
 ## Known gaps and not planned
 

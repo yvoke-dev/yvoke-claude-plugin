@@ -25,6 +25,7 @@ const WRAP_UP =
   'have found, and say plainly that the answer may be incomplete.'
 
 type Connect = McpConnectResult
+type Verdict = Awaited<ReturnType<Engine['tool']['check']>>
 
 type World = {
   reached: string[]
@@ -35,6 +36,13 @@ type World = {
   sessionId: string
   /** What `get_playbook` answers: the playbook as the server has it when the first question loads it. */
   fetched: string
+  /**
+   * The engine's own verdict on a permission check, beneath the plugin. `allow` by default: in the kit a
+   * `$.tool.call` runs the check too, and an ask there has nobody to answer it, so it would deny every call.
+   */
+  verdict: Verdict
+  /** The tools whose permission check reached the engine, i.e. the plugin's hook passed them on. */
+  checked: string[]
 }
 
 const text = (body: string): McpToolResult => ({ content: [{ type: 'text', text: body }], isError: false })
@@ -48,7 +56,7 @@ const playbooks = (tools: unknown = []) => JSON.stringify([{ name: 'oim-full', a
 
 // The engine beneath the plugin: what /yvoke needs, the server's connection and lists, and the tools themselves.
 function engine(on: On, connect: () => Connect = () => ({ isConnected: true, server: 'plugin:yvoke:yvoke' })): World {
-  const w: World = { reached: [], connects: 0, connect, playbooks: playbooks(), sessionId: 'session-a', fetched: fetchedPlaybook() }
+  const w: World = { reached: [], connects: 0, connect, playbooks: playbooks(), sessionId: 'session-a', fetched: fetchedPlaybook(), verdict: { decision: 'allow' }, checked: [] }
   mock.clock(on)
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('command.register', (_$, e) => ({ value: { command: e.name } }))
@@ -68,6 +76,10 @@ function engine(on: On, connect: () => Connect = () => ({ isConnected: true, ser
     return { value: text(`ERROR: no tool ${e.tool}`) }
   })
   on('prompt.submit', (_$, e) => ({ text: e.text }))
+  on('tool.check', (_$, e) => {
+    w.checked.push(e.tool)
+    return w.verdict
+  })
   on('tool.call', (_$, e) => {
     w.reached.push(e.tool)
     return { result: `ran ${e.tool}` }
@@ -665,5 +677,193 @@ describe('in a Yvoke session: the tools of the playbook that loaded', () => {
     w.sessionId = 'session-b'
     expect(await call($, `${P}get_toc`)).toEqual({ deny: denied(`${P}get_toc`) })
     expect(await call($, `${P}search_corpus`)).toEqual({ result: `ran ${P}search_corpus` })
+  })
+})
+
+// tool-policy.md: the plugin's `tool.check` hook. In a Yvoke session the tools the gate lets through run
+// without a permission prompt: the playbook's Yvoke server tools here, and the mod's own calls to the server
+// (live only: the test's `$` has origin `engine`, so it cannot make one). The hook turns the engine's plain
+// ask into an allow and answers nothing else itself. A check is a `$.tool.check` query: the plugin's hook,
+// then the engine's verdict beneath it.
+describe('in a Yvoke session: the permission check', () => {
+  const P = 'mcp__plugin_yvoke_yvoke__'
+  const check = ($: Engine, tool: string, input: unknown = {}) => $.tool.check({ tool, input })
+  /** The engine beneath the plugin, answering every permission check with an ask: a tool nobody has granted. */
+  const asking = (on: On, connect?: () => Connect) => {
+    const w = engine(on, connect)
+    w.verdict = { decision: 'ask' }
+    return w
+  }
+
+  test('outside a Yvoke session the engine decides every tool, and the server is never asked', async ($, on) => {
+    const w = asking(on)
+    await begin($)
+
+    expect(await check($, `${P}search_corpus`)).toEqual({ decision: 'ask' })
+    expect(await check($, 'Bash', { command: 'ls' })).toEqual({ decision: 'ask' })
+    expect(w.checked).toEqual([`${P}search_corpus`, 'Bash'])
+    expect(w.connects).toBe(0)
+  })
+
+  test("a Yvoke server tool the playbook grants is allowed, with no prompt", async ($, on) => {
+    const w = asking(on)
+    await yvokeSession($)
+
+    expect(await check($, `${P}search_corpus`)).toEqual({ decision: 'allow' })
+    expect(w.reached).toEqual([])
+  })
+
+  test('a playbook that declares tools: those are allowed and no others', async ($, on) => {
+    const w = asking(on)
+    w.playbooks = playbooks(['search_corpus', 'mcp__oim__get_toc'])
+    await yvokeSession($)
+
+    expect(await check($, `${P}search_corpus`)).toEqual({ decision: 'allow' })
+    expect(await check($, `${P}get_toc`)).toEqual({ decision: 'allow' })
+    expect(await check($, `${P}get_section`)).toEqual({ decision: 'ask' })
+  })
+
+  test("the server's own tools for the mod (get_playbook, list_areas) are not granted to the model", async ($, on) => {
+    asking(on)
+    await yvokeSession($)
+
+    // The model's call has origin `engine`: only the mod's own calls (live) pass for these.
+    for (const tool of ['list_areas', 'list_playbooks', 'get_playbook', 'get_system_prompt']) {
+      expect(await check($, `${P}${tool}`)).toEqual({ decision: 'ask' })
+    }
+  })
+
+  test('the same under a claude.ai connector name, and not under the plugin name beside it', async ($, on) => {
+    asking(on, () => ({ isConnected: true, server: 'claude.ai yvoke' }))
+    await yvokeSession($)
+
+    expect(await check($, 'mcp__claude_ai_yvoke__search_corpus')).toEqual({ decision: 'allow' })
+    expect(await check($, `${P}search_corpus`)).toEqual({ decision: 'ask' })
+  })
+
+  test('web and compute tools are not granted, declared or not', async ($, on) => {
+    const w = asking(on)
+    w.playbooks = playbooks(['search_corpus', 'WebSearch', 'execute_code'])
+    await yvokeSession($)
+
+    for (const tool of ['WebSearch', 'WebFetch', `${P}execute_code`, 'mcp__yvoke__execute_code']) {
+      expect(await check($, tool)).toEqual({ decision: 'ask' })
+    }
+  })
+
+  test('built-ins, other servers and look-alike servers stay with the engine, and never wait on the server', async ($, on) => {
+    const w = asking(on)
+    await yvokeSession($)
+    const before = w.connects
+
+    for (const tool of ['Bash', 'Read', 'ToolSearch', 'AskUserQuestion', 'mcp__github__create_issue', 'mcp__plugin_yvoke_yvoke2__search_corpus']) {
+      expect(await check($, tool)).toEqual({ decision: 'ask' })
+    }
+    // The two MCP tools ask for the connection; the built-ins do not.
+    expect(w.connects - before).toBe(2)
+  })
+
+  test("another server's tool is not looked up in the playbook at all", async ($, on) => {
+    // mod rule 11: a hook beneath the plugin answers its read of the setup, and counts it.
+    let reads = 0
+    on('state.get', { plugin: 'yvoke', key: 'setup' }, () => {
+      reads++
+      return { value: { value: null, version: 1 } }
+    })
+    asking(on)
+    await yvokeSession($)
+    const before = reads
+
+    expect(await check($, 'mcp__github__create_issue')).toEqual({ decision: 'ask' })
+    expect(await check($, 'mcp__plugin_yvoke_yvoke2__search_corpus')).toEqual({ decision: 'ask' })
+    expect(reads).toBe(before)
+  })
+
+  test('ask_clarifying_question is answered by the gate, never granted here', async ($, on) => {
+    asking(on)
+    await yvokeSession($)
+
+    expect(await check($, `${P}ask_clarifying_question`, ASK)).toEqual({ decision: 'ask' })
+  })
+
+  test('the server not connected: nothing is its tool', async ($, on) => {
+    asking(on, () => ({ isConnected: false, reason: 'auth', message: 'yvoke needs a sign-in.' }))
+    await yvokeSession($)
+
+    expect(await check($, `${P}search_corpus`)).toEqual({ decision: 'ask' })
+  })
+
+  test("the playbook cannot be read: nothing is granted, the engine's verdict stands", async ($, on) => {
+    const w = asking(on)
+    w.playbooks = 'not a list'
+    await yvokeSession($)
+
+    expect(await check($, `${P}search_corpus`)).toEqual({ decision: 'ask' })
+  })
+
+  test('once the question has loaded the playbook, its tools decide, not the lists', async ($, on) => {
+    const w = asking(on)
+    w.playbooks = playbooks(['search_corpus'])
+    w.fetched = fetchedPlaybook(['mcp__oim__get_toc'])
+    await yvokeSession($)
+    await ask($, 'q')
+
+    expect(await check($, `${P}get_toc`)).toEqual({ decision: 'allow' })
+    expect(await check($, `${P}search_corpus`)).toEqual({ decision: 'ask' })
+  })
+
+  test("the engine's own refusal is not lifted: a deny, or an ask somebody chose, passes as it is", async ($, on) => {
+    const w = asking(on)
+    await yvokeSession($)
+
+    const settled: Verdict[] = [
+      { decision: 'deny', reason: 'Denied by the settings rule.', rule: `${P}search_corpus` },
+      { decision: 'ask', reason: 'Asked by a rule.', rule: `${P}search_corpus` },
+      { decision: 'ask', reason: 'Asked by another plugin.', plugin: 'other' },
+      { decision: 'ask', reason: 'Asked by a hook.', hook: 'PreToolUse' },
+    ]
+    for (const verdict of settled) {
+      w.verdict = verdict
+      expect(await check($, `${P}search_corpus`)).toEqual(verdict)
+    }
+  })
+
+  test('an allow the engine already gave is left as it is', async ($, on) => {
+    const w = asking(on)
+    w.verdict = { decision: 'allow', reason: 'Allowed by the mode.' }
+    await yvokeSession($)
+
+    expect(await check($, `${P}search_corpus`)).toEqual({ decision: 'allow', reason: 'Allowed by the mode.' })
+  })
+
+  test('on a call: the granted tool runs with no prompt, and a built-in the gate lets through still waits for the engine', async ($, on) => {
+    // The kit's `$.tool.call` runs the permission check too, and an ask there has nobody to answer it.
+    const w = asking(on)
+    await yvokeSession($)
+
+    expect(await call($, `${P}search_corpus`)).toEqual({ result: `ran ${P}search_corpus` })
+    expect(await call($, 'ToolSearch')).toEqual(expect.objectContaining({ isError: true }))
+    expect(await call($, 'Bash', { command: 'ls' })).toEqual({ deny: denied('Bash') })
+    expect(w.reached).toEqual([`${P}search_corpus`])
+    // The gate refused Bash before any check, so the engine was asked about the other two only.
+    expect(w.checked).toEqual([`${P}search_corpus`, 'ToolSearch'])
+  })
+
+  test('a failed check grants nothing: the engine verdict stands', async ($, on) => {
+    asking(on, () => {
+      throw new Error('engine fault')
+    })
+    await yvokeSession($)
+
+    expect(await check($, `${P}search_corpus`)).toEqual({ decision: 'ask' })
+  })
+
+  test('a state read that fails grants nothing either', async ($, on) => {
+    // mod rule 11: an invalid shape beneath the plugin stands in for a failed read.
+    on('state.get', { plugin: 'yvoke', key: 'setup' }, () => ({ value: 'not a versioned value' as never }))
+    asking(on)
+    await yvokeSession($)
+
+    expect(await check($, `${P}search_corpus`)).toEqual({ decision: 'ask' })
   })
 })
