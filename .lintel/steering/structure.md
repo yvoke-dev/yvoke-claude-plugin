@@ -4,7 +4,7 @@
 yvoke-claude-plugin/
 ├── README.md                        # Overview and local development setup against yvoke-web
 ├── PLAN.md                          # Feature roadmap, milestones, spikes, and server/IT dependencies
-├── package.json                     # Dev scripts (`check`, `typecheck`, `test`, `validate`) and TypeScript devDependency
+├── package.json                     # Dev scripts (`check`, `typecheck`, `test`, `test:integration`, `validate`) and TypeScript devDependency
 ├── tsconfig.json                    # Root TypeScript project reference pointing to `plugins/yvoke`
 ├── .claude-plugin/
 │   └── marketplace.json             # Self-hosted Claude Code marketplace manifest (`yvoke`)
@@ -27,20 +27,23 @@ yvoke-claude-plugin/
 │   │   └── turn-limits.ts           # Per-question turn ceilings (`turn.step`, `turn.complete`)
 │   ├── types/
 │   │   └── index.d.ts               # TypeScript contract for `PluginState.yvoke` (`$.state` keys)
-│   └── tests/                       # Automated test suites run by `claude plugin test plugins/yvoke`
+│   └── tests/                       # Unit suites run by `claude plugin test plugins/yvoke`; live-session tests are in the root `tests/integration/`
 ├── scripts/
 │   ├── check-docs.mjs               # Validates Markdown relative links and `#anchors`, and decision and task IDs
 │   └── lay-types.mjs                # Spawns print-mode Claude Code to lay `.claude-plugin/types/`
+├── tests/
+│   └── integration/
+│       └── live-session.test.mjs    # Integration group: the plugin in a real headless session, against a stub Yvoke server and a fake model API (Node 22, no dependencies)
 ├── docs/
 │   └── contributing.md              # Developer guide: hot reload, types, debug log, troubleshooting
 ├── .agents/
 │   └── skills/                      # Project skills (`claude-code-mod`, `claude-code-testing`, `yvoke-domain`, `rag`)
 ├── .lintel/
 │   ├── config.jsonc                 # Lintel path classifications, role skills, and steering
-│   ├── scripts/                     # Build, setup, and test runner scripts (`build.sh`, `setup.sh`, etc.)
+│   ├── scripts/                     # Build, setup, and test runner scripts (`build.sh`, `setup.sh`, `test-unit.sh`, `test-integration.sh`, etc.)
 │   ├── specs/                       # Living specifications per feature area
 │   └── steering/                    # Project steering (`product.md`, `architecture.md`, `tech.md`, `structure.md`, `conventions.md`, `decisions.md`, `testing.md`)
-└── .github/workflows/ci.yml         # CI running docs check and plugin validation/tests on 2.1.287 & latest
+└── .github/workflows/ci.yml         # CI running docs check and plugin validation, tests and the integration test on 2.1.287 & latest
 ```
 
 ## Module Organization Rules

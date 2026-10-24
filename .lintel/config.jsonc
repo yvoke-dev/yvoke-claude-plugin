@@ -14,7 +14,13 @@
         }
       },
       "integration": {
-        "required": false
+        "paths": {
+          "add": [
+            "tests/integration/**/*.test.mjs"
+          ]
+        },
+        "required": true,
+        "timeoutSeconds": 600
       },
       "e2e": {
         "required": false

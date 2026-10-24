@@ -1,6 +1,6 @@
 # CI for every push and pull request, and once a week: the docs check, and the plugin checks from the
-# verification suite on the oldest Claude Code the mod supports and on the newest release, so a
-# mod API change shows up here before a user hits it.
+# verification suite and the integration test on the oldest Claude Code the mod supports and on the newest
+# release, so a mod API change shows up here before a user hits it.
 name: CI
 
 on:
@@ -76,3 +76,8 @@ jobs:
         run: npm run typecheck
       - name: Test
         run: claude plugin test plugins/yvoke
+      - name: Integration test
+        # The plugin in a real headless session, against a stub Yvoke server and a fake model API on
+        # localhost (tests/integration/). It installs the plugin into a config folder of its own and
+        # starts Claude Code without the runner's CLAUDE_* variables, so nothing here reaches the network.
+        run: npm run test:integration

@@ -93,13 +93,29 @@ The declarations are the truth about the API for your version. Grep
 ## 6. Tests and checks
 
 ```sh
-npm test        # claude plugin test plugins/yvoke
-npm run check   # all five verification checks, in CI's order
+npm test                  # claude plugin test plugins/yvoke
+npm run test:integration  # the plugin in a real headless session
+npm run check             # all the verification checks, in CI's order
 ```
 
-Tests run against the real engine with no session, network or server: see
+`npm test` runs against the real engine with no session, network or server: see
 [testing.md](../.lintel/steering/testing.md) for how a test answers the mod's
-`$` calls and stubs the Yvoke server. Run `npm run check` before every push; CI runs the same commands.
+`$` calls and stubs the Yvoke server.
+
+`npm run test:integration` runs `tests/integration/`. It installs the plugin from your clone into a
+throwaway `CLAUDE_CONFIG_DIR` (never your own), starts a stub Yvoke server and a fake model API on
+`127.0.0.1`, and runs `claude -p` with `/yvoke` and one question. It needs `node` and `claude`, no
+sign-in and no network, and takes about ten seconds. It exists because the kit behind `npm test` is not
+the engine: in a live session `$.mcp.call` goes through the plugin's own `tool.call` hook, and only a
+live session shows what that does to the mod's own calls.
+
+- `CLAUDE_BIN=/path/to/claude npm run test:integration` runs it with another Claude Code binary. CI runs
+  2.1.287 and the latest.
+- A failure prints the `result` lines, the tools the stub saw and the tail of the debug log. For more,
+  run the same steps by hand with `--debug-file` ([section 7](#7-reading-the-debug-log)).
+- `sh .lintel/scripts/test-integration.sh` is the same run with the harness's exit codes.
+
+Run `npm run check` before every push; CI runs the same commands.
 
 ## 7. Reading the debug log
 
