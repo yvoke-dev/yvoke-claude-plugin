@@ -18,16 +18,26 @@ const AREAS = JSON.stringify([
 const PLAYBOOKS = JSON.stringify([{ name: 'oim-full', area: 'OIM', prototype: false, version: 1 }])
 const text = (body: string, isError = false): McpToolResult => ({ content: [{ type: 'text', text: body }], isError })
 
-type Server = { calls: string[]; down: boolean; hang: boolean; playbook: string }
+// playbook, version: the text and the version get_playbook gives; PLAYBOOKS lists oim-full at v1.
+type Server = { calls: string[]; down: boolean; hang: boolean; playbook: string; version: unknown }
 // idCallsLeft: how many more session.id calls answer before one throws; null never throws.
-type World = { server: Server; sessionId: string; idCallsLeft: number | null; entered: string[]; clock: ReturnType<typeof mock.clock> }
+// dropBeneath: a hook beneath the plugin that drops the question after the instructions loaded.
+type World = {
+  server: Server
+  sessionId: string
+  idCallsLeft: number | null
+  entered: string[]
+  dropBeneath: string | null
+  clock: ReturnType<typeof mock.clock>
+}
 
 function engine(on: On): World {
   const w: World = {
-    server: { calls: [], down: false, hang: false, playbook: 'PLAYBOOK' },
+    server: { calls: [], down: false, hang: false, playbook: 'PLAYBOOK', version: 1 },
     sessionId: 'session-a',
     idCallsLeft: null,
     entered: [],
+    dropBeneath: null,
     clock: mock.clock(on),
   }
   mock.store(on)
@@ -51,11 +61,12 @@ function engine(on: On): World {
     if (e.tool === 'get_system_prompt') return { value: text('BASE') }
     if (e.tool === 'get_playbook') {
       const name = String(e.args.name)
-      return { value: text(JSON.stringify({ name, text: w.server.playbook })) }
+      return { value: text(JSON.stringify({ name, text: w.server.playbook, version: w.server.version })) }
     }
     return { value: text(`ERROR: no tool ${e.tool}`) }
   })
   on('prompt.submit', (_$, e) => {
+    if (w.dropBeneath !== null) return { drop: w.dropBeneath }
     w.entered.push(e.text)
     return { text: e.text }
   })
@@ -84,6 +95,24 @@ const RENDER = { model: 'claude-x', promptModel: 'claude-x', surfaces: ['termina
 const compose = async ($: Engine) => (await $.prompt.compose(RENDER)).sections
 
 const OURS: PromptComposeSection = { id: 'yvoke:instructions', text: 'BASE\n\n---\n\nPLAYBOOK', scope: 'session' }
+const LOAD = ['list_areas', 'get_playbook', 'get_system_prompt']
+
+// What the plugin writes to `yvoke.instructions`, seen on its way to the kit's store.
+const keptInstructions = (on: On) => {
+  const kept: unknown[] = []
+  on('state.set', { plugin: 'yvoke', key: 'instructions' }, (_$, e, next) => {
+    kept.push(e.value)
+    return next(e)
+  })
+  return kept
+}
+// P1-08's setup as a test sets it: a hook here answers the plugin's reads of `yvoke.setup`.
+const setupIs = (on: On, start: Record<string, unknown>) => {
+  const s = { setup: start }
+  on('state.get', { plugin: 'yvoke', key: 'setup' }, () => ({ value: { value: s.setup as never, version: 1 } }))
+  return s
+}
+const FULL = { area: 'OIM', mode: 'single', playbook: 'oim-full', version: 1, profile: null, lockedSessionId: null }
 
 test('a plain session: questions and the system prompt pass through, and the server is never called', async ($, on) => {
   const w = engine(on)
@@ -132,6 +161,91 @@ test('later questions use what was loaded and do not call the server again', asy
   await ask($, 'two')
 
   expect(w.server.calls).toHaveLength(3)
+  expect(await compose($)).toEqual([...CORE, OURS])
+})
+
+test('what loaded is kept with the text, and a later question on the same setup reuses it', async ($, on) => {
+  const w = engine(on)
+  const kept = keptInstructions(on)
+  await begin($)
+  await yvoke($, w)
+
+  await ask($, 'one')
+  await ask($, 'two')
+
+  expect(kept).toEqual([
+    {
+      sessionId: 'session-a',
+      text: 'BASE\n\n---\n\nPLAYBOOK',
+      loadedFor: { area: 'OIM', mode: 'single', playbook: 'oim-full', version: 1 },
+    },
+  ])
+  expect(w.server.calls).toEqual(LOAD)
+  expect(await compose($)).toEqual([...CORE, OURS])
+})
+
+test('a question dropped beneath after the load, then another playbook picked: the next question loads that one', async ($, on) => {
+  const w = engine(on)
+  const s = setupIs(on, FULL)
+  await begin($)
+  await yvoke($, w)
+  w.dropBeneath = 'Yvoke: dropped beneath.'
+  expect(await ask($, 'one')).toEqual({ drop: 'Yvoke: dropped beneath.' })
+  expect(w.server.calls).toEqual(LOAD)
+
+  // The setup is still open after a drop.
+  s.setup = { ...FULL, playbook: 'oim-quick' }
+  w.server.playbook = 'QUICK'
+  w.dropBeneath = null
+  expect(await ask($, 'two')).toEqual({ text: 'two' })
+
+  expect(w.server.calls).toEqual([...LOAD, ...LOAD])
+  expect(await compose($)).toEqual([...CORE, { ...OURS, text: 'BASE\n\n---\n\nQUICK' }])
+})
+
+test('a setup whose version is not the one that loaded: the next question loads again', async ($, on) => {
+  const w = engine(on)
+  const s = setupIs(on, FULL)
+  await begin($)
+  await yvoke($, w)
+  await ask($, 'one')
+
+  s.setup = { ...FULL, version: 2 }
+  w.server.version = 2
+  w.server.playbook = 'NEWER'
+  await ask($, 'two')
+  await ask($, 'three')
+
+  expect(w.server.calls).toEqual([...LOAD, ...LOAD])
+  expect(await compose($)).toEqual([...CORE, { ...OURS, text: 'BASE\n\n---\n\nNEWER' }])
+})
+
+test('a get_playbook answer with no version: later questions reuse what loaded', async ($, on) => {
+  const w = engine(on)
+  w.server.version = undefined
+  await begin($)
+  await yvoke($, w)
+
+  await ask($, 'one')
+  await ask($, 'two')
+
+  expect(w.server.calls).toEqual(LOAD)
+  expect(await compose($)).toEqual([...CORE, OURS])
+})
+
+test('an entry kept without loadedFor (from before a hot reload) is loaded again', async ($, on) => {
+  const w = engine(on)
+  // What an older build left in `yvoke.instructions` for this session, until the plugin writes it again.
+  const kept = keptInstructions(on)
+  on('state.get', { plugin: 'yvoke', key: 'instructions' }, (_$, e, next) =>
+    kept.length === 0 ? { value: { value: { sessionId: 'session-a', text: 'OLD' } as never, version: 1 } } : next(e),
+  )
+  await begin($)
+  await yvoke($, w)
+
+  expect(await ask($, 'one')).toEqual({ text: 'one' })
+
+  expect(w.server.calls).toEqual(LOAD)
   expect(await compose($)).toEqual([...CORE, OURS])
 })
 

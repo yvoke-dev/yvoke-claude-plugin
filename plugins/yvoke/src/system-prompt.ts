@@ -6,15 +6,28 @@
 //
 // The setup (area, mode, playbook) is P1-08's to choose. Until it writes `$.state` `yvoke.setup`, the
 // session runs on DEFAULT_SETUP: area OIM, single agent, the area's default playbook from `list_areas`.
-// Whether this session's instructions loaded is P1-08's "setup locked" signal (`yvoke.instructions`).
+// `yvoke.instructions` keeps the text with what it was loaded for (`loadedFor`): P1-08 locks the setup with
+// the playbook version that loaded, and a later question reuses the text only while the setup still matches.
 import type { On, PromptComposeSection } from 'claude-code'
 import { callYvoke, TIMEOUT_MS, type ServerAnswer, type ServerIo } from './server'
 
-/** What a session runs on. `mode` is `single` or a multi-agent profile's name; `playbook` null = default. */
-export type Setup = { area: string; mode: string; playbook: string | null }
+/**
+ * What a session runs on. `mode` is `single` or a multi-agent profile's name; `playbook` null = default.
+ * `version` is the one the band showed, null or left out when there is none to check.
+ */
+export type Setup = { area: string; mode: string; playbook: string | null; version?: number | null }
+
+/**
+ * What a load was for: the setup's area and mode, the playbook it loaded (the setup's, or the area's
+ * default) and the `version` `get_playbook` gave, null when it gave none. Both null in multi-agent mode.
+ */
+export type LoadedFor = { area: string; mode: string; playbook: string | null; version: number | null }
 
 /** Instructions loaded for one session; text kept under another session's id is never served. */
-export type Loaded = { sessionId: string; text: string }
+export type Loaded = { sessionId: string; text: string; loadedFor: LoadedFor }
+
+type Failed = { ok: false; error: string }
+export type Instructions = { ok: true; text: string; loadedFor: LoadedFor } | Failed
 
 export const SINGLE_AGENT = 'single'
 export const DEFAULT_SETUP: Setup = { area: 'OIM', mode: SINGLE_AGENT, playbook: null }
@@ -42,11 +55,12 @@ export const MISSING_SECTION: PromptComposeSection = {
 }
 
 const ORIGIN = 'Yvoke Backend:'
-const fail = (message: string): { ok: false; error: string } => ({ ok: false, error: `${ORIGIN} ${message}` })
+const fail = (message: string): Failed => ({ ok: false, error: `${ORIGIN} ${message}` })
 const unreadable = (tool: string) => fail(`${tool} gave an answer the plugin cannot read.`)
 
 /**
- * Loads the base instructions and, in single-agent mode, the playbook text, joined by SEPARATOR.
+ * Loads the base instructions and, in single-agent mode, the playbook text, joined by SEPARATOR, with what
+ * they were loaded for. `get_playbook` takes a name only, so the version is the one the server sent.
  *
  * Which base instructions is decided from data before any `get_system_prompt` call, as yvoke-web and
  * yvoke-desktop 1.3.0 do: the playbook's own `systemPrompt` when any area lists it among its
@@ -62,10 +76,10 @@ export const loadInstructions = async (
   io: ServerIo,
   setup: Setup | null,
   remainingMs: () => number,
-): Promise<ServerAnswer> => {
+): Promise<Instructions> => {
   const { area, mode, playbook } = setup ?? DEFAULT_SETUP
 
-  const round = <T>(calls: (timeoutMs: number) => Promise<T>): Promise<T | ServerAnswer> => {
+  const round = <T>(calls: (timeoutMs: number) => Promise<T>): Promise<T | Failed> => {
     const timeoutMs = Math.min(TIMEOUT_MS, remainingMs() - MARGIN_MS)
     return timeoutMs < MIN_ROUND_MS ? Promise.resolve(fail(NO_TIME)) : calls(timeoutMs)
   }
@@ -80,7 +94,9 @@ export const loadInstructions = async (
     const areas = await round(call('list_areas', {}))
     if (!areas.ok) return areas
     const entry = findArea(areas.text, area)
-    return entry.ok ? basePrompt(entry.area.defaultSystemPrompt) : entry
+    if (!entry.ok) return entry
+    const base = await basePrompt(entry.area.defaultSystemPrompt)
+    return base.ok ? { ...base, loadedFor: { area, mode, playbook: null, version: null } } : base
   }
 
   let entry: AreaFound
@@ -111,8 +127,38 @@ export const loadInstructions = async (
   const own = parsed.systemPrompt
   const base = await basePrompt(own && entry.allPrompts.includes(own) ? own : entry.area.defaultSystemPrompt)
   if (!base.ok) return base
-  return { ok: true, text: `${base.text}${SEPARATOR}${parsed.text}` }
+  return {
+    ok: true,
+    text: `${base.text}${SEPARATOR}${parsed.text}`,
+    loadedFor: { area, mode, playbook: name, version: parsed.version },
+  }
 }
+
+/**
+ * Whether instructions kept in `$.state` may serve this question: loaded under this session id, for the same
+ * area and mode, the same playbook unless the setup names none, and the same version unless either is null
+ * (a version the server did not send is unknown, not another one). An entry with no `loadedFor` (kept from
+ * before it existed) or one the plugin cannot read never does.
+ */
+export const reusable = (loaded: unknown, sessionId: string, setup: Setup | null): boolean => {
+  if (!isRecord(loaded) || loaded.sessionId !== sessionId || typeof loaded.text !== 'string') return false
+  const was = loaded.loadedFor
+  if (!isLoadedFor(was)) return false
+  const { area, mode, playbook, version = null } = setup ?? DEFAULT_SETUP
+  return (
+    was.area === area &&
+    was.mode === mode &&
+    (playbook === null || was.playbook === playbook) &&
+    (version === null || was.version === null || was.version === version)
+  )
+}
+
+const isLoadedFor = (x: unknown): x is LoadedFor =>
+  isRecord(x) &&
+  typeof x.area === 'string' &&
+  typeof x.mode === 'string' &&
+  (x.playbook === null || typeof x.playbook === 'string') &&
+  (x.version === null || typeof x.version === 'number')
 
 type Area = { defaultPlaybook: string | null; defaultSystemPrompt: string | null }
 /** The session's area, and every system prompt name any area lists. */
@@ -137,14 +183,17 @@ const nameOf = (value: unknown): string | null => (typeof value === 'string' && 
 const baseText = (text: string): ServerAnswer =>
   text.trim() ? { ok: true, text: text.trim() } : fail('get_system_prompt gave no instructions.')
 
-type PlaybookText = { ok: true; text: string; systemPrompt: string | null } | { ok: false; error: string }
+type PlaybookText =
+  | { ok: true; text: string; systemPrompt: string | null; version: number | null }
+  | { ok: false; error: string }
 
 const playbookText = (json: string, name: string): PlaybookText => {
   const parsed = parse(json)
   if (!isRecord(parsed) || typeof parsed.text !== 'string') return unreadable('get_playbook')
   const text = parsed.text.trim()
   if (!text) return fail(`playbook '${name}' has no text.`)
-  return { ok: true, text, systemPrompt: nameOf(parsed.systemPrompt) }
+  const version = typeof parsed.version === 'number' ? parsed.version : null
+  return { ok: true, text, systemPrompt: nameOf(parsed.systemPrompt), version }
 }
 
 const parse = (json: string): unknown => {
@@ -165,9 +214,11 @@ export function registerSystemPrompt(on: On) {
 
     const sessionId = await $.session.id()
     const { value: loaded } = await $.state.get({ plugin: 'yvoke', key: 'instructions' })
-    if (loaded?.sessionId === sessionId) return next(e)
-
     const { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
+    // Only while the setup still matches: a question dropped after the load leaves the band open to another
+    // playbook.
+    if (reusable(loaded, sessionId, setup ?? null)) return next(e)
+
     const io: ServerIo = {
       connect: (server) => $.mcp.connect(server),
       call: (server, tool, args) => $.mcp.call(server, tool, args),
@@ -175,7 +226,8 @@ export function registerSystemPrompt(on: On) {
     }
     const answer = await loadInstructions(io, setup ?? null, () => next.budget.remainingMs)
     if (!answer.ok) return { drop: answer.error }
-    await $.state.set({ plugin: 'yvoke', key: 'instructions' }, { sessionId, text: answer.text })
+    const kept: Loaded = { sessionId, text: answer.text, loadedFor: answer.loadedFor }
+    await $.state.set({ plugin: 'yvoke', key: 'instructions' }, kept)
     return next(e)
   }).catch(($, e, next) => (next.called ? next(e) : { drop: DROP_FAILED }))
 

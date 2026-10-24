@@ -31,9 +31,20 @@
   whitespace-only `get_system_prompt` text drops it with
   `Yvoke Backend: get_system_prompt gave no instructions.` The next question tries again. Nothing is cached
   as a fallback.
-- The text is loaded once per session id. Later questions reuse it, even if the playbook changes on the
-  server. `/clear`, `/resume` and `/branch` start a new session id, so that session loads again on its first
-  question.
+- The loaded text is kept in `yvoke.instructions` with what it was loaded for, `loadedFor`: the area and
+  mode, the playbook actually loaded (the setup's, or the area's default when the setup names none) and
+  the `version` in `get_playbook`'s answer, null when it is missing or not a number. In multi-agent mode
+  `playbook` and `version` are null. `get_playbook` takes no version, so the mod records the version it
+  got rather than asking for one; the setup locks with it ([setup.md](setup.md)).
+- A later question reuses the kept text only when it was loaded under the same session id and `loadedFor`
+  matches the current setup: the same area and mode; the same playbook, unless the setup names none; and
+  the same version, unless the setup's version or the loaded one is null. Otherwise it loads again. So a question dropped
+  after the load (by another hook beneath, for example), followed by another pick in the still-open band,
+  loads the new playbook. An entry without `loadedFor` (left by an older build before a hot reload) or one
+  the plugin cannot read never matches. While the setup matches, later questions reuse the text even if
+  the playbook changes on the server. A `get_playbook` answer without a version records null, which counts
+  as unknown rather than different, so later questions reuse the text. `/clear`, `/resume` and `/branch`
+  start a new session id, so that session loads again on its first question.
 - Fails closed: if the hook that loads the instructions fails, the question is dropped with *Yvoke Backend:
   the instructions could not be loaded, so the question was not sent.* If the hook that adds the section
   fails or `yvoke.instructions` is missing or unreadable for the current session, the system prompt is
@@ -62,13 +73,14 @@ is smaller. If the remaining hook budget minus the 1,500 ms reserve is under 1,0
 | Piece | Where |
 | --- | --- |
 | `prompt.submit` hook (loads, or drops the question) and `prompt.compose` hook (adds the section) | `plugins/yvoke/src/system-prompt.ts` |
-| `$.state` `yvoke.instructions` = `{ sessionId, text }`, written only by `system-prompt.ts` | contract in `plugins/yvoke/types/index.d.ts` |
-| `$.state` `yvoke.setup` = `{ area, mode, playbook }` (playbook null = the area's default), read here, written by `src/setup.ts` | same |
-| Server tools `list_areas` (`defaultPlaybook`, `defaultSystemPrompt`, `systemPrompts`), `get_playbook(name)` (`systemPrompt`, `text`), `get_system_prompt(name?)` | through `callYvoke` ([server-client.md](server-client.md)) |
+| `$.state` `yvoke.instructions` = `{ sessionId, text, loadedFor: { area, mode, playbook, version } }`, written only by `system-prompt.ts`, read by `src/setup.ts` to lock with the loaded version | contract in `plugins/yvoke/types/index.d.ts` |
+| `$.state` `yvoke.setup` = `{ area, mode, playbook, version }` (playbook null = the area's default; version checked against `loadedFor`), read here, written by `src/setup.ts` | same |
+| Server tools `list_areas` (`defaultPlaybook`, `defaultSystemPrompt`, `systemPrompts`), `get_playbook(name)` (`systemPrompt`, `text`, `version`), `get_system_prompt(name?)` | through `callYvoke` ([server-client.md](server-client.md)) |
 
 Hooks nest in registration order: the first registered hook is on the outside and runs first, and a hook
 that answers without calling `next(e)` hides the ones inside it. In `hooks/register.tsx`, `registerSetup`
 runs before `registerSystemPrompt`: `registerSetup`'s `prompt.submit` hook calls `next(e)` first and locks
-the setup only if `registerSystemPrompt`'s inner `prompt.submit` hook did not drop the question.
+the setup only if `registerSystemPrompt`'s inner `prompt.submit` hook did not drop the question, with the
+version that hook recorded in `loadedFor`.
 `src/system-prompt.ts` owns the mod's unmatched `prompt.submit` and `prompt.compose` hooks; any other hook
 on those events must register with a matcher ([architecture.md](../steering/architecture.md)).

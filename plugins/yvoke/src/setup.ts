@@ -1,6 +1,7 @@
 // P1-08, D-11, D-18, D-20: the session setup band. In a Yvoke session the band above the prompt picks the
 // area first, then the mode, then the playbook (single agent) or the profile (multi-agent), each defaulting
-// to what the area names. The choice locks when the first question enters the session.
+// to what the area names. The choice locks when the first question enters the session, with the playbook
+// version that question loaded.
 //
 // This part holds the rules, with no `$` in it (a function from another file cannot take `$`), so they can
 // be tested without the engine.
@@ -183,6 +184,25 @@ export const movedOn = (setup: Setup, catalogue: Catalogue): { setup: Setup; fro
   return { setup: { ...setup, version: current.version }, from: setup.version, to: current.version }
 }
 
+/**
+ * P1-07 fetches the playbook by name only, so the server may have saved it again since the lists loaded: the
+ * setup takes the version that loaded (`yvoke.instructions`, for this session and this playbook). Null when
+ * that is the version it has, the server sent none, or no playbook applies.
+ */
+export const loadedOn = (
+  setup: Setup,
+  loaded: unknown,
+  sessionId: string,
+): { setup: Setup; from: number | null; to: number } | null => {
+  if (setup.mode !== 'single' || setup.playbook === null) return null
+  const kept = loaded as { sessionId?: unknown; loadedFor?: { playbook?: unknown; version?: unknown } } | null | undefined
+  const was = kept?.sessionId === sessionId ? kept.loadedFor : null
+  if (!was || was.playbook !== setup.playbook || typeof was.version !== 'number' || was.version === setup.version) {
+    return null
+  }
+  return { setup: { ...setup, version: was.version }, from: setup.version, to: was.version }
+}
+
 // ---------------------------------------------------------------------------------------------------------
 // The hooks. Every $.state key is written inline (the engine refuses a reference imported from another
 // file), and every enforcing hook opens with the Yvoke check (design 4.4).
@@ -241,14 +261,14 @@ export function registerSetup(on: On, options: PluginOptions) {
 
   // D-20: after a load, a locked setup carries on with the playbook version the server has now. It is
   // saved, a toast says so, and the status line shows it. /resume and /branch, the next question and
-  // Retry all need it, so it takes closures written where `$` lives, as `load` does.
+  // Retry all need it, so it takes closures written where `$` lives, as `load` does. Gives the setup after.
   const upgrade = async (
     locked: Setup,
     catalogue: CatalogueState,
     save: (setup: Setup) => Promise<void>,
     toast: (text: string) => void,
     status: (text: string) => void,
-  ): Promise<void> => {
+  ): Promise<Setup> => {
     const moved = catalogue.ok ? movedOn(locked, catalogue.catalogue) : null
     if (moved) {
       await save(moved.setup)
@@ -258,6 +278,31 @@ export function registerSetup(on: On, options: PluginOptions) {
       )
     }
     await status(lineFor(moved?.setup ?? locked, catalogue.ok ? catalogue.catalogue : null))
+    return moved?.setup ?? locked
+  }
+
+  // Once a question has entered, the setup locked in this session takes the version P1-07 loaded (see
+  // `loadedOn`), and a toast says so. The question may not turn into a drop: a read that fails skips the
+  // correction, and a toast that fails keeps it. The first lock and an already locked setup both need it.
+  const toLoaded = async (
+    locked: Setup,
+    sessionId: string,
+    read: () => Promise<unknown>,
+    toast: (text: string) => void,
+  ): Promise<Setup | null> => {
+    let moved: ReturnType<typeof loadedOn> = null
+    try {
+      moved = loadedOn(locked, await read(), sessionId)
+      if (moved) {
+        await toast(
+          `${moved.setup.playbook} is now v${moved.to} on the server, so this session uses v${moved.to} ` +
+            `(the band showed v${moved.from}).`,
+        )
+      }
+    } catch {
+      // As above.
+    }
+    return moved?.setup ?? null
   }
 
   on('command.run', { command: 'yvoke' }, async ($, e, next) => {
@@ -351,10 +396,30 @@ export function registerSetup(on: On, options: PluginOptions) {
     if (isYvoke !== true) return next(e)
 
     const sessionId = await $.session.id()
+    const instructions = async () => (await $.state.get({ plugin: 'yvoke', key: 'instructions' })).value
+    // A setup already locked in this session, once its question has entered: the first question after
+    // /resume or /branch loads the instructions again. Saved only when the version moves.
+    const relock = async (locked: Setup, cat: Catalogue) => {
+      const moved = await toLoaded(locked, sessionId, instructions, (text) => $.ui.toast(text))
+      if (!moved) return
+      try {
+        await $.state.set({ plugin: 'yvoke', key: 'setup' }, moved)
+        await $.ui.status(lineFor(moved, cat))
+        await $.store.set(setupKey(sessionId), moved)
+      } catch {
+        // The question has entered; it stays sent.
+      }
+    }
     let { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
     let { value: catalogue } = await $.state.get({ plugin: 'yvoke', key: 'catalogue' })
     const already = setup && setup.lockedSessionId === sessionId ? setup : null
-    if (already && catalogue?.ok) return next(e)
+    if (already && catalogue?.ok) {
+      // The fast path: no list, only a read of what loaded.
+      const cat = catalogue.catalogue
+      const entered = await next(e)
+      if (entered.drop === undefined) await relock(already, cat)
+      return entered
+    }
 
     // No lists yet, or they failed: before the first question, or on /resume or /branch of a locked
     // session, where the tool gate cannot grant the playbook's tools until they load.
@@ -377,7 +442,7 @@ export function registerSetup(on: On, options: PluginOptions) {
     if (!catalogue.ok) return { drop: catalogue.error }
     if (already) {
       // Before the question goes down, so P1-07's hook loads the instructions for the version moved to.
-      await upgrade(
+      const upgraded = await upgrade(
         already,
         catalogue,
         async (s) => {
@@ -387,7 +452,10 @@ export function registerSetup(on: On, options: PluginOptions) {
         (text) => $.ui.toast(text),
         (text) => $.ui.status(text),
       )
-      return next(e)
+      const cat = catalogue.catalogue
+      const entered = await next(e)
+      if (entered.drop === undefined) await relock(upgraded, cat)
+      return entered
     }
     const chosen = fitted(setup, catalogue.catalogue)
     if (chosen.mode === 'single' && chosen.playbook === null) return { drop: noPlaybooks(chosen.area) }
@@ -400,7 +468,9 @@ export function registerSetup(on: On, options: PluginOptions) {
 
     // The question has entered: nothing from here on may turn it into a drop, which would tell the user
     // it was not sent. A lock that cannot be saved still holds for this session; only /resume misses it.
-    const locked: Setup = { ...chosen, lockedSessionId: sessionId }
+    // Locked with the version that loaded, which the answers use, not the one the lists showed.
+    const first: Setup = { ...chosen, lockedSessionId: sessionId }
+    const locked = (await toLoaded(first, sessionId, instructions, (text) => $.ui.toast(text))) ?? first
     await $.state.set({ plugin: 'yvoke', key: 'setup' }, locked)
     try {
       await $.ui.status(lineFor(locked, catalogue.catalogue))

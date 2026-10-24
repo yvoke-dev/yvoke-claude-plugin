@@ -3,11 +3,13 @@
 // import anything, so YvokeState repeats them for code that wants the type by name.
 //
 // yvokeSession: true in a session the user started with /yvoke (P1-10). Written only by src/session.ts.
-// instructions: the base instructions and playbook text loaded for one session id (P1-07). Written only
-//   by src/system-prompt.ts.
+// instructions: the base instructions and playbook text loaded for one session id, and what they were
+//   loaded for: the area and mode, the playbook loaded and the version get_playbook gave, both null in
+//   multi-agent mode, the version null when the server sent none (P1-07). Written only by
+//   src/system-prompt.ts; src/setup.ts reads it to lock the setup with the version that loaded.
 // setup: the area, mode, playbook (with its version) or profile the session runs on, and the id of the
 //   session it locked in, null before the first question (P1-08). Written only by src/setup.ts; P1-07
-//   reads area, mode and playbook.
+//   reads area, mode, playbook and version.
 // catalogue: the areas and playbooks the band offers, or why they could not be loaded (P1-08). A playbook's
 //   `tools` are the names it declares, null when it declares none (an empty list or no field),
 //   'unreadable' when the server sent something else; the tool gate reads them (P2-02).
@@ -41,7 +43,11 @@ export type YvokeCatalogue =
 
 export type YvokeState = {
   yvokeSession: boolean
-  instructions: { sessionId: string; text: string } | null
+  instructions: {
+    sessionId: string
+    text: string
+    loadedFor: { area: string; mode: string; playbook: string | null; version: number | null }
+  } | null
   setup: YvokeSetup | null
   catalogue: YvokeCatalogue | null
   loopStep: { turnId: string; index: number; n: number } | null
@@ -51,7 +57,11 @@ declare module 'claude-code' {
   interface PluginState {
     yvoke: {
       yvokeSession: boolean
-      instructions: { sessionId: string; text: string } | null
+      instructions: {
+        sessionId: string
+        text: string
+        loadedFor: { area: string; mode: string; playbook: string | null; version: number | null }
+      } | null
       setup: YvokeSetup | null
       catalogue: YvokeCatalogue | null
       loopStep: StateFamily<{ turnId: string; index: number; n: number } | null>

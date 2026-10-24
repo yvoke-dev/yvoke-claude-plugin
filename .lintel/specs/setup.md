@@ -29,6 +29,20 @@
   then on the band shows one read-only line, *OIM · Single agent · oim-full v3* (when `lineFor` formats the
   read-only line without a loaded catalogue, it falls back to `setup.area` (`name`)), and the status line
   shows the same. Nothing can change it; a different setup is `/clear`, then `/yvoke`.
+- The lock takes the playbook version that loaded, which the answers use. `src/system-prompt.ts` fetches
+  the playbook by name only, so if the server saved it between `/yvoke` and the first question, the band
+  shows v3 while v4 loaded. Once the question has entered, `setup.ts` reads `yvoke.instructions`: when it
+  is for this session and its `loadedFor` names the chosen playbook with a version other than the band's,
+  the setup locks with that version, the band and the status line show it, and a toast says once
+  *oim-full is now v4 on the server, so this session uses v4 (the band showed v3).* With the same version,
+  no version in `get_playbook`'s answer, or multi-agent mode, the setup locks as the band showed it. If
+  the read fails, the question still enters and the setup locks with the band's version.
+- A setup already locked gets the same correction once its question has entered: the first question after
+  `/resume` or `/branch` loads the instructions again, and if the server saved the playbook after the lists
+  loaded, the setup, the line, the status line and `setup:<session id>` move to the loaded version with the
+  same toast, once. This holds on the fast path (the lists already loaded; it reads only
+  `yvoke.instructions`, with no server call) and after a late load of the lists. A failure there never
+  drops the question; it only skips the correction.
 - A question that is dropped does not lock the setup. When the server call that loads the instructions
   fails in `src/system-prompt.ts`, its `prompt.submit` hook drops the question before `setup.ts` locks the
   session, so the setup stays open.
@@ -75,11 +89,12 @@
 
 | Piece | Where |
 | --- | --- |
-| Rules (catalogue, defaults, picks, read-only line, version upgrade on resume/branch or a late load) and hooks | `plugins/yvoke/src/setup.ts` |
+| Rules (catalogue, defaults, picks, read-only line, the loaded version at the lock, version upgrade on resume/branch or a late load) and hooks | `plugins/yvoke/src/setup.ts` |
 | Band | `ui.render` on `AbovePrompt` (terminal and desktop); `Select` keys `yvoke-area`, `yvoke-mode`, `yvoke-playbook`, `yvoke-profile`; Button `yvoke-retry` |
 | Loading | `command.run` on `yvoke`, `classic.SessionStart` (`resume`, `fork`), Retry, or a question with no lists or failed ones, locked or not |
 | Lock | `prompt.submit` (matcher `{ text: /^/ }`, so it can sit beside `src/system-prompt.ts`'s unmatched hook) |
 | `$.state` `yvoke.setup` | `{ area, mode: 'single' \| 'multi', playbook, version, profile, lockedSessionId }` (read by `src/system-prompt.ts` and `src/policy.ts`) |
+| `$.state` `yvoke.instructions` | read at the lock for `loadedFor` (written only by `src/system-prompt.ts`, [system-prompt.md](system-prompt.md)) |
 | `$.state` `yvoke.catalogue` | the lists as the band shows them, or the error; each playbook carries the `tools` it declares, null when it declares none (an empty list or no field), `'unreadable'` when the server sent something else, which the tool gate reads ([tool-policy.md](tool-policy.md)) |
 | `$.store` `setup:<session id>` | the setup, saved on every pick, before a question goes down, and at the lock |
 | Setting `showPrototypes` | `plugin.json` `userConfig`, boolean, default off |

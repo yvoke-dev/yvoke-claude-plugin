@@ -49,6 +49,7 @@ Authoritative domain rules for `yvoke-claude-plugin` and its parity contracts wi
    - Prototype areas and playbooks (`prototype: true`) are hidden unless `options.showPrototypes === true`.
 3. **Locking & Persistence (`/clear`, `/resume`, `/branch`):**
    - The first non-dropped question locks the setup (`lockedSessionId = sessionId`) and displays the read-only line `Area · Mode · playbook vN` in the band and status line (`$.ui.status`).
+   - **Lock with the Loaded Version:** `get_playbook` takes a name only, so `system-prompt.ts` records the version it got in `yvoke.instructions` (`loadedFor`). When that differs from the band's, the setup locks with the loaded version (a setup already locked, after `/resume` or `/branch`, moves to it on its first question) and shows a toast (`<playbook> is now v<to> on the server, so this session uses v<to> (the band showed v<from>).`). Cached instructions are reused only while `loadedFor` matches the setup.
    - `/clear` resets the session to plain Claude Code.
    - `/resume` restores `yvokeSession` and `setup` from `$.store` for `e.session_id`.
    - `/branch` (`source: 'fork'`) starts with empty `$.state` in Claude Code; the mod reads the parent session ID recorded in `$.store` under key `'ended'` (written on `session.end`) and carries over its Yvoke flag and locked setup.

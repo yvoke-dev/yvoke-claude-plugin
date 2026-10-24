@@ -33,7 +33,8 @@ const area = (over: Record<string, unknown> = {}) => ({
 })
 const playbook = (name: string, over: Record<string, unknown> = {}) => ({ name, area: 'OIM', prototype: false, version: 1, ...over })
 
-type Server = { calls: string[]; down: boolean; areas: unknown[]; playbooks: unknown[] }
+// savedAfterLists: the playbooks the server has once list_playbooks has answered, a save in between.
+type Server = { calls: string[]; down: boolean; areas: unknown[]; playbooks: unknown[]; savedAfterLists: unknown[] | null }
 type World = {
   server: Server
   sessionId: string
@@ -57,6 +58,7 @@ function engine(on: On, start: Partial<World> = {}): World {
       down: false,
       areas: [area(), area({ name: 'PING', title: 'PingID', defaultPlaybook: 'ping-main', profiles: [], defaultProfile: null })],
       playbooks: [playbook('oim-quick', { version: 2 }), playbook('oim-full', { version: 3 }), playbook('ping-main', { area: 'PING', version: 5 })],
+      savedAfterLists: null,
     },
     sessionId: 'session-a',
     store: new Map(),
@@ -95,11 +97,17 @@ function engine(on: On, start: Partial<World> = {}): World {
   on('mcp.call', (_$, e) => {
     w.server.calls.push(e.tool)
     if (e.tool === 'list_areas') return { value: text(JSON.stringify(w.server.areas)) }
-    if (e.tool === 'list_playbooks') return { value: text(JSON.stringify(w.server.playbooks)) }
+    if (e.tool === 'list_playbooks') {
+      const listed = text(JSON.stringify(w.server.playbooks))
+      if (w.server.savedAfterLists) [w.server.playbooks, w.server.savedAfterLists] = [w.server.savedAfterLists, null]
+      return { value: listed }
+    }
     // P1-07's calls, when its module is loaded too: answer them so a question can enter.
     if (e.tool === 'get_playbook') {
       w.savedAtFetch.push(w.store.get(`setup:${w.sessionId}`))
-      return { value: text(JSON.stringify({ name: e.args.name, text: 'PLAYBOOK' })) }
+      // The playbook as the server has it now, which may be newer than the lists the band loaded.
+      const now = (w.server.playbooks as { name?: unknown; version?: unknown }[]).find((p) => p.name === e.args.name)
+      return { value: text(JSON.stringify({ name: e.args.name, text: 'PLAYBOOK', version: now?.version })) }
     }
     if (e.tool === 'get_system_prompt') return { value: text('BASE') }
     return { value: text(`ERROR: no tool ${e.tool}`) }
@@ -248,6 +256,95 @@ test('the locked line keeps its version when the server moves on', async ($, on)
   expect(await lineOf(ui)).toBe(LINE)
 })
 
+// What the plugin writes to `yvoke.instructions` (P1-07), seen on its way to the kit's store.
+const keptInstructions = (on: On) => {
+  const kept: { loadedFor?: unknown }[] = []
+  on('state.set', { plugin: 'yvoke', key: 'instructions' }, (_$, e, next) => {
+    kept.push(e.value as { loadedFor?: unknown })
+    return next(e)
+  })
+  return kept
+}
+const SAVED_SINCE = 'oim-full is now v4 on the server, so this session uses v4 (the band showed v3).'
+
+test('the server saved the playbook after /yvoke: the lock takes the version that loaded and says so once', async ($, on) => {
+  const w = engine(on)
+  await begin($)
+  await yvoke($)
+  // The band still shows the lists /yvoke loaded.
+  w.server.playbooks = [playbook('oim-quick', { version: 2 }), playbook('oim-full', { version: 4 })]
+  const before = await band($, 'terminal')
+  expect(await optionsOf(before, 'yvoke-playbook')).toEqual(['oim-quick v2', 'oim-full v3'])
+  await before.unmount()
+
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    expect(await lineOf(ui)).toBe('OIM · Single agent · oim-full v4')
+    await ui.unmount()
+  }
+  expect(w.status.at(-1)).toBe('OIM · Single agent · oim-full v4')
+  expect(w.store.get('setup:session-a')).toMatchObject({ playbook: 'oim-full', version: 4, lockedSessionId: 'session-a' })
+  expect(w.toasts).toEqual([SAVED_SINCE])
+
+  // The next question reuses what loaded: no second load and no second toast.
+  w.server.calls = []
+  expect(await ask($, 'q2')).toEqual({ text: 'q2' })
+  expect(w.server.calls).toEqual([])
+  expect(w.toasts).toEqual([SAVED_SINCE])
+})
+
+test('the version that loaded is the one the band showed: the lock keeps it, with no toast', async ($, on) => {
+  const w = engine(on)
+  const kept = keptInstructions(on)
+  await begin($)
+  await yvoke($)
+
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+
+  expect(kept.map((k) => k.loadedFor)).toEqual([{ area: 'OIM', mode: 'single', playbook: 'oim-full', version: 3 }])
+  expect(w.status.at(-1)).toBe(LINE)
+  expect(w.store.get('setup:session-a')).toMatchObject({ version: 3, lockedSessionId: 'session-a' })
+  expect(w.toasts).toEqual([])
+})
+
+test('get_playbook gives no version: the lock keeps the version the band showed, with no toast', async ($, on) => {
+  const w = engine(on)
+  const kept = keptInstructions(on)
+  await begin($)
+  await yvoke($)
+  w.server.playbooks = [playbook('oim-quick', { version: 2 }), playbook('oim-full', { version: undefined })]
+
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+
+  expect(kept.map((k) => k.loadedFor)).toEqual([{ area: 'OIM', mode: 'single', playbook: 'oim-full', version: null }])
+  const ui = await band($, 'terminal')
+  expect(await lineOf(ui)).toBe(LINE)
+  expect(w.status.at(-1)).toBe(LINE)
+  expect(w.store.get('setup:session-a')).toMatchObject({ version: 3, lockedSessionId: 'session-a' })
+  expect(w.toasts).toEqual([])
+})
+
+test('reading the instructions fails after the question entered: it still enters, locked with the version the band showed', async ($, on) => {
+  const w = engine(on)
+  const kept = keptInstructions(on)
+  // Once P1-07 has written them, a read of the instructions gets an answer the plugin cannot use.
+  on('state.get', { plugin: 'yvoke', key: 'instructions' }, (_$, e, next) => (kept.length > 0 ? { value: null as never } : next(e)))
+  await begin($)
+  await yvoke($)
+  w.server.playbooks = [playbook('oim-quick', { version: 2 }), playbook('oim-full', { version: 4 })]
+
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+
+  // v4 loaded, but the lock could not read it.
+  expect(kept.map((k) => k.loadedFor)).toEqual([{ area: 'OIM', mode: 'single', playbook: 'oim-full', version: 4 }])
+  expect(w.entered).toEqual(['q'])
+  expect(w.status.at(-1)).toBe(LINE)
+  expect(w.store.get('setup:session-a')).toMatchObject({ version: 3, lockedSessionId: 'session-a' })
+  expect(w.toasts).toEqual([])
+})
+
 test('a question dropped beneath does not lock the setup', async ($, on) => {
   const w = engine(on, { dropBeneath: 'Yvoke Backend: ERROR: playbook not found.' })
   await begin($)
@@ -389,6 +486,68 @@ test('/resume with a newer playbook on the server: the setup moves to it and say
 
   await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
   expect(w.toasts).toHaveLength(1)
+})
+
+const V4 = 'OIM · Single agent · oim-full v4'
+const SAVED_V4 = [playbook('oim-quick', { version: 2 }), playbook('oim-full', { version: 4 })]
+
+test('/resume of a locked session, then a save on the server: its first question moves it to the version that loaded, once', async ($, on) => {
+  const w = engine(on, {
+    sessionId: 'old',
+    store: new Map<string, unknown>([
+      ['session:old', { yvoke: true }],
+      ['setup:old', { ...LOCKED, playbook: 'oim-full', version: 3 }],
+    ]),
+  })
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  expect(w.status.at(-1)).toBe(LINE)
+  // Saved after /resume loaded the lists.
+  w.server.playbooks = SAVED_V4
+
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    expect(await lineOf(ui)).toBe(V4)
+    await ui.unmount()
+  }
+  expect(w.status.at(-1)).toBe(V4)
+  expect(w.store.get('setup:old')).toEqual({ ...LOCKED, playbook: 'oim-full', version: 4 })
+  expect(w.toasts).toEqual([SAVED_SINCE])
+
+  w.server.calls = []
+  expect(await ask($, 'q2')).toEqual({ text: 'q2' })
+  expect(w.server.calls).toEqual([])
+  expect(w.toasts).toEqual([SAVED_SINCE])
+})
+
+test('/branch of a locked session, then a save on the server: its first question moves it to the version that loaded, once', async ($, on) => {
+  const w = engine(on)
+  await begin($)
+  await yvoke($)
+  await ask($, 'q')
+  w.sessionId = 'session-b'
+  await $.classic.SessionStart({ source: 'fork', session_id: 'session-b' })
+  expect(w.status.at(-1)).toBe(LINE)
+  // Saved after /branch loaded the lists.
+  w.server.playbooks = SAVED_V4
+
+  expect(await ask($, 'q2')).toEqual({ text: 'q2' })
+
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    expect(await lineOf(ui)).toBe(V4)
+    await ui.unmount()
+  }
+  expect(w.status.at(-1)).toBe(V4)
+  expect(w.store.get('setup:session-b')).toMatchObject({ playbook: 'oim-full', version: 4, lockedSessionId: 'session-b' })
+  expect(w.toasts).toEqual([SAVED_SINCE])
+
+  w.server.calls = []
+  expect(await ask($, 'q3')).toEqual({ text: 'q3' })
+  expect(w.server.calls).toEqual([])
+  expect(w.toasts).toEqual([SAVED_SINCE])
 })
 
 test('/resume of an unlocked setup keeps the picks, unlocked', async ($, on) => {
@@ -565,6 +724,26 @@ test('a late load that finds a newer playbook: the setup moves to it before the 
 
   await ask($, 'q2')
   expect(w.toasts).toEqual([MOVED])
+})
+
+test('a late load, then a save on the server before the instructions load: the setup moves to the version that loaded', async ($, on) => {
+  const w = await resumedDown($, on)
+  w.server.down = false
+  w.server.savedAfterLists = [playbook('oim-quick', { version: 4 }), playbook('oim-full', { version: 3 })]
+
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+
+  expect(w.toasts).toEqual(['oim-quick is now v4 on the server, so this session uses v4 (the band showed v2).'])
+  expect(w.store.get('setup:old')).toEqual({ ...LOCKED, version: 4 })
+  expect(w.status.at(-1)).toBe('OIM · Single agent · oim-quick v4')
+  const ui = await band($, 'terminal')
+  expect(await lineOf(ui)).toBe('OIM · Single agent · oim-quick v4')
+  await ui.unmount()
+
+  w.server.calls = []
+  expect(await ask($, 'q2')).toEqual({ text: 'q2' })
+  expect(w.server.calls).toEqual([])
+  expect(w.toasts).toHaveLength(1)
 })
 
 test('Retry in the locked band loads the lists and moves the setup the same way (D-20)', async ($, on) => {
