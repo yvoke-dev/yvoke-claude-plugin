@@ -1,7 +1,7 @@
-// The one place the mod talks to the Yvoke server (P1-03). A feature asks for one tool call and gets the
-// answer's text, or an error that starts with `Yvoke Backend: ` and is ready to show. No cache, no retry:
-// a server that is down gives a clear error (U11). Nothing here logs, so no token or answer reaches
-// `$.ui.log`.
+// The one place the mod talks to the Yvoke server (server-client.md). A feature asks for one tool call
+// and gets the answer's text, or an error that starts with `Yvoke Backend: ` and is ready to show. No
+// cache, no retry: a server that is down gives a clear error (product.md). Nothing here logs, so no token
+// or answer reaches `$.ui.log`.
 //
 // The engine refuses a hooks module that passes `$` into a function from another file, so callers hand
 // in three closures written where `$` lives:

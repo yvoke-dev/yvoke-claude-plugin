@@ -2,7 +2,7 @@ import { test, expect, mock } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { McpToolResult, On, RenderElement } from 'claude-code'
 
-// P1-08: the setup band through the engine, with the whole mod loaded. The test stands for the engine
+// setup.md: the setup band through the engine, with the whole mod loaded. The test stands for the engine
 // beneath the plugin (session, store, the Yvoke server and the prompt), and the Yvoke session is started
 // the way the user starts it: by typing /yvoke.
 
@@ -47,7 +47,7 @@ type World = {
   failId: boolean
   failLockedSave: boolean
   savedAtSubmit: unknown[]
-  /** The saved setup each time P1-07 fetched a playbook's text. */
+  /** The saved setup each time src/system-prompt.ts fetched a playbook's text. */
   savedAtFetch: unknown[]
 }
 
@@ -102,7 +102,7 @@ function engine(on: On, start: Partial<World> = {}): World {
       if (w.server.savedAfterLists) [w.server.playbooks, w.server.savedAfterLists] = [w.server.savedAfterLists, null]
       return { value: listed }
     }
-    // P1-07's calls, when its module is loaded too: answer them so a question can enter.
+    // src/system-prompt.ts's calls, when its module is loaded too: answer them so a question can enter.
     if (e.tool === 'get_playbook') {
       w.savedAtFetch.push(w.store.get(`setup:${w.sessionId}`))
       // The playbook as the server has it now, which may be newer than the lists the band loaded.
@@ -112,7 +112,7 @@ function engine(on: On, start: Partial<World> = {}): World {
     if (e.tool === 'get_system_prompt') return { value: text('BASE') }
     return { value: text(`ERROR: no tool ${e.tool}`) }
   })
-  // The tools themselves, behind P2-01's gate.
+  // The tools themselves, behind the tool gate (tool-policy.md).
   on('tool.call', (_$, e) => ({ result: `ran ${e.tool}` }))
   on('prompt.submit', (_$, e) => {
     w.savedAtSubmit.push(w.store.get(`setup:${w.sessionId}`))
@@ -256,7 +256,7 @@ test('the locked line keeps its version when the server moves on', async ($, on)
   expect(await lineOf(ui)).toBe(LINE)
 })
 
-// What the plugin writes to `yvoke.instructions` (P1-07), seen on its way to the kit's store.
+// What the plugin writes to `yvoke.instructions` (system-prompt.md), seen on its way to the kit's store.
 const keptInstructions = (on: On) => {
   const kept: { loadedFor?: unknown }[] = []
   on('state.set', { plugin: 'yvoke', key: 'instructions' }, (_$, e, next) => {
@@ -329,7 +329,8 @@ test('get_playbook gives no version: the lock keeps the version the band showed,
 test('reading the instructions fails after the question entered: it still enters, locked with the version the band showed', async ($, on) => {
   const w = engine(on)
   const kept = keptInstructions(on)
-  // Once P1-07 has written them, a read of the instructions gets an answer the plugin cannot use.
+  // Once src/system-prompt.ts has written them, a read of the instructions gets an answer the plugin
+  // cannot use.
   on('state.get', { plugin: 'yvoke', key: 'instructions' }, (_$, e, next) => (kept.length > 0 ? { value: null as never } : next(e)))
   await begin($)
   await yvoke($)
@@ -357,7 +358,7 @@ test('a question dropped beneath does not lock the setup', async ($, on) => {
   expect(w.status).toEqual([])
 })
 
-test('the setup is saved before the question goes down, for P1-07 to read', async ($, on) => {
+test('the setup is saved before the question goes down, for src/system-prompt.ts to read', async ($, on) => {
   const w = engine(on)
   await begin($)
   await yvoke($)
@@ -712,7 +713,7 @@ test('a late load that finds a newer playbook: the setup moves to it before the 
   w.server.playbooks = [playbook('oim-quick', { version: 4 })]
 
   expect(await ask($, 'q')).toEqual({ text: 'q' })
-  // P1-07 fetched the instructions with the moved setup already saved.
+  // src/system-prompt.ts fetched the instructions with the moved setup already saved.
   expect(w.savedAtFetch).toEqual([{ ...LOCKED, version: 4 }])
   expect(w.savedAtSubmit).toEqual([{ ...LOCKED, version: 4 }])
   expect(w.store.get('setup:old')).toEqual({ ...LOCKED, version: 4 })
@@ -813,7 +814,7 @@ test('a locked session with its lists loaded: a question asks the server for no 
   await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
   w.server.calls = []
 
-  // Only P1-07's first load of the instructions.
+  // Only src/system-prompt.ts's first load of the instructions.
   expect(await ask($, 'q')).toEqual({ text: 'q' })
   expect(w.server.calls.sort()).toEqual(['get_playbook', 'get_system_prompt', 'list_areas'])
   w.server.calls = []

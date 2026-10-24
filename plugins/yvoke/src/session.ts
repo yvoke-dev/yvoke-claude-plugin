@@ -1,8 +1,8 @@
-// P1-10, D-13: a session becomes a Yvoke session only when the user types /yvoke before the first
+// session.md, D-13: a session becomes a Yvoke session only when the user types /yvoke before the first
 // question. The flag lives in $.state (reset by /clear) and is saved per session id in $.store, so /resume
 // and /branch keep it. This file is the only writer of the flag.
 //
-// Every enforcing hook in a later task opens with these two lines, written in its own file (the engine
+// Every enforcing hook in another module opens with these two lines, written in its own file (the engine
 // follows $ and $.state references only within one file, so there can be no shared helper):
 //
 //   const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })

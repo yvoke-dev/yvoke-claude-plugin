@@ -10,7 +10,7 @@ import {
   type Setup,
 } from '../src/setup'
 
-// P1-08: the setup band's rules, without the engine. The band, the lock and the server calls are in
+// setup.md: the setup band's rules, without the engine. The band, the lock and the server calls are in
 // setup.test.ts.
 
 const area = (over: Record<string, unknown> = {}) => ({
@@ -119,8 +119,9 @@ describe('toCatalogue', () => {
     expect(catalogue(AREAS, playbooks).areas[0]!.playbooks).toEqual([{ name: 'oim-full', version: 1, tools: null }])
   })
 
-  // P2-02: the gate scopes the session to the tools its playbook declares. yvoke-web sends `tools: []` for a
-  // playbook that declares none (PlaybookDto.from), so an empty list and a missing one both mean "none".
+  // The gate scopes the session to the tools its playbook declares (tool-policy.md). yvoke-web sends
+  // `tools: []` for a playbook that declares none (PlaybookDto.from), so an empty list and a missing one
+  // both mean "none".
   test("a playbook's declared tools are kept", () => {
     const playbooks = JSON.stringify([playbook('oim-full', { tools: ['search_corpus', 'WebSearch'] })])
     expect(catalogue(AREAS, playbooks).areas[0]!.playbooks[0]!.tools).toEqual(['search_corpus', 'WebSearch'])

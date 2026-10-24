@@ -2,7 +2,7 @@ import { test, expect } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-// P1-10: a session becomes a Yvoke session only when the user types /yvoke before the first question
+// session.md: a session becomes a Yvoke session only when the user types /yvoke before the first question
 // (D-13). A test's `$` cannot read `$.state`, so the flag is observed the way the user sees it: a second
 // /yvoke answers "already" only while the session is a Yvoke session.
 

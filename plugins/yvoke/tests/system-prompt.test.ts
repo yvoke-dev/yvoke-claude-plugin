@@ -2,9 +2,9 @@ import { test, expect, mock } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { McpToolResult, On, PromptComposeSection } from 'claude-code'
 
-// P1-07: the hooks, run through the engine with the whole mod loaded. The test stands for the engine
-// beneath the plugin (session, store, clock, the Yvoke server, the prompt and the system prompt), and the
-// Yvoke session flag is set the way the user sets it: by typing /yvoke.
+// system-prompt.md: the hooks, run through the engine with the whole mod loaded. The test stands for the
+// engine beneath the plugin (session, store, clock, the Yvoke server, the prompt and the system prompt), and
+// the Yvoke session flag is set the way the user sets it: by typing /yvoke.
 
 const DROP_FAILED = 'Yvoke Backend: the instructions could not be loaded, so the question was not sent.'
 const CORE: PromptComposeSection[] = [
@@ -14,7 +14,7 @@ const CORE: PromptComposeSection[] = [
 const AREAS = JSON.stringify([
   { name: 'OIM', title: 'OIM', prototype: false, defaultPlaybook: 'oim-full', playbooks: ['oim-full'], profiles: [], defaultProfile: null },
 ])
-// P1-08's setup band loads the playbook list on /yvoke; it picks the area's default, oim-full.
+// The setup band (setup.md) loads the playbook list on /yvoke; it picks the area's default, oim-full.
 const PLAYBOOKS = JSON.stringify([{ name: 'oim-full', area: 'OIM', prototype: false, version: 1 }])
 const text = (body: string, isError = false): McpToolResult => ({ content: [{ type: 'text', text: body }], isError })
 
@@ -80,7 +80,7 @@ function engine(on: On): World {
 const begin = async ($: Engine) => {
   await $.session.start({ cwd: '/work', surface: 'terminal', isInteractive: true })
 }
-// /yvoke also loads P1-08's lists (list_areas, list_playbooks); the tests count only the calls after it.
+// /yvoke also loads the setup band's lists (list_areas, list_playbooks); the tests count only later calls.
 const yvoke = async ($: Engine, w: World) => {
   await $.command.run({
     command: 'yvoke',
@@ -114,7 +114,7 @@ const keptInstructions = (on: On) => {
   })
   return kept
 }
-// P1-08's setup as a test sets it: a hook here answers the plugin's reads of `yvoke.setup`.
+// The setup as a test sets it (setup.md): a hook here answers the plugin's reads of `yvoke.setup`.
 const setupIs = (on: On, start: Record<string, unknown>) => {
   const s = { setup: start }
   on('state.get', { plugin: 'yvoke', key: 'setup' }, () => ({ value: { value: s.setup as never, version: 1 } }))
@@ -149,7 +149,7 @@ test('the first question loads the instructions, then the question is sent with 
   expect(await compose($)).toEqual([...CORE, OURS])
 })
 
-test("P1-08's choice in yvoke.setup decides what loads: multi-agent asks for no playbook", async ($, on) => {
+test("the setup band's choice in yvoke.setup decides what loads: multi-agent asks for no playbook", async ($, on) => {
   const w = engine(on)
   // The test's `$` cannot write `$.state`, but a hook here answers the plugin's read of the key.
   on('state.get', { plugin: 'yvoke', key: 'setup' }, () => ({
@@ -310,7 +310,7 @@ test('a new session id (/clear, /resume, /branch) loads its own instructions on 
   await $.classic.SessionStart({ source: 'fork', session_id: 'session-b' })
   // The setup is locked in session-b now, and what loaded is session-a's: the refusal, not session-a's text.
   expect(await compose($)).toEqual([MISSING_SECTION])
-  w.server.calls = [] // P1-08 reloads its lists for the new session
+  w.server.calls = [] // the setup band reloads its lists for the new session
 
   w.server.playbook = 'NEWER'
   await ask($, 'two')
@@ -322,8 +322,9 @@ test('a throw in prompt.submit drops the question (fails closed)', async ($, on)
   const w = engine(on)
   await begin($)
   await yvoke($, w)
-  // P1-08's hook, the outer one, asks for the session id first; P1-07's ask is the one that throws.
-  // The drop that reaches the user is P1-08's wording, since the failure passes back through its hook.
+  // The setup band's hook, the outer one, asks for the session id first; the system prompt hook's ask is
+  // the one that throws. The drop that reaches the user is the setup band's wording, since the failure
+  // passes back through its hook.
   w.idCallsLeft = 1
 
   expect(await ask($, 'one')).toEqual({ drop: expect.stringMatching(/^Yvoke Backend: .*so the question was not sent\.$/) })

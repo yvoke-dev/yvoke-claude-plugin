@@ -1,13 +1,13 @@
-// P1-07: the system prompt of a Yvoke session comes from the server. On the session's first question the
-// mod loads the base instructions (`get_system_prompt`, D-12, D-16) and, in single-agent mode, the
-// playbook's text (`get_playbook`), and serves them from `prompt.compose` as one `session` section: base
+// system-prompt.md: the system prompt of a Yvoke session comes from the server. On the session's first
+// question the mod loads the base instructions (`get_system_prompt`, D-12, D-16) and, in single-agent mode,
+// the playbook's text (`get_playbook`), and serves them from `prompt.compose` as one `session` section: base
 // instructions first, the playbook after them, so the playbook wins a conflict. A failed load drops the
-// question; nothing is cached as a fallback (requirements 1). Once the setup is locked in this session, a
+// question; nothing is cached as a fallback (product.md). Once the setup is locked in this session, a
 // prompt composed without them is replaced by MISSING_SECTION alone.
 //
-// The setup (area, mode, playbook) is P1-08's to choose. Until it writes `$.state` `yvoke.setup`, the
-// session runs on DEFAULT_SETUP: area OIM, single agent, the area's default playbook from `list_areas`.
-// `yvoke.instructions` keeps the text with what it was loaded for (`loadedFor`): P1-08 locks the setup with
+// The setup band (setup.md) chooses the area, mode and playbook. Until it writes `$.state` `yvoke.setup`,
+// the session runs on DEFAULT_SETUP: area OIM, single agent, the area's default playbook from `list_areas`.
+// `yvoke.instructions` keeps the text with what it was loaded for (`loadedFor`): the setup band locks with
 // the playbook version that loaded, and a later question reuses the text only while the setup still matches.
 import type { On, PromptComposeSection } from 'claude-code'
 import { callYvoke, TIMEOUT_MS, type ServerAnswer, type ServerIo } from './server'

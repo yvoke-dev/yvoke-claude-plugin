@@ -1,8 +1,8 @@
-// P2-08: turn ceilings per question. Each loop (the main loop, each subagent's run) may make at most `n`
-// model requests in one turn. The tool calls asked for by request n − 1 are denied with a message telling
-// the model to answer now; request n's tool calls are dropped from its response, so the engine runs none
-// and the turn ends with the text written so far. A main-loop answer that reached request n gets a line
-// beneath it. The work is delivered, never discarded (decided 2026-10-05; D-24 for the subagents).
+// turn-limits.md: turn ceilings per question. Each loop (the main loop, each subagent's run) may make at
+// most `n` model requests in one turn. The tool calls asked for by request n − 1 are denied with a message
+// telling the model to answer now; request n's tool calls are dropped from its response, so the engine runs
+// none and the turn ends with the text written so far. A main-loop answer that reached request n gets a
+// line beneath it. The work is delivered, never discarded (decided 2026-10-05; D-24 for the subagents).
 //
 // `turn.step` carries the request's position (`index`), so nothing is counted here: each request writes
 // where its loop stands to `$.state` `yvoke.loopStep` (one member per loop). The denial itself is the first

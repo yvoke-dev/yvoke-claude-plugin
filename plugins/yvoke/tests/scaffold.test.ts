@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 
-// The floor every later hook keeps outside a Yvoke session (design 4.4): the plugin loads and a tool call
+// The floor every later hook keeps outside a Yvoke session (conventions.md): the plugin loads and a tool call
 // reaches the engine, and comes back, unchanged.
 test('the plugin loads and leaves a tool call unchanged', async ($, on) => {
   const seen: unknown[] = []

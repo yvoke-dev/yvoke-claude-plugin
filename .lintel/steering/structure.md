@@ -29,7 +29,7 @@ yvoke-claude-plugin/
 │   │   └── index.d.ts               # TypeScript contract for `PluginState.yvoke` (`$.state` keys)
 │   └── tests/                       # Automated test suites run by `claude plugin test plugins/yvoke`
 ├── scripts/
-│   ├── check-docs.mjs               # Validates Markdown relative links and `#anchors`
+│   ├── check-docs.mjs               # Validates Markdown relative links and `#anchors`, and decision and task IDs
 │   └── lay-types.mjs                # Spawns print-mode Claude Code to lay `.claude-plugin/types/`
 ├── docs/
 │   └── contributing.md              # Developer guide: hot reload, types, debug log, troubleshooting
@@ -39,7 +39,7 @@ yvoke-claude-plugin/
 │   ├── config.jsonc                 # Lintel path classifications, role skills, steering, and personas
 │   ├── scripts/                     # Build, setup, and test runner scripts (`build.sh`, `setup.sh`, etc.)
 │   ├── specs/                       # Living specifications per feature area
-│   └── steering/                    # Project steering (`product.md`, `architecture.md`, `tech.md`, `structure.md`, `conventions.md`, `testing.md`)
+│   └── steering/                    # Project steering (`product.md`, `architecture.md`, `tech.md`, `structure.md`, `conventions.md`, `decisions.md`, `testing.md`)
 └── .github/workflows/ci.yml         # CI running docs check and plugin validation/tests on 2.1.287 & latest
 ```
 

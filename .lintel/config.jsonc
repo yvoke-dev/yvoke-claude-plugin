@@ -84,7 +84,8 @@
       "architecture.md",
       "tech.md",
       "structure.md",
-      "conventions.md"
+      "conventions.md",
+      "decisions.md"
     ],
     "architect": [
       "testing.md"

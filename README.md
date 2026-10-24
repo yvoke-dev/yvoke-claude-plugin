@@ -73,6 +73,7 @@ Use the steps above when you need it connected to a server. To work on the mod w
 | [.lintel/specs/index.md](.lintel/specs/index.md) | Living specifications describing what is implemented today |
 | [.lintel/steering/product.md](.lintel/steering/product.md) | Product mission, target users, and core principles |
 | [.lintel/steering/architecture.md](.lintel/steering/architecture.md) | Current hook pipeline, question lifecycle, and module boundaries |
+| [.lintel/steering/decisions.md](.lintel/steering/decisions.md) | Decisions with their reasons, and the known gaps |
 | [.lintel/steering/tech.md](.lintel/steering/tech.md) | Technology stack and mod runtime environment |
 | [.lintel/steering/conventions.md](.lintel/steering/conventions.md) | Coding and security conventions |
 | [.lintel/steering/testing.md](.lintel/steering/testing.md) | Headless mod test runner and testing patterns |

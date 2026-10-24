@@ -2,12 +2,12 @@ import { test, expect, describe, mock } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { McpConnectResult, McpToolResult, On, RenderSurface } from 'claude-code'
 
-// P2-01: in a Yvoke session the model may use only the tools Yvoke grants; every other call is refused
-// with a pointer to the Yvoke tools. Outside a Yvoke session nothing changes. The test's own
+// tool-policy.md: in a Yvoke session the model may use only the tools Yvoke grants; every other call is
+// refused with a pointer to the Yvoke tools. Outside a Yvoke session nothing changes. The test's own
 // `$.tool.call` arrives with origin `engine`, as the model's calls do.
 //
-// P2-02: the server tools are those the session's playbook declares, or the default set when it declares
-// none. /yvoke loads the playbook list from the stubbed server (P1-08); unless a test says otherwise the
+// The server tools are those the session's playbook declares, or the default set when it declares none.
+// /yvoke loads the playbook list from the stubbed server (setup.md); unless a test says otherwise the
 // area's default playbook, oim-full, declares nothing (`tools: []`, as yvoke-web sends it), so the session
 // gets the default set.
 
@@ -139,9 +139,9 @@ describe('in a Yvoke session: denied', () => {
     ['shell', ['Bash']],
     ['file tools', ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'NotebookEdit']],
     ['other built-ins', ['Skill', 'TodoWrite']],
-    ['web tools (until P2-04)', ['WebSearch', 'WebFetch']],
-    ['delegation (until P6-04)', ['Agent', 'Task']],
-    ["the mod's own tools (until P2-05)", ['mcp__yvoke__execute_code']],
+    ['web tools (until PLAN.md Milestone 2)', ['WebSearch', 'WebFetch']],
+    ['delegation (until PLAN.md Milestone 4)', ['Agent', 'Task']],
+    ["the mod's own tools (until PLAN.md Milestone 2)", ['mcp__yvoke__execute_code']],
     ["another server's tools", ['mcp__github__create_issue']],
     ['a server whose name only starts like Yvoke', ['mcp__plugin_yvoke_yvoke2__search_corpus']],
   ]
@@ -176,7 +176,7 @@ describe('in a Yvoke session: denied', () => {
   test('a built-in never waits on the server', async ($, on) => {
     const w = engine(on)
     await yvokeSession($)
-    // /yvoke itself loads the setup band's lists from the server (P1-08); count from after it.
+    // /yvoke itself loads the setup band's lists from the server (setup.md); count from after it.
     const before = w.connects
 
     await call($, 'Bash', { command: 'ls' })
@@ -221,7 +221,7 @@ describe('fails closed', () => {
   })
 })
 
-describe("in a Yvoke session: the playbook's tools (P2-02)", () => {
+describe("in a Yvoke session: the playbook's tools", () => {
   const P = 'mcp__plugin_yvoke_yvoke__'
 
   test('a playbook that declares tools gets exactly those, under any old prefix', async ($, on) => {
@@ -265,7 +265,7 @@ describe("in a Yvoke session: the playbook's tools (P2-02)", () => {
     expect(w.reached).toEqual([`${P}search_corpus`])
   })
 
-  test('declaring a web or compute tool does not grant it (P2-04, P2-05)', async ($, on) => {
+  test('declaring a web or compute tool does not grant it', async ($, on) => {
     const w = engine(on)
     w.playbooks = playbooks(['search_corpus', 'WebSearch', 'execute_code'])
     await yvokeSession($)
@@ -491,7 +491,7 @@ describe('in a Yvoke session: asking the user', () => {
   })
 })
 
-describe("in a Yvoke session: the playbook can't be read (P2-02)", () => {
+describe("in a Yvoke session: the playbook can't be read", () => {
   const P = 'mcp__plugin_yvoke_yvoke__'
 
   test('the playbook list did not load: server tools are refused, built-ins still decided', async ($, on) => {
@@ -555,7 +555,7 @@ describe("in a Yvoke session: the playbook can't be read (P2-02)", () => {
     expect(w.reached).toEqual([])
   })
 
-  test('multi-agent with no playbook gets the default set until P6-04', async ($, on) => {
+  test('multi-agent with no playbook gets the default set until lead mode (PLAN.md Milestone 4)', async ($, on) => {
     setupAnswer(on, { area: 'OIM', mode: 'multi', playbook: null, version: null, profile: 'OIM', lockedSessionId: null })
     const w = engine(on)
     await yvokeSession($)

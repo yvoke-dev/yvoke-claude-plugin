@@ -30,4 +30,5 @@
    - Every error from `yvoke-web` surfaced to the user must start with `Yvoke Backend: ` (handled by `callYvoke` in `plugins/yvoke/src/server.ts`).
 8. **Documentation & Link Hygiene**:
    - Every relative Markdown link and `#anchor` in repository docs is verified by `node scripts/check-docs.mjs` during `build.sh`.
+   - Cite a decision by its ID (`D-13`), which must have an entry in [decisions.md](decisions.md). Cite a spec or PLAN.md, never an old task ID; `check-docs.mjs` fails on both.
    - Write plainly: short sentences, active voice, no unnecessary jargon.

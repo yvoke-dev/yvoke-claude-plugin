@@ -1,6 +1,6 @@
 // How the engine names an MCP server's tools: `mcp__<server>__<tool>`, the server's name normalized by the
-// rule read from Claude Code 2.1.304 (P2-01). Every character outside [a-zA-Z0-9_-] becomes `_`; for a
-// claude.ai connector, runs of `_` then collapse and a leading or trailing `_` is dropped. If a release
+// rule read from Claude Code 2.1.304 (tool-policy.md). Every character outside [a-zA-Z0-9_-] becomes `_`; for
+// a claude.ai connector, runs of `_` then collapse and a leading or trailing `_` is dropped. If a release
 // changes the rule, Yvoke's tools are denied, loudly, rather than other tools granted.
 
 const CLAUDE_AI = 'claude.ai '
@@ -12,8 +12,8 @@ export const serverToolPrefix = (server: string): string => {
   return `mcp__${name}__`
 }
 
-// P2-03: playbooks name their tools bare (`search_corpus`) or under whatever prefix was current when they
-// were written: yvoke-desktop's `mcp__yvoke__`, or the older `mcp__oim__`. Ported from yvoke-desktop's
+// tool-policy.md: playbooks name their tools bare (`search_corpus`) or under whatever prefix was current when
+// they were written: yvoke-desktop's `mcp__yvoke__`, or the older `mcp__oim__`. Ported from yvoke-desktop's
 // `builtinTool` and `qualifyTool` (src/shared/types.ts), with the server's prefix supplied at run time
 // instead of a fixed `MCP_TOOL_PREFIX`. The desktop's exception for its in-process servers is not ported:
 // `mcp__yvoke__` is the prefix every desktop playbook uses for server tools, so it is an alias like any other.
@@ -43,10 +43,10 @@ export const qualifyTool = (tool: string, serverPrefix: string): string => {
   return builtinTool(trimmed) ?? `${serverPrefix}${trimmed.replace(MCP_PREFIX, '')}`
 }
 
-// P2-02: the Yvoke server tools a playbook's declaration grants. Ported from yvoke-desktop's
+// tool-policy.md: the Yvoke server tools a playbook's declaration grants. Ported from yvoke-desktop's
 // `buildAllowedTools` (src/main/agent/policy.ts), `DEFAULT_KB_TOOLS` (src/shared/types.ts) and
 // `isComputeTool` (src/main/agent/computeTools.ts). Web and compute names are dropped, so a declaration
-// alone never grants them: P2-04 and P2-05 grant those under their own rules.
+// alone never grants them: PLAN.md Milestone 2 grants those under their own rules.
 
 /**
  * yvoke-web's tool for asking the user. Its reply over MCP says nobody was asked, so the gate catches

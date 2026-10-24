@@ -2,8 +2,8 @@ import { test, expect, describe } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { On, TurnStepChunk, TurnStepResult } from 'claude-code'
 
-// P2-08: the turn ceilings through the engine. `$.state` is answered by `state.get` / `state.set` hooks
-// beneath the plugin, so a test can start inside a Yvoke session, in either mode, without /yvoke or the
+// turn-limits.md: the turn ceilings through the engine. `$.state` is answered by `state.get` / `state.set`
+// hooks beneath the plugin, so a test can start inside a Yvoke session, in either mode, without /yvoke or the
 // setup band. The model is a `turn.step` hook that answers every request with some text and one tool call.
 
 const WRAP_UP =
@@ -29,8 +29,8 @@ const address = (e: { plugin: string; key: string; id?: string }) =>
 function engine(on: On, start: { yvoke?: boolean; mode?: string } = {}): World {
   const w: World = { state: new Map(), failGet: null, failSet: null, toolsRun: [], failConnect: false }
   if (start.yvoke !== false) w.state.set('yvoke.yvokeSession', true)
-  // The tool gate (P2-02) grants the server tools of the session's playbook: oim-full declares none, so the
-  // default set, search_corpus among it.
+  // The tool gate (tool-policy.md) grants the server tools of the session's playbook: oim-full declares none,
+  // so the default set, search_corpus among it.
   w.state.set('yvoke.catalogue', {
     ok: true,
     catalogue: { areas: [{ name: 'OIM', title: 'OIM', playbooks: [{ name: 'oim-full', version: 1, tools: null }], defaultPlaybook: 'oim-full', profiles: [], defaultProfile: null }] },
@@ -67,7 +67,7 @@ function engine(on: On, start: { yvoke?: boolean; mode?: string } = {}): World {
       usage: null,
     }
   })
-  // The tool gate (P2-01) asks for the Yvoke server's name to know its tools.
+  // The tool gate (tool-policy.md) asks for the Yvoke server's name to know its tools.
   on('mcp.connect', () => {
     if (w.failConnect) throw new Error('connect failed')
     return { value: { isConnected: true, server: 'plugin:yvoke:yvoke' } }

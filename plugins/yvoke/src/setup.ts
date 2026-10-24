@@ -1,4 +1,4 @@
-// P1-08, D-11, D-18, D-20: the session setup band. In a Yvoke session the band above the prompt picks the
+// setup.md, D-11, D-18, D-20: the session setup band. In a Yvoke session the band above the prompt picks the
 // area first, then the mode, then the playbook (single agent) or the profile (multi-agent), each defaulting
 // to what the area names. The choice locks when the first question enters the session, with the playbook
 // version that question loaded.
@@ -9,13 +9,14 @@ import type { ElementConstructor, On, PluginOptions, RenderElement, SelectProps 
 import { callYvoke, type ServerIo } from './server'
 import { ENDED, endedId } from './session'
 
-/** Multi-agent mode is offered once Phase 6 is built. Until then only single agent runs. */
+/** Multi-agent mode is offered once PLAN.md Milestone 4 is built. Until then only single agent runs. */
 export const MULTI_AGENT_READY = false
 
 export type Mode = 'single' | 'multi'
 /**
- * `tools`: the tool names the playbook declares (P2-02); null when it declares none, which yvoke-web sends as
- * an empty list; `'unreadable'` when the value is there but is not a list of names, so nothing is granted.
+ * `tools`: the tool names the playbook declares (tool-policy.md); null when it declares none, which
+ * yvoke-web sends as an empty list; `'unreadable'` when the value is there but is not a list of names, so
+ * nothing is granted.
  */
 export type PlaybookEntry = { name: string; version: number; tools: string[] | null | 'unreadable' }
 export type AreaEntry = {
@@ -185,9 +186,9 @@ export const movedOn = (setup: Setup, catalogue: Catalogue): { setup: Setup; fro
 }
 
 /**
- * P1-07 fetches the playbook by name only, so the server may have saved it again since the lists loaded: the
- * setup takes the version that loaded (`yvoke.instructions`, for this session and this playbook). Null when
- * that is the version it has, the server sent none, or no playbook applies.
+ * src/system-prompt.ts fetches the playbook by name only, so the server may have saved it again since the
+ * lists loaded: the setup takes the version that loaded (`yvoke.instructions`, for this session and this
+ * playbook). Null when that is the version it has, the server sent none, or no playbook applies.
  */
 export const loadedOn = (
   setup: Setup,
@@ -205,12 +206,12 @@ export const loadedOn = (
 
 // ---------------------------------------------------------------------------------------------------------
 // The hooks. Every $.state key is written inline (the engine refuses a reference imported from another
-// file), and every enforcing hook opens with the Yvoke check (design 4.4).
+// file), and every enforcing hook opens with the Yvoke check (conventions.md).
 
 export const LOADING = 'Loading the Yvoke setup…'
 export const DROP_FAILED = 'Yvoke Backend: the session could not be set up, so the question was not sent.'
 
-/** The `$.store` key holding one session's setup, next to P1-10's `session:<id>`. */
+/** The `$.store` key holding one session's setup, next to src/session.ts's `session:<id>`. */
 export const setupKey = (sessionId: string) => `setup:${sessionId}`
 
 export type CatalogueState = { ok: true; catalogue: Catalogue } | { ok: false; error: string }
@@ -281,9 +282,10 @@ export function registerSetup(on: On, options: PluginOptions) {
     return moved?.setup ?? locked
   }
 
-  // Once a question has entered, the setup locked in this session takes the version P1-07 loaded (see
-  // `loadedOn`), and a toast says so. The question may not turn into a drop: a read that fails skips the
-  // correction, and a toast that fails keeps it. The first lock and an already locked setup both need it.
+  // Once a question has entered, the setup locked in this session takes the version that
+  // src/system-prompt.ts loaded (see `loadedOn`), and a toast says so. The question may not turn into a
+  // drop: a read that fails skips the correction, and a toast that fails keeps it. The first lock and an
+  // already locked setup both need it.
   const toLoaded = async (
     locked: Setup,
     sessionId: string,
@@ -328,7 +330,7 @@ export function registerSetup(on: On, options: PluginOptions) {
   })
 
   on('classic.SessionStart', { source: /^(clear|resume|fork)$/ }, async ($, e, next) => {
-    // The session's hook beneath decides whether this is a Yvoke session (P1-10); its answer comes first.
+    // The hook beneath (session.md) decides whether this is a Yvoke session; its answer comes first.
     const started = await next(e)
     // The status line is one per plugin and stays until replaced: clear it for every new session, and let
     // a locked setup set it again below.
@@ -336,7 +338,7 @@ export function registerSetup(on: On, options: PluginOptions) {
     if (e.source === 'clear') return started
     let saved: Setup | null = null
     if (e.source === 'resume') {
-      // As P1-10: nothing first, so a store read that fails leaves the resumed session without a setup.
+      // As src/session.ts does: nothing first, so a failed store read leaves the session without a setup.
       await $.state.set({ plugin: 'yvoke', key: 'setup' }, null)
       await $.state.set({ plugin: 'yvoke', key: 'catalogue' }, null)
     } else {
@@ -373,8 +375,8 @@ export function registerSetup(on: On, options: PluginOptions) {
     )
     if (saved && saved.lockedSessionId !== null) {
       // D-20: a resumed or branched session carries on with the playbook version the server has now. Both
-      // have a new session id to P1-07, so their first question fetches the server's current text. If the
-      // lists fail here, the next question or Retry loads them and upgrades the setup then.
+      // have a new session id to src/system-prompt.ts, so their first question fetches the server's current
+      // text. If the lists fail here, the next question or Retry loads them and upgrades the setup then.
       await upgrade(
         saved,
         catalogue,
@@ -390,7 +392,7 @@ export function registerSetup(on: On, options: PluginOptions) {
   })
 
   // The matcher takes every prompt. It is there because the engine refuses a second hook on one event
-  // with no matcher in the same plugin, and P1-07's prompt.submit has none.
+  // with no matcher in the same plugin, and the prompt.submit in src/system-prompt.ts has none.
   on('prompt.submit', { text: /^/ }, async ($, e, next) => {
     const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
     if (isYvoke !== true) return next(e)
@@ -441,7 +443,7 @@ export function registerSetup(on: On, options: PluginOptions) {
     }
     if (!catalogue.ok) return { drop: catalogue.error }
     if (already) {
-      // Before the question goes down, so P1-07's hook loads the instructions for the version moved to.
+      // Before the question goes down, so src/system-prompt.ts loads the instructions for the new version.
       const upgraded = await upgrade(
         already,
         catalogue,
@@ -460,7 +462,7 @@ export function registerSetup(on: On, options: PluginOptions) {
     const chosen = fitted(setup, catalogue.catalogue)
     if (chosen.mode === 'single' && chosen.playbook === null) return { drop: noPlaybooks(chosen.area) }
 
-    // Saved before the question goes down, so P1-07's hook reads this setup whichever side of it runs.
+    // Saved before the question goes down, so src/system-prompt.ts reads it whichever side of it runs.
     await $.state.set({ plugin: 'yvoke', key: 'setup' }, chosen)
     await $.store.set(setupKey(sessionId), chosen)
     const entered = await next(e)

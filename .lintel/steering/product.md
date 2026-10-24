@@ -2,7 +2,7 @@
 
 **Yvoke for Claude** (`yvoke-claude-plugin`) is a Claude Code plugin and in-process mod that brings [Yvoke Desktop](https://github.com/yvoke-dev/yvoke-desktop)'s capabilities into Claude Code (both the Claude Desktop **Code** tab and the terminal).
 
-How the system is built is in [architecture.md](architecture.md), what is implemented today is in [../specs/index.md](../specs/index.md), and the feature roadmap lives in [../../PLAN.md](../../PLAN.md).
+How the system is built is in [architecture.md](architecture.md), what is implemented today is in [../specs/index.md](../specs/index.md), and the feature roadmap lives in [../../PLAN.md](../../PLAN.md). The decisions behind it and the known gaps are in [decisions.md](decisions.md).
 
 ## 1. Problem & Goal
 

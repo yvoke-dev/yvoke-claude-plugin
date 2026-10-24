@@ -3,8 +3,8 @@ import type { McpToolResult } from 'claude-code'
 import type { ServerIo } from '../src/server'
 import { loadInstructions, reusable, DEFAULT_SETUP, MARGIN_MS, SEPARATOR } from '../src/system-prompt'
 
-// P1-07: loading the base instructions and the playbook text. As in server.test.ts, the server is a set of
-// plain functions in place of `$`; the hooks are tested through the engine in system-prompt.test.ts.
+// system-prompt.md: loading the base instructions and the playbook text. As in server.test.ts, the server is
+// a set of plain functions in place of `$`; the hooks are tested through the engine in system-prompt.test.ts.
 
 const text = (body: string, isError = false): McpToolResult => ({ content: [{ type: 'text', text: body }], isError })
 

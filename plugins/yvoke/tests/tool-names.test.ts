@@ -1,9 +1,9 @@
 import { test, expect, describe } from 'claude-code/testing'
 import { DEFAULT_KB_TOOLS, allowedServerTools, builtinTool, isComputeTool, isWebTool, qualifyTool, serverToolPrefix } from '../src/tool-names'
 
-// P2-01: the engine names a server's tools `mcp__<server>__<tool>`, with the server's name normalized.
-// The rule was read from Claude Code 2.1.304: every character outside [a-zA-Z0-9_-] becomes `_`; for a
-// claude.ai connector, runs of `_` then collapse and a leading or trailing `_` is dropped.
+// tool-policy.md: the engine names a server's tools `mcp__<server>__<tool>`, with the server's name
+// normalized. The rule was read from Claude Code 2.1.304: every character outside [a-zA-Z0-9_-] becomes `_`;
+// for a claude.ai connector, runs of `_` then collapse and a leading or trailing `_` is dropped.
 
 test("the plugin's own server entry", () => {
   expect(serverToolPrefix('plugin:yvoke:yvoke')).toBe('mcp__plugin_yvoke_yvoke__')
@@ -25,9 +25,10 @@ test('only a claude.ai connector collapses underscores', () => {
   expect(serverToolPrefix('my  server')).toBe('mcp__my__server__')
 })
 
-// P2-03: a playbook names its tools bare (`search_corpus`) or under whatever prefix was current when it was
-// written: yvoke-desktop's `mcp__yvoke__`, or the older `mcp__oim__`. Ported from yvoke-desktop's
-// `qualifyTool` tests, with the prefix supplied at run time instead of a fixed `MCP_TOOL_PREFIX`.
+// tool-policy.md: a playbook names its tools bare (`search_corpus`) or under whatever prefix was current
+// when it was written: yvoke-desktop's `mcp__yvoke__`, or the older `mcp__oim__`. Ported from
+// yvoke-desktop's `qualifyTool` tests, with the prefix supplied at run time instead of a fixed
+// `MCP_TOOL_PREFIX`.
 
 describe('builtinTool', () => {
   test('names the built-in in its own spelling, whatever the case', () => {
@@ -106,9 +107,9 @@ for (const prefix of ['mcp__plugin_yvoke_yvoke__', 'mcp__claude_ai_yvoke__']) {
   })
 }
 
-// P2-02: the tools a playbook's declaration grants on the Yvoke server. Ported from yvoke-desktop's
+// tool-policy.md: the tools a playbook's declaration grants on the Yvoke server. Ported from yvoke-desktop's
 // `buildAllowedTools`, `isWebTool` and `isComputeTool` and their cases in tests/policy.test.ts. Web and
-// compute names are dropped here; P2-04 and P2-05 grant them under their own rules.
+// compute names are dropped here; PLAN.md Milestone 2 grants them under their own rules.
 
 describe('isWebTool', () => {
   test('the two web built-ins, in any case, bare or behind a prefix', () => {

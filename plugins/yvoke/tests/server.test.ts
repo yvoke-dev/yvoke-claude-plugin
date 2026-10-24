@@ -3,7 +3,7 @@ import type { McpConnectResult, McpToolResult } from 'claude-code'
 import { callYvoke, SERVER, TIMEOUT_MS, type ServerIo } from '../src/server'
 
 // A test's own `$` has no `mcp` noun, and a test's hook may not call `$.mcp.call`, so these tests hand
-// the client plain functions in place of `$` (P1-03 plan, "Tests run without the engine's `$`").
+// the client plain functions in place of `$` (server-client.md).
 
 const text = (body: string, isError = false): McpToolResult => ({ content: [{ type: 'text', text: body }], isError })
 const never = <T,>() => new Promise<T>(() => {})

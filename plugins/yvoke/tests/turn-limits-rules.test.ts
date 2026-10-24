@@ -1,7 +1,7 @@
 import { test, expect, describe } from 'claude-code/testing'
 import { limitsFrom, limitFor, isWrapUp, isLast, DEFAULT_LIMITS, flagLine, WRAP_UP } from '../src/turn-limits'
 
-// P2-08: the pure rules behind the turn ceilings. The hooks are tested through the engine in
+// turn-limits.md: the pure rules behind the turn ceilings. The hooks are tested through the engine in
 // turn-limits.test.ts.
 
 describe('limitsFrom', () => {

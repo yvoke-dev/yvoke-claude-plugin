@@ -38,8 +38,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 2.1.287 is the oldest release with mods (design section 2). P7-07 decides the minimum we
-        # promise users and moves this pin to match.
+        # 2.1.287 is the oldest release with mods (.lintel/steering/tech.md). The minimum version check in
+        # PLAN.md Milestone 5 decides the minimum we promise users and moves this pin to match.
         claude-code: ['2.1.287', 'latest']
     steps:
       - uses: actions/checkout@v4

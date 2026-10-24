@@ -2,10 +2,10 @@ import { test, expect } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { McpToolResult, On, RenderElement } from 'claude-code'
 
-// P1-08 machine check 3 (2026-10-21, Claude Code 2.1.306): /branch starts the new session with empty
-// `$.state`, and its classic.SessionStart names no parent session. Claude Code ends the parent first
-// (`session.end`, with its id). The test kit keeps `$.state` across a fork, so this engine empties it
-// there, as Claude Code does, until the plugin writes a key again.
+// Checked on a machine (2026-10-21, Claude Code 2.1.306; session.md): /branch starts the new session with
+// empty `$.state`, and its classic.SessionStart names no parent session. Claude Code ends the parent first
+// (`session.end`, with its id). The test kit keeps `$.state` across a fork, so this engine empties it there,
+// as Claude Code does, until the plugin writes a key again.
 
 const BAND = {
   component: 'AbovePrompt',
@@ -64,7 +64,7 @@ function engine(on: On): World {
   on('mcp.call', (_$, e) => {
     if (e.tool === 'list_areas') return { value: text(JSON.stringify(AREAS)) }
     if (e.tool === 'list_playbooks') return { value: text(JSON.stringify(PLAYBOOKS)) }
-    // P1-07's calls, when its module is loaded too: answer them so a question can enter.
+    // src/system-prompt.ts's calls, when its module is loaded too: answer them so a question can enter.
     if (e.tool === 'get_playbook') return { value: text(JSON.stringify({ name: e.args.name, text: 'PLAYBOOK' })) }
     if (e.tool === 'get_system_prompt') return { value: text('BASE') }
     return { value: text(`ERROR: no tool ${e.tool}`) }

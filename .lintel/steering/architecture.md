@@ -1,6 +1,6 @@
 # System Architecture
 
-How the Yvoke plugin and in-process mod work inside Claude Code today. Product principles live in [product.md](product.md), living feature specifications live in [../specs/index.md](../specs/index.md), and planned extensions live in [../../PLAN.md](../../PLAN.md).
+How the Yvoke plugin and in-process mod work inside Claude Code today. Product principles live in [product.md](product.md), living feature specifications live in [../specs/index.md](../specs/index.md), and planned extensions live in [../../PLAN.md](../../PLAN.md). Decisions and their reasons live in [decisions.md](decisions.md).
 
 ## 1. Runtime Split
 
