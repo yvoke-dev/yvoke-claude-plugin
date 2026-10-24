@@ -83,7 +83,8 @@ npm run typecheck
 The mod API's type declarations are written by Claude Code itself, into
 `plugins/yvoke/.claude-plugin/types/`, when it loads the mod. `npm run typecheck` loads it once with no
 sign-in and no model call ([lay-types.mjs](../scripts/lay-types.mjs)), then runs `tsc`. The folder is
-ignored by git: never commit it, since it changes with every Claude Code version.
+ignored by git: never commit it, since it changes with every Claude Code version. If `npm run types`
+fails, it puts the old types back, so you are never left with none.
 
 The declarations are the truth about the API for your version. Grep
 `plugins/yvoke/.claude-plugin/types/claude-code/index.d.ts` for an event name (`'tool.call'`) or a type
@@ -141,6 +142,15 @@ message while you work, write it with `$.ui.log` and take the line out before yo
   skipped" line and the debug log's `hooks-passed-over` say so. Reloading, `/yvoke` and the tests still
   work. To try those hooks, use a machine or account outside the organization (see
   [architecture.md](../.lintel/steering/architecture.md)).
+- **Managed settings lock the plugin.** When managed settings enable and lock `yvoke@yvoke` (for
+  example a directory marketplace set up by MDM), Claude Code ignores the `--plugin-dir` and
+  `CLAUDE_CODE_PLUGIN_DIRS` copies, so neither reloading from your clone nor `npm run types` works. The
+  debug log says `Plugin "yvoke" from --plugin-dir is blocked by managed settings` and
+  `--plugin-dir copy of "yvoke" ignored: plugin is locked by managed settings`, and `npm run types` stops
+  with a message that names the managed settings file. Pointing the managed marketplace at this folder is
+  not enough: sessions then run a copy of it from `~/.claude/plugins/cache/`, which neither reloads nor
+  lays types. Remove the lock while you develop. Until then, `npx tsc --noEmit` still checks against the
+  types you already have.
 - **The module loads but a feature is missing.** The engine refuses some code shapes that TypeScript
   accepts: `$` passed into another file, a hook built by a wrapper, a `$.state` key imported from another
   file. See [conventions.md](../.lintel/steering/conventions.md).
