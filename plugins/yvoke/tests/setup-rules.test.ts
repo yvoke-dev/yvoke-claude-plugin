@@ -3,6 +3,7 @@ import {
   toCatalogue,
   defaults,
   pick,
+  fitted,
   modesFor,
   lineFor,
   movedOn,
@@ -132,7 +133,7 @@ describe('toCatalogue', () => {
     expect(catalogue(AREAS, playbooks).areas[0]!.playbooks.map((p) => p.tools)).toEqual([null, null])
   })
 
-  test('a tools value the mod cannot read is marked unreadable, never taken as none', () => {
+  test('a tools value the plugin cannot read is marked unreadable, never taken as none', () => {
     const playbooks = JSON.stringify([
       playbook('oim-full', { tools: 'search_corpus' }),
       playbook('oim-quick', { tools: ['search_corpus', 3] }),
@@ -152,15 +153,15 @@ describe('toCatalogue', () => {
   test('an answer that is not the expected JSON is an error naming the tool', () => {
     expect(toCatalogue('not json', PLAYBOOKS, false)).toEqual({
       ok: false,
-      error: 'Yvoke Backend: list_areas gave an answer the mod cannot read.',
+      error: 'Yvoke Backend: list_areas gave an answer the plugin cannot read.',
     })
     expect(toCatalogue('{"a":1}', PLAYBOOKS, false)).toEqual({
       ok: false,
-      error: 'Yvoke Backend: list_areas gave an answer the mod cannot read.',
+      error: 'Yvoke Backend: list_areas gave an answer the plugin cannot read.',
     })
     expect(toCatalogue(AREAS, '[1]', false)).toEqual({
       ok: false,
-      error: 'Yvoke Backend: list_playbooks gave an answer the mod cannot read.',
+      error: 'Yvoke Backend: list_playbooks gave an answer the plugin cannot read.',
     })
   })
 })
@@ -232,6 +233,55 @@ describe('pick', () => {
     const locked: Setup = { ...start, lockedSessionId: 'session-a' }
     expect(pick(locked, cat, 'playbook', 'oim-quick', false)).toEqual(locked)
     expect(pick(locked, cat, 'area', 'PING', false)).toEqual(locked)
+  })
+})
+
+describe('fitted', () => {
+  const cat = catalogue()
+  const other: Setup = { ...defaults(cat, 'PING'), playbook: 'ping-other', version: 1 }
+  const pingMainOnly = JSON.stringify([playbook('oim-full', { version: 3 }), playbook('ping-main', { area: 'PING', version: 5 })])
+
+  test('no saved setup: the defaults', () => {
+    expect(fitted(null, cat)).toEqual(defaults(cat))
+  })
+
+  test('an unlocked setup whose playbook is still offered is kept as it is', () => {
+    expect(fitted(other, cat)).toBe(other)
+  })
+
+  test("an unlocked setup whose playbook is gone takes its area's defaults, not the default area's", () => {
+    expect(fitted(other, catalogue(AREAS, pingMainOnly))).toEqual({ ...other, playbook: 'ping-main', version: 5 })
+  })
+
+  test("an unlocked setup whose playbook is now a hidden prototype takes its area's defaults", () => {
+    const playbooks = JSON.stringify([playbook('ping-other', { area: 'PING', prototype: true }), playbook('ping-main', { area: 'PING', version: 5 })])
+    expect(fitted(other, catalogue(AREAS, playbooks))).toEqual(defaults(cat, 'PING'))
+    expect(fitted(other, catalogue(AREAS, playbooks, true))).toBe(other)
+  })
+
+  test('an unlocked setup whose area is gone takes the default area', () => {
+    expect(fitted({ ...other, area: 'LAB' }, cat)).toEqual(defaults(cat))
+  })
+
+  test('no playbook, from an area that had none: kept so while it has none, the default once it has one', () => {
+    const noPing = catalogue(AREAS, JSON.stringify([playbook('oim-full')]))
+    const none = defaults(noPing, 'PING')
+    expect(none).toMatchObject({ area: 'PING', playbook: null })
+    expect(fitted(none, noPing)).toEqual(none)
+    expect(fitted(none, cat)).toEqual(defaults(cat, 'PING'))
+  })
+
+  test("multi-agent: kept while the area offers the profile, else the area's defaults", () => {
+    const deep = pick(pick(defaults(cat), cat, 'mode', 'multi', true), cat, 'profile', 'OIM-deep', true)
+    expect(fitted(deep, cat)).toBe(deep)
+    const fewer = catalogue(JSON.stringify([area({ profiles: ['OIM'] })]))
+    expect(fitted(deep, fewer)).toEqual(defaults(fewer, 'OIM'))
+    expect(fitted({ ...deep, profile: null }, cat)).toEqual(defaults(cat, 'OIM'))
+  })
+
+  test('a locked setup is kept as it is, even when its playbook is gone', () => {
+    const locked: Setup = { ...other, lockedSessionId: 'session-a' }
+    expect(fitted(locked, catalogue(AREAS, pingMainOnly))).toBe(locked)
   })
 })
 

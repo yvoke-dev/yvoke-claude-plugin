@@ -29,6 +29,10 @@
   then on the band shows one read-only line, *OIM · Single agent · oim-full v3* (when `lineFor` formats the
   read-only line without a loaded catalogue, it falls back to `setup.area` (`name`)), and the status line
   shows the same. Nothing can change it; a different setup is `/clear`, then `/yvoke`.
+- Any submission that reaches the model counts as that first question, not only a typed one: a skill or
+  prompt command, the turn of a built-in command that asks the model, and a prompt the engine queued that
+  the person does not see as typed (`isMeta`). It locks the setup and loads the instructions like a typed
+  question: neither `prompt.submit` hook, here or in `src/system-prompt.ts`, reads `e.command` or `e.isMeta`.
 - The lock takes the playbook version that loaded, which the answers use. `src/system-prompt.ts` fetches
   the playbook by name only, so if the server saved it between `/yvoke` and the first question, the band
   shows v3 while v4 loaded. Once the question has entered, `setup.ts` reads `yvoke.instructions`: when it
@@ -48,8 +52,8 @@
   session, so the setup stays open.
 - The locked line keeps the version it locked with while the session runs, even when the server's
   playbook moves on.
-- Server down, or an answer the mod cannot read (`Yvoke Backend: list_areas gave an answer the mod cannot read.`
-  / `Yvoke Backend: list_playbooks gave an answer the mod cannot read.`): the band shows the `Yvoke Backend:`
+- Server down, or an answer the plugin cannot read (`Yvoke Backend: list_areas gave an answer the plugin cannot read.`
+  / `Yvoke Backend: list_playbooks gave an answer the plugin cannot read.`): the band shows the `Yvoke Backend:`
   error and a **Retry** button, and a question is dropped with the same error. A question sent before the
   lists arrived loads them first. A server with no areas is refused the same way (`Yvoke Backend: the server has no areas.`
   with a **Retry** button). When an area has no playbooks, the catalogue loads and the band still renders
@@ -62,6 +66,11 @@
   session; Claude Code starts a branch with empty `$.state`, so it is read from the session that just
   ended ([session.md](session.md)). The status line is cleared on each of the three and set again only for a locked setup, so it
   never shows a session's setup under another session.
+- Whenever the lists load, an unlocked setup keeps its picks only while they are still offered: its area,
+  and in that area its playbook (single agent) or its profile (multi-agent), by name. A playbook deleted on
+  the server, or a prototype now hidden because `showPrototypes` is off, gives way to that area's
+  defaults, and an area that is gone to the default area's; the band and the first question use them. A
+  locked setup is kept as it is, even when its playbook is gone.
 - After `/resume` or `/branch` of a locked session whose playbook the server has saved again, the setup
   carries on with the server's version: the line and the status line show it, and a toast says once *oim-full moved
   from v3 to v4 since the setup was locked; answers from now on use v4.*

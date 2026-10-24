@@ -4,7 +4,9 @@
 
 - In a Yvoke session ([session.md](session.md)), the first question loads the instructions from the Yvoke
   server before it is sent: the base instructions and, in single-agent mode, the playbook's text
-  (`get_playbook`).
+  (`get_playbook`). Any submission that reaches the model is a question here, as in [setup.md](setup.md):
+  a skill or prompt command, the turn of a built-in command that asks the model, and a prompt the engine
+  queued (`isMeta`) too.
 - The base instructions are chosen from data before any `get_system_prompt` call, as in yvoke-web and
   yvoke-desktop 1.3.0: the system prompt the playbook names (its `systemPrompt`) when any area in
   `list_areas` lists it among its `systemPrompts` (the server looks prompt names up globally, not within the

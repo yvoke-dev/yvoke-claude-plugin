@@ -565,6 +565,75 @@ test('/resume of an unlocked setup keeps the picks, unlocked', async ($, on) => 
   expect(await selected(ui, 'yvoke-playbook')).toBe('oim-quick')
 })
 
+// A resumed session whose saved setup, still unlocked, names `name` in `area`.
+const resumedUnlocked = (on: On, name: string, area = 'OIM') =>
+  engine(on, {
+    sessionId: 'old',
+    store: new Map<string, unknown>([
+      ['session:old', { yvoke: true }],
+      ['setup:old', { ...LOCKED, area, playbook: name, version: 1, lockedSessionId: null }],
+    ]),
+  })
+
+test("/resume of an unlocked setup whose playbook is gone: the band and the question take its area's defaults", async ($, on) => {
+  const w = resumedUnlocked(on, 'ping-old', 'PING')
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    expect(await selected(ui, 'yvoke-area')).toBe('PING')
+    expect(await selected(ui, 'yvoke-playbook')).toBe('ping-main')
+    await ui.unmount()
+  }
+
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+  const pingMain = { area: 'PING', mode: 'single', playbook: 'ping-main', version: 5, profile: null }
+  expect(w.savedAtFetch).toEqual([{ ...pingMain, lockedSessionId: null }])
+  expect(w.store.get('setup:old')).toEqual({ ...pingMain, lockedSessionId: 'old' })
+  expect(w.status.at(-1)).toBe('PingID · Single agent · ping-main v5')
+})
+
+test("/resume of an unlocked setup whose playbook is now a hidden prototype: the area's default", async ($, on) => {
+  const w = resumedUnlocked(on, 'oim-new')
+  w.server.playbooks = [...w.server.playbooks, playbook('oim-new', { prototype: true })]
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  const ui = await band($, 'terminal')
+  expect(await selected(ui, 'yvoke-playbook')).toBe('oim-full')
+  expect(await optionsOf(ui, 'yvoke-playbook')).toEqual(['oim-quick v2', 'oim-full v3'])
+  await ui.unmount()
+
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+  expect(w.store.get('setup:old')).toMatchObject({ playbook: 'oim-full', version: 3, lockedSessionId: 'old' })
+  expect(w.status.at(-1)).toBe(LINE)
+})
+
+test('/resume of an unlocked setup whose prototype playbook is shown: kept', { options: { showPrototypes: true } }, async ($, on) => {
+  const w = resumedUnlocked(on, 'oim-new')
+  w.server.playbooks = [...w.server.playbooks, playbook('oim-new', { prototype: true })]
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  const ui = await band($, 'terminal')
+  expect(await selected(ui, 'yvoke-playbook')).toBe('oim-new')
+})
+
+test('/resume of a locked setup whose playbook is gone: kept as it was', async ($, on) => {
+  const w = engine(on, {
+    sessionId: 'old',
+    store: new Map<string, unknown>([
+      ['session:old', { yvoke: true }],
+      ['setup:old', LOCKED],
+    ]),
+  })
+  w.server.playbooks = [playbook('oim-full', { version: 3 })]
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  const ui = await band($, 'terminal')
+  expect(await lineOf(ui)).toBe('OIM · Single agent · oim-quick v2')
+  expect(await ui.find({ key: 'yvoke-playbook' })).toBeUndefined()
+  expect(w.store.get('setup:old')).toEqual(LOCKED)
+})
+
 test('/resume of a plain session, or a store that cannot be read: no setup', async ($, on) => {
   const w = engine(on, { sessionId: 'old', store: new Map<string, unknown>([['setup:old', LOCKED]]) })
   await begin($)

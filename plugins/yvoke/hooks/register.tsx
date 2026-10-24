@@ -16,4 +16,3 @@ export const register: Register = (on, options) => {
   registerTurnLimits(on, options)
   registerSystemPrompt(on)
 }
-// reload check

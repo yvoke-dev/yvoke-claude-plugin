@@ -508,7 +508,7 @@ describe("in a Yvoke session: the playbook can't be read", () => {
   const setupAnswer = (on: On, value: unknown) =>
     on('state.get', { plugin: 'yvoke', key: 'setup' }, () => ({ value: { value, version: 1 } }))
 
-  test("a tools value the mod cannot read: server tools are refused, not given the default set", async ($, on) => {
+  test("a tools value the plugin cannot read: server tools are refused, not given the default set", async ($, on) => {
     const w = engine(on)
     w.playbooks = playbooks('search_corpus')
     await yvokeSession($)

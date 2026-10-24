@@ -45,7 +45,7 @@ export type Setup = {
 export type Select = 'area' | 'mode' | 'playbook' | 'profile'
 
 const DEFAULT_AREA = 'OIM'
-const unreadable = (tool: string) => `Yvoke Backend: ${tool} gave an answer the mod cannot read.`
+const unreadable = (tool: string) => `Yvoke Backend: ${tool} gave an answer the plugin cannot read.`
 
 type RawArea = {
   name: string
@@ -161,6 +161,26 @@ export const pick = (setup: Setup, catalogue: Catalogue, select: Select, value: 
   return setup
 }
 
+/**
+ * The setup to show for a catalogue: the saved picks when they still fit it, else the defaults. A locked
+ * setup stays as it is. An unlocked one keeps its picks while its area still offers its playbook (single
+ * agent) or its profile (multi-agent), else it takes that area's defaults: a playbook deleted on the server
+ * or a prototype hidden since is replaced, and a null one (the area had none) takes the area's default once
+ * it has one. With the area gone, the default area's. Only the name counts; the lock takes the version that
+ * loads (`loadedOn`).
+ */
+export const fitted = (saved: Setup | null | undefined, catalogue: Catalogue): Setup => {
+  if (!saved) return defaults(catalogue)
+  if (saved.lockedSessionId !== null) return saved
+  const area = areaOf(catalogue, saved.area)
+  if (!area) return defaults(catalogue)
+  const offered =
+    saved.mode === 'single'
+      ? area.playbooks.some((p) => p.name === saved.playbook)
+      : saved.profile !== null && area.profiles.includes(saved.profile)
+  return offered ? saved : defaults(catalogue, area.name)
+}
+
 export const MODE_LABEL: Record<Mode, string> = { single: 'Single agent', multi: 'Multi-agent' }
 
 /** A playbook as the band shows it: `oim-full v3`. */
@@ -225,13 +245,6 @@ const isSetup = (x: unknown): x is Setup => {
     nullOr(s.profile, 'string') &&
     nullOr(s.lockedSessionId, 'string')
   )
-}
-
-/** The setup to show for a catalogue: the saved picks when they still fit it, else the defaults. */
-const fitted = (saved: Setup | null | undefined, catalogue: Catalogue): Setup => {
-  if (!saved) return defaults(catalogue)
-  if (saved.lockedSessionId !== null) return saved
-  return catalogue.areas.some((a) => a.name === saved.area) ? saved : defaults(catalogue)
 }
 
 const noPlaybooks = (area: string) => `Yvoke Backend: the area ${area} has no playbooks, so the question was not sent.`
