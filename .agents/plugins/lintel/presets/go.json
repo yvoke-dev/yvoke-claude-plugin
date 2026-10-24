@@ -1,0 +1,49 @@
+{
+  "markers": [
+    "go.mod"
+  ],
+  "paths": {
+    "tests": {
+      "unit": {
+        "paths": [
+          "**/*_test.go",
+          "!**/*_integration_test.go",
+          "!**/e2e/**",
+          "!**/*_e2e_test.go"
+        ]
+      },
+      "integration": {
+        "paths": [
+          "**/*_integration_test.go"
+        ]
+      },
+      "e2e": {
+        "paths": [
+          "**/e2e/**",
+          "**/*_e2e_test.go"
+        ]
+      }
+    },
+    "build": [
+      "go.mod",
+      "go.sum"
+    ],
+    "testReport": [
+      "**/coverage.out"
+    ],
+    "testOutput": [
+      "**/bin/**"
+    ]
+  },
+  "skills": {
+    "architect": [
+      "lintel:go-design"
+    ],
+    "qa": [
+      "lintel:go-testing"
+    ],
+    "dev": [
+      "lintel:go-implementation"
+    ]
+  }
+}

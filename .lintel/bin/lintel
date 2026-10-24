@@ -1,0 +1,237 @@
+#!/bin/sh
+# Lintel launcher (PLAN §3.1, §3.5)
+# Reads .lintel/state/python and executes cli.py with the recorded python.
+# If missing or broken, runs a bounded search once, records the found python, and execs it.
+# Never executes bare python3.
+
+# Locate project root (directory containing .lintel) upwards from cwd or script dir
+ROOT=""
+dir=$(pwd)
+while [ "$dir" != "/" ] && [ -n "$dir" ]; do
+    if [ -d "$dir/.lintel" ]; then
+        ROOT="$dir"
+        break
+    fi
+    dir=$(dirname "$dir")
+done
+
+if [ -z "$ROOT" ]; then
+    script_dir=$(cd "$(dirname "$0")" 2>/dev/null && pwd)
+    dir="$script_dir"
+    while [ "$dir" != "/" ] && [ -n "$dir" ]; do
+        if [ -d "$dir/.lintel" ]; then
+            ROOT="$dir"
+            break
+        fi
+        dir=$(dirname "$dir")
+    done
+fi
+
+if [ -z "$ROOT" ]; then
+    case "$script_dir" in
+        */.lintel/bin)
+            ROOT="$(dirname "$(dirname "$script_dir")")"
+            ;;
+    esac
+fi
+
+if [ -z "$ROOT" ] || [ ! -d "$ROOT/.lintel" ]; then
+    echo "lintel: cannot locate project root (no .lintel directory found upwards from $(pwd) or script)" >&2
+    exit 1
+fi
+
+# Locate cli.py
+CLI_PY=""
+if [ -f "$ROOT/.agents/plugins/lintel/lintel/cli.py" ]; then
+    CLI_PY="$ROOT/.agents/plugins/lintel/lintel/cli.py"
+elif [ -f "$ROOT/plugin/lintel/cli.py" ]; then
+    CLI_PY="$ROOT/plugin/lintel/cli.py"
+elif [ -f "$ROOT/.agents/plugins/lintel/cli.py" ]; then
+    CLI_PY="$ROOT/.agents/plugins/lintel/cli.py"
+else
+    echo "lintel: cannot find cli.py under $ROOT" >&2
+    exit 1
+fi
+
+STATE_DIR="$ROOT/.lintel/state"
+STATE_FILE="$STATE_DIR/python"
+
+# Fast path: check recorded python in .lintel/state/python
+if [ -f "$STATE_FILE" ]; then
+    read -r RECORDED_PY < "$STATE_FILE" 2>/dev/null || true
+    RECORDED_PY=$(printf '%s' "$RECORDED_PY" | tr -d '\r\n')
+    if [ -n "$RECORDED_PY" ] && [ -x "$RECORDED_PY" ] && [ ! -d "$RECORDED_PY" ]; then
+        if "$RECORDED_PY" -B -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
+            exec "$RECORDED_PY" -B "$CLI_PY" "$@"
+        fi
+    fi
+fi
+
+# Fallback: run bounded interpreter search in sh
+OS=$(uname -s 2>/dev/null)
+STUB=/usr/bin/python3
+XCSELECT=/usr/bin/xcode-select
+NO_FIXED=0
+if [ "$FIND_PYTHON_SELFTEST" = 1 ]; then
+    OS=${FIND_PYTHON_OS:-$OS}
+    STUB=${FIND_PYTHON_STUB:-$STUB}
+    XCSELECT=${FIND_PYTHON_XCSELECT:-$XCSELECT}
+    [ -n "$FIND_PYTHON_NO_FIXED" ] && NO_FIXED=1
+fi
+
+SNIPPET='import os, sys; assert sys.version_info >= (3, 9); assert sys.prefix == getattr(sys, "base_prefix", sys.prefix); print(os.path.realpath(sys.executable))'
+
+TIMEOUT=5
+BUDGET=30
+USED=0
+if sleep 0.1 2>/dev/null; then STEP=0.1; STEP_TICKS=1; else STEP=1; STEP_TICKS=10; fi
+
+TMP=$(mktemp -d "${TMPDIR:-/tmp}/lintel-launcher.XXXXXX") || exit 1
+CURPID=""
+cleanup() {
+    [ -n "$CURPID" ] && kill_tree "$CURPID" 2>/dev/null
+    rm -rf "$TMP"
+}
+trap cleanup EXIT HUP INT TERM
+
+kill_tree() {
+    for child in $(ps -A -o pid= -o ppid= 2>/dev/null | awk -v p="$1" '$2 == p { print $1 }'); do
+        kill_tree "$child"
+    done
+    kill -KILL "$1" 2>/dev/null
+}
+
+run_bounded() {
+    secs=$1; shift
+    limit=$((secs * 10))
+    rm -f "$TMP/rc"; : > "$TMP/out"
+    set -m 2>/dev/null
+    ( "$@" > "$TMP/out" 2>/dev/null < /dev/null; echo $? > "$TMP/rc.tmp"; mv "$TMP/rc.tmp" "$TMP/rc" ) 2>/dev/null &
+    pid=$!
+    CURPID=$pid
+    set +m 2>/dev/null
+    n=0
+    while [ ! -s "$TMP/rc" ]; do
+        if [ "$n" -ge "$limit" ]; then
+            kill_tree "$pid"
+            kill -KILL -- "-$pid" 2>/dev/null
+            wait "$pid" 2>/dev/null
+            CURPID=""
+            return 124
+        fi
+        sleep "$STEP"
+        n=$((n + STEP_TICKS)); USED=$((USED + STEP_TICKS))
+    done
+    wait "$pid" 2>/dev/null
+    CURPID=""
+    read -r rc < "$TMP/rc"
+    return "$rc"
+}
+
+DEVPY=""; DEVPY_DONE=0
+dev_python() {
+    [ "$DEVPY_DONE" -eq 1 ] && { [ -n "$DEVPY" ]; return; }
+    DEVPY_DONE=1
+    [ -x "$XCSELECT" ] || return 1
+    run_bounded 5 "$XCSELECT" -p || return 1
+    read -r d < "$TMP/out"
+    [ -n "$d" ] || return 1
+    for p in "$d/usr/bin/python3" "$d/Contents/Developer/usr/bin/python3"; do
+        if [ -x "$p" ] && [ ! -d "$p" ]; then
+            DEVPY=$p
+            return 0
+        fi
+    done
+    return 1
+}
+
+newest_first() {
+    awk '{ n = split($0, part, "/"); d = part[n - 2]; sub(/^cpython-/, "", d)
+           v = "0"; if (match(d, /^[0-9]+(\.[0-9]+)*/)) v = substr(d, RSTART, RLENGTH)
+           split(v, a, "."); printf "%05d%05d%05d %s\n", a[1], a[2] + 0, a[3] + 0, $0 }' |
+        sort -r | sed 's/^[^ ]* //'
+}
+
+gen_candidates() {
+    if [ "$NO_FIXED" -eq 0 ]; then
+        echo /opt/homebrew/bin/python3
+        echo /usr/local/bin/python3
+        echo /Library/Frameworks/Python.framework/Versions/Current/bin/python3
+    fi
+    dirs=$(printf '%s\n' "$PATH" | tr ':' '\n' | sed '/^$/d')
+    if [ "$NO_FIXED" -eq 0 ]; then
+        dirs="$dirs
+/opt/homebrew/bin
+/usr/local/bin"
+    fi
+    [ -n "$HOME" ] && dirs="$dirs
+$HOME/.local/bin"
+    for name in python3.13 python3.12 python3.11 python3.10 python3.9 python3; do
+        printf '%s\n' "$dirs" | while IFS= read -r d; do echo "$d/$name"; done
+    done
+    for p in "${PYENV_ROOT:-$HOME/.pyenv}"/versions/*/bin/python3; do [ -e "$p" ] && echo "$p"; done | newest_first
+    uv=${UV_PYTHON_INSTALL_DIR:-$HOME/.local/share/uv/python}
+    for p in "$uv"/cpython-?.?-*/bin/python3 "$uv"/cpython-?.??-*/bin/python3; do [ -e "$p" ] && echo "$p"; done | newest_first
+    for p in "$uv"/cpython-*/bin/python3; do [ -e "$p" ] && echo "$p"; done | newest_first
+    [ "$OS" = Darwin ] && echo @DEVPY
+}
+
+SEEN="$TMP/seen"; : > "$SEEN"
+FOUND_PY=""
+
+check_candidate() {
+    c=$1
+    [ -n "$c" ] || return 1
+    case "$c" in
+        /*) ;;
+        *) return 1 ;;
+    esac
+    case "$c" in
+        */shims/*) return 1 ;;
+    esac
+    [ -x "$c" ] && [ ! -d "$c" ] || return 1
+    if [ "$OS" = Darwin ] && { [ "$c" = /usr/bin/python3 ] || [ "$c" -ef "$STUB" ]; }; then
+        if dev_python; then
+            c=$DEVPY
+        else
+            return 1
+        fi
+    fi
+    if grep -qxF "$c" "$SEEN" 2>/dev/null; then return 1; fi
+    echo "$c" >> "$SEEN"
+    if [ "$USED" -ge "$((BUDGET * 10))" ]; then return 1; fi
+    run_bounded "$TIMEOUT" "$c" -B -c "$SNIPPET"
+    rc=$?
+    [ "$rc" -eq 0 ] || return 1
+    read -r real < "$TMP/out"
+    [ -n "$real" ] || return 1
+    FOUND_PY="$c"
+    return 0
+}
+
+gen_candidates > "$TMP/cands"
+while IFS= read -r cand; do
+    if [ "$cand" = @DEVPY ]; then
+        dev_python || continue
+        cand=$DEVPY
+    fi
+    if check_candidate "$cand"; then
+        break
+    fi
+done < "$TMP/cands"
+
+if [ -n "$FOUND_PY" ]; then
+    mkdir -p "$STATE_DIR"
+    TMP_STATE="$STATE_DIR/python.tmp.$$"
+    printf '%s\n' "$FOUND_PY" > "$TMP_STATE"
+    mv -f "$TMP_STATE" "$STATE_FILE"
+    rm -rf "$TMP"
+    trap - EXIT HUP INT TERM
+    exec "$FOUND_PY" -B "$CLI_PY" "$@"
+fi
+
+rm -rf "$TMP"
+trap - EXIT HUP INT TERM
+echo "lintel: no suitable Python >= 3.9 interpreter found." >&2
+echo "Please install Python via 'xcode-select --install' or 'brew install python'." >&2
+exit 1

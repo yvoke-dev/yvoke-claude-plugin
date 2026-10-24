@@ -1,6 +1,6 @@
 # CI for every push and pull request, and once a week: the docs check, and the plugin checks from the
-# AGENTS.md verification table on the oldest Claude Code the mod supports and on the newest release, so a
-# mod API change shows up here before a user hits it (docs/tasks/v1/P0-02/plan.md).
+# verification suite on the oldest Claude Code the mod supports and on the newest release, so a
+# mod API change shows up here before a user hits it.
 name: CI
 
 on:
@@ -59,7 +59,7 @@ jobs:
       - name: Validate the marketplace
         run: claude plugin validate --strict .
       - name: Validate the plugin and mod
-        # The mod must not reach the file system, processes or the network itself (AGENTS.md). Validate
+        # The mod must not reach the file system, processes or the network itself (.lintel/steering/conventions.md). Validate
         # lists those calls but does not fail on them, so this step does. It fails closed: if a Claude Code
         # release stops printing the `calls:` line, the step fails rather than passing unchecked.
         run: |
@@ -69,7 +69,7 @@ jobs:
             exit 1
           fi
           if grep -E 'calls:.*\$\.(fs|process|http)\b' "$RUNNER_TEMP/validate.txt"; then
-            echo "::error::The mod calls \$.fs, \$.process or \$.http; see AGENTS.md, Verification."
+            echo "::error::The mod calls \$.fs, \$.process or \$.http; see .lintel/steering/conventions.md."
             exit 1
           fi
       - name: Type-check

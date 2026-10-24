@@ -1,0 +1,67 @@
+{
+  "markers": [
+    "pyproject.toml",
+    "setup.py",
+    "requirements.txt"
+  ],
+  "paths": {
+    "tests": {
+      "unit": {
+        "paths": [
+          "tests/**",
+          "**/*_test.py",
+          "**/test_*.py",
+          "!**/integration/**",
+          "!**/*_integration_test.py",
+          "!**/test_integration*.py",
+          "!**/e2e/**",
+          "!**/*_e2e_test.py",
+          "!**/test_e2e*.py",
+          "!**/fixtures/**",
+          "!**/testdata/**",
+          "!**/__snapshots__/**",
+          "!*.config.*"
+        ]
+      },
+      "integration": {
+        "paths": [
+          "**/integration/**",
+          "**/*_integration_test.py",
+          "**/test_integration*.py"
+        ]
+      },
+      "e2e": {
+        "paths": [
+          "**/e2e/**",
+          "**/*_e2e_test.py",
+          "**/test_e2e*.py"
+        ]
+      }
+    },
+    "build": [
+      "pyproject.toml",
+      "setup.py",
+      "requirements.txt"
+    ],
+    "testReport": [
+      "**/.coverage",
+      "**/coverage.xml",
+      "**/htmlcov/**"
+    ],
+    "testOutput": [
+      "**/.pytest_cache/**",
+      "**/__pycache__/**"
+    ]
+  },
+  "skills": {
+    "architect": [
+      "lintel:python-design"
+    ],
+    "qa": [
+      "lintel:python-testing"
+    ],
+    "dev": [
+      "lintel:python-implementation"
+    ]
+  }
+}

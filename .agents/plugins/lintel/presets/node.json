@@ -1,0 +1,84 @@
+{
+  "markers": [
+    "package.json"
+  ],
+  "paths": {
+    "tests": {
+      "unit": {
+        "paths": [
+          "**/test/**",
+          "**/tests/**",
+          "**/__tests__/**",
+          "**/*.test.*",
+          "**/*.spec.*",
+          "!**/test*/**/integration/**",
+          "!**/*.integration.*",
+          "!**/*_integration_test.*",
+          "!**/e2e/**",
+          "!**/cypress/**",
+          "!**/playwright/**",
+          "!**/*.e2e.*",
+          "!**/*.e2e-spec.*",
+          "!*.config.*",
+          "!**/__snapshots__/**",
+          "!**/__mocks__/**",
+          "!**/fixtures/**",
+          "!**/testdata/**"
+        ]
+      },
+      "integration": {
+        "paths": [
+          "**/test*/**/integration/**",
+          "**/*.integration.*",
+          "**/*_integration_test.*",
+          "!**/e2e/**",
+          "!**/cypress/**",
+          "!**/playwright/**",
+          "!**/*.e2e.*",
+          "!**/*.e2e-spec.*"
+        ]
+      },
+      "e2e": {
+        "paths": [
+          "**/e2e/**",
+          "**/cypress/**",
+          "**/playwright/**",
+          "**/*.e2e.*",
+          "**/*.e2e-spec.*"
+        ]
+      }
+    },
+    "build": [
+      "package.json",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "tsconfig*.json",
+      "next.config.*",
+      "vite.config.*"
+    ],
+    "testReport": [
+      "**/junit*.xml",
+      "**/test-results/**",
+      "**/playwright-report/**",
+      "**/e2e-report/**"
+    ],
+    "testOutput": [
+      "**/dist/**",
+      "**/build/**",
+      "**/.next/**",
+      "**/coverage/**"
+    ]
+  },
+  "skills": {
+    "architect": [
+      "lintel:node-design"
+    ],
+    "qa": [
+      "lintel:node-testing"
+    ],
+    "dev": [
+      "lintel:node-implementation"
+    ]
+  }
+}

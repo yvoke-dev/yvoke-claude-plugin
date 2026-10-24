@@ -1,0 +1,57 @@
+{
+  "markers": [
+    "pom.xml"
+  ],
+  "paths": {
+    "tests": {
+      "unit": {
+        "paths": [
+          "src/test/**",
+          "!**/*IT.java",
+          "!src/it/**",
+          "!**/test*/**/integration/**",
+          "!**/*.integration.*",
+          "!**/*_integration_test.*",
+          "!**/e2e/**",
+          "!**/cypress/**",
+          "!**/playwright/**",
+          "!**/*.e2e.*",
+          "!**/*.e2e-spec.*",
+          "!*.config.*",
+          "!**/__snapshots__/**",
+          "!**/__mocks__/**",
+          "!**/fixtures/**",
+          "!**/testdata/**"
+        ]
+      },
+      "integration": {
+        "paths": [
+          "**/*IT.java",
+          "src/it/**"
+        ]
+      }
+    },
+    "build": [
+      "pom.xml",
+      ".mvn/**"
+    ],
+    "testReport": [
+      "**/target/surefire-reports/**",
+      "**/target/failsafe-reports/**"
+    ],
+    "testOutput": [
+      "**/target/test-classes/**"
+    ]
+  },
+  "skills": {
+    "architect": [
+      "lintel:java-design"
+    ],
+    "qa": [
+      "lintel:java-testing"
+    ],
+    "dev": [
+      "lintel:java-implementation"
+    ]
+  }
+}

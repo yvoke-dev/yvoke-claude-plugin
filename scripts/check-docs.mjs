@@ -1,12 +1,12 @@
 // Checks the repository's Markdown: every relative link points at a file that exists, and every
-// `#anchor` on it matches a heading there. Also checks that CLAUDE.md is exactly `@AGENTS.md`.
+// `#anchor` on it matches a heading there.
 // Usage: node scripts/check-docs.mjs   (exit code 1 on any problem)
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { join, dirname, resolve, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const skip = new Set(['.git', 'node_modules'])
+const skip = new Set(['.git', 'node_modules', '.agents', '.lintel'])
 const problems = []
 
 const files = []
@@ -51,10 +51,6 @@ for (const file of files) {
   }
 }
 
-const claude = join(root, 'CLAUDE.md')
-if (!existsSync(claude) || readFileSync(claude, 'utf8').trim() !== '@AGENTS.md') {
-  problems.push('CLAUDE.md: must be exactly the line @AGENTS.md')
-}
 
 if (problems.length) {
   console.error(problems.join('\n'))

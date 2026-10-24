@@ -1,0 +1,151 @@
+{
+  "paths": {
+    "tests": {
+      "unit": {
+        "paths": [
+          "**/test/**",
+          "**/tests/**",
+          "**/__tests__/**",
+          "**/*_test.*",
+          "**/*.test.*",
+          "**/*.spec.*",
+          "**/test_*.py",
+          "**/*Test.*",
+          "**/*Tests.*",
+          "!**/test*/**/integration/**",
+          "!**/src/it/**",
+          "!**/src/integrationTest/**",
+          "!**/*IT.*",
+          "!**/*.integration.*",
+          "!**/*_integration_test.*",
+          "!**/e2e/**",
+          "!**/cypress/**",
+          "!**/playwright/**",
+          "!**/*.e2e.*",
+          "!**/*.e2e-spec.*",
+          "!*.config.*",
+          "!pytest.ini",
+          "!**/conftest.py",
+          "!**/__snapshots__/**",
+          "!**/__mocks__/**",
+          "!**/fixtures/**",
+          "!**/testdata/**"
+        ],
+        "required": true
+      },
+      "integration": {
+        "paths": [
+          "**/test*/**/integration/**",
+          "**/src/it/**",
+          "**/src/integrationTest/**",
+          "**/*IT.*",
+          "**/*.integration.*",
+          "**/*_integration_test.*",
+          "!**/e2e/**",
+          "!**/cypress/**",
+          "!**/playwright/**",
+          "!**/*.e2e.*",
+          "!**/*.e2e-spec.*"
+        ],
+        "required": true
+      },
+      "e2e": {
+        "paths": [
+          "**/e2e/**",
+          "**/cypress/**",
+          "**/playwright/**",
+          "**/*.e2e.*",
+          "**/*.e2e-spec.*"
+        ],
+        "required": true
+      },
+      "support": {
+        "paths": [
+          "jest.config.*",
+          "vitest.config.*",
+          "playwright.config.*",
+          "pytest.ini",
+          "**/conftest.py",
+          "**/__snapshots__/**",
+          "**/__mocks__/**",
+          "**/fixtures/**",
+          "**/testdata/**"
+        ],
+        "required": false
+      }
+    },
+    "testOutput": [
+      "**/target/test-classes/**",
+      "**/__pycache__/**",
+      "**/.pytest_cache/**",
+      "**/coverage/**",
+      "**/htmlcov/**",
+      "**/lcov-report/**"
+    ],
+    "testReport": [
+      "**/surefire-reports/**",
+      "**/failsafe-reports/**",
+      "**/TEST-*.xml"
+    ],
+    "build": [
+      "**/pom.xml",
+      "**/package.json",
+      "**/build.gradle*",
+      "**/settings.gradle*",
+      "**/buildSrc/**",
+      "**/setup.py",
+      "**/pyproject.toml",
+      "**/noxfile.py",
+      "**/gulpfile.*",
+      "**/Rakefile",
+      "**/mix.exs",
+      "**/Package.swift",
+      "**/CMakeLists.txt",
+      "**/Makefile"
+    ],
+    "source": [
+      "**/*.java",
+      "**/*.kt",
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.mjs",
+      "**/*.cjs",
+      "**/*.py",
+      "**/*.go",
+      "**/*.rs",
+      "**/*.cs",
+      "**/*.rb",
+      "**/*.php",
+      "**/*.swift",
+      "**/*.c",
+      "**/*.cpp",
+      "**/*.h",
+      "**/*.md"
+    ],
+    "drift": [
+      "**/setupTests.*",
+      "**/jest.setup.*",
+      "**/vitest.setup.*"
+    ]
+  },
+  "skills": {
+    "po": [
+      "lintel:requirements",
+      "lintel:specs"
+    ],
+    "architect": [
+      "lintel:secure-coding",
+      "lintel:operability",
+      "lintel:test-design"
+    ],
+    "qa": [
+      "lintel:test-design"
+    ],
+    "dev": [
+      "lintel:secure-coding",
+      "lintel:operability"
+    ]
+  }
+}
