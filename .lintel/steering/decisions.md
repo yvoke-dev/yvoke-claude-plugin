@@ -334,15 +334,15 @@ To add one, append `### D-36: <short title>` (the next free number) with status,
 
 - **Status:** live (not built yet, PLAN.md section 4.1)
 - **Decided:** 2026-10-24
-- **Decision:** The domains `WebSearch` and `WebFetch` may reach, and the on/off switch for web access,
-  are set by the organisation through managed settings (`pluginConfigs`), not by the user with
-  `/plugin configure`. If a user turns out to be able to override a managed value, the allow-list is
-  served from yvoke-web instead.
+- **Decision:** The domains `WebSearch` and `WebFetch` may reach are set by the organisation through
+  managed settings (`pluginConfigs`), not by the user with `/plugin configure`. The on/off switch for web
+  access stays a per-user setting (default off), as on yvoke-desktop. If a user turns out to be able to
+  override a managed value, the allow-list is served from yvoke-web instead.
 - **Why:** On yvoke-desktop the allow-list is deployment configuration for a reason: the domains worth
   searching belong to the knowledge base, so they ship with the deployment and are never read from a
-  user's profile, and an empty list was never a working user choice. (The desktop's own switch is still a
-  user preference; the plugin is stricter there on purpose.) The server stays the source of truth if
-  managed settings cannot hold the line.
+  user's profile, and an empty list was never a working user choice. The desktop's own switch is a user
+  preference, so the plugin's is too. The server stays the source of truth if managed settings cannot hold
+  the line.
 
 ### D-35: The repository is licensed Apache-2.0
 
