@@ -443,9 +443,11 @@ describe('a headless Claude Code session with the plugin installed', () => {
 
   // What the model is told. `claude -p` composes the system prompt once, at start-up, so the instructions
   // that the first question loads in `prompt.submit` cannot reach it: even a plain `prompt.compose` mod
-  // sees its state from before the first prompt in every later turn. The interactive REPL composes after
-  // the submit hooks, so this is a limit of the headless run, not of the mod. The test stays as a marker
-  // for the day a headless run can show it, and `todo` keeps its failure from failing the group.
+  // sees its state from before the first prompt in every later turn (Claude Code 2.1.287 and 2.1.310). The
+  // interactive REPL composes after the submit hooks and applied the section to the first answer, so this is
+  // a limit of the headless run, not of the mod; system-prompt.md and PLAN.md section 9.2 record it. The test
+  // stays as a marker for the day a headless run can show it, and `todo` keeps its failure from failing the
+  // group.
   test(
     'the main-loop request carries the composed instructions',
     { todo: '`claude -p` composes the system prompt before the first question loads the instructions' },

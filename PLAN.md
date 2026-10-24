@@ -93,6 +93,10 @@ Each feature is designed to live in its own `plugins/yvoke/src/` module (with pu
 - **Connection & Token Refresh Verification (production):**
   - Once the registration exists, verify `$.mcp.connect('yvoke')` and `$.mcp.call` in both the Desktop Code tab and terminal after Entra ID sign-in, and confirm how token expiry/refresh errors surface through `callYvoke` (`src/server.ts`).
 
+- **First-Answer Instructions Verification (Desktop Code tab, must do before rollout):**
+  - `claude -p` composes the system prompt once at start-up, before the first question's `prompt.submit` loads the instructions, so a headless run never applies the `yvoke:instructions` section (nor the refusal section) on 2.1.287 or 2.1.310; an interactive terminal session does ([`system-prompt.md`](.lintel/specs/system-prompt.md)). Verify in the Claude Desktop Code tab, on the minimum version and on `latest`, that the section reaches the **first** answer of a `/yvoke` session. If that tab drives Claude Code headlessly, the same gap hits real users: their answers would run without the playbook.
+  - If it does not reach the first answer, the owner decides whether a Yvoke session should refuse the question wherever the section cannot be applied. Nothing refuses it today, and this check does not build a refusal.
+
 ### 3.2 Playbook Preflight Check (`plugins/yvoke/src/preflight.ts`)
 
 - **Settings (`plugins/yvoke/.claude-plugin/plugin.json` `userConfig`, as `yvoke-desktop`'s `playbookValidationEnabled` and `playbookValidationExcludedPlaybooks`, D-32):**
@@ -340,6 +344,7 @@ This is both a plugin and a server task. An MCP call carries no session context,
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | Mod API changes between Claude Code releases | Mod fails to load or misbehaves after an update | CI runs against both pinned minimum (`2.1.287`) and `latest`; runtime minimum version check in Milestone 5 |
+| Claude Code composes the system prompt before the first question in a headless run (`claude -p`), so the Yvoke instructions are not applied there; an interactive terminal session applies them | If the Desktop Code tab runs Claude Code headlessly, consultants get answers without the playbook and nothing tells them | Check in the Desktop Code tab that the section reaches the first answer ([§3.1](#31-entra-id-public-client-registration--production-mcpjson-connector)); the owner then decides whether a Yvoke session refuses questions where the section cannot be applied. No refusal is built now |
 | Organization managed settings skip `prompt.compose` / `classic.SessionStart` on user-installed local clones | System prompt instructions or `/resume` restoration skipped in managed orgs | Deploy via organization managed settings or MDM directory marketplace (`deploy/managed-settings.json`, Milestone 5) |
 | The test kit differs from the real engine (it does not route `$.mcp.call` through `tool.call`) | A gate bug the unit tests cannot see: the gate once refused the mod's own server calls and dropped every Yvoke question | A live headless integration test runs a real Claude Code session on the minimum version and on `latest` in CI ([`testing.md`](.lintel/steering/testing.md)); spikes check each new engine behaviour live before relying on the kit |
 | Claude Code's MCP OAuth sign-in may not work against Entra (no `registration_endpoint`, the `resource` parameter, audience or scope, refresh) | The plugin cannot sign anyone in to the real server, found late and with an IT wait | The Entra sign-in spike against a test tenant comes first ([§3.1](#31-entra-id-public-client-registration--production-mcpjson-connector), [§2](#2-recommended-implementation-order)) |

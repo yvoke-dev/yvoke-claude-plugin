@@ -84,7 +84,18 @@ is smaller. If the remaining hook budget minus the 1,500 ms reserve is under 1,0
 (`remainingMs() - 1500 < 1000`), the hook drops the question at once without calling the server:
 `Yvoke Backend: there was not enough time left to load the instructions. Send the question again.`
 
-> unverified: Live interactive Claude Code session check that the first answer already sees the composed section and whether subagent prompts also pass through prompt.compose.
+- **Limit: a headless run never gets the instructions.** `claude -p` composes the system prompt once, at
+  start-up, before the first question's `prompt.submit` has loaded the instructions. So in a `-p` run every
+  request carries the prompt from before the first question: the `yvoke:instructions` section, and the
+  refusal section, never reach the model. This holds on Claude Code 2.1.287 and 2.1.310, and a plain mod
+  whose `prompt.compose` adds a section that depends on state set in `prompt.submit` shows the same. An
+  interactive session composes after the submit hooks, and there the section was applied to the first
+  answer. In a headless run the question is still answered, under Claude Code's own prompt, with the
+  tool gate and the turn limits enforced as usual, and the setup locks as if the instructions had been
+  applied. Whether a Yvoke session should refuse questions where the section cannot be applied is open
+  (the Desktop Code tab may be such a place; PLAN.md section 9.2), and nothing refuses them today.
+
+> unverified: whether subagent prompts also pass through prompt.compose.
 
 ## Interfaces
 

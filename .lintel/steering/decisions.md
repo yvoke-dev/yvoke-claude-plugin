@@ -385,6 +385,12 @@ Written down so nobody "fixes" them by accident.
   Milestone 4) can only collapse rejected drafts on screen; the transcript, `/resume` and copy keep them.
 - **VS Code, WSL and cloud sessions are not supported.** Hooks may run there, but no UI is drawn, or no
   plugin loads at all.
+- **A headless run never applies the Yvoke instructions.** `claude -p` composes the system prompt before
+  the first question loads them, so `prompt.compose` cannot add the `yvoke:instructions` section there
+  (2.1.287 and 2.1.310); an interactive session does apply it. Questions in a headless run are answered
+  without the playbook and nothing refuses them. If the Desktop Code tab drives Claude Code headlessly,
+  real users would hit this: PLAN.md section 9.2 holds the check and the owner's decision
+  ([system-prompt.md](../specs/system-prompt.md)).
 - **A subagent cannot use `AskUserQuestion`.** Claude Code removes it from every subagent, so a specialist
   can ask the user only through an MCP tool, the server's `ask_clarifying_question` (D-27).
 - **`/branch` can take the wrong parent.** A branch finds its parent through the `$.store` key `ended`. If
