@@ -36,7 +36,7 @@ yvoke-claude-plugin/
 ├── .agents/
 │   └── skills/                      # Project skills (`claude-code-mod`, `claude-code-testing`, `yvoke-domain`, `rag`)
 ├── .lintel/
-│   ├── config.jsonc                 # Lintel path classifications, role skills, steering, and personas
+│   ├── config.jsonc                 # Lintel path classifications, role skills, and steering
 │   ├── scripts/                     # Build, setup, and test runner scripts (`build.sh`, `setup.sh`, etc.)
 │   ├── specs/                       # Living specifications per feature area
 │   └── steering/                    # Project steering (`product.md`, `architecture.md`, `tech.md`, `structure.md`, `conventions.md`, `decisions.md`, `testing.md`)

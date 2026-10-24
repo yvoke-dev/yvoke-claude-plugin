@@ -93,17 +93,5 @@
     "qa": [
       "testing.md"
     ]
-  },
-  "personas": {
-    "po": ".lintel/personas/po.md",
-    "po-reviewer": ".lintel/personas/po-reviewer.md",
-    "architect": ".lintel/personas/architect.md",
-    "architect-reviewer": ".lintel/personas/architect-reviewer.md",
-    "qa": ".lintel/personas/qa.md",
-    "qa-reviewer": ".lintel/personas/qa-reviewer.md",
-    "dev": ".lintel/personas/dev.md",
-    "dev-reviewer": ".lintel/personas/dev-reviewer.md",
-    "arbiter": ".lintel/personas/arbiter.md",
-    "final-reviewer": ".lintel/personas/final-reviewer.md"
   }
 }
