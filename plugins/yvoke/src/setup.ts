@@ -7,7 +7,7 @@
 // be tested without the engine.
 import type { ElementConstructor, On, PluginOptions, RenderElement, SelectProps } from 'claude-code'
 import { callYvoke, type ServerIo } from './server'
-import { ENDED, endedId } from './session'
+import { ENDED, endedId, setupKey } from './session'
 
 /** Multi-agent mode is offered once PLAN.md Milestone 4 is built. Until then only single agent runs. */
 export const MULTI_AGENT_READY = false
@@ -210,9 +210,6 @@ export const loadedOn = (
 
 export const LOADING = 'Loading the Yvoke setup…'
 export const DROP_FAILED = 'Yvoke Backend: the session could not be set up, so the question was not sent.'
-
-/** The `$.store` key holding one session's setup, next to src/session.ts's `session:<id>`. */
-export const setupKey = (sessionId: string) => `setup:${sessionId}`
 
 export type CatalogueState = { ok: true; catalogue: Catalogue } | { ok: false; error: string }
 

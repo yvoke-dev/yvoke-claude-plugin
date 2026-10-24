@@ -1,6 +1,7 @@
 // session.md, D-13: a session becomes a Yvoke session only when the user types /yvoke before the first
 // question. The flag lives in $.state (reset by /clear) and is saved per session id in $.store, so /resume
-// and /branch keep it. This file is the only writer of the flag.
+// and /branch keep it. This file is the only writer of the flag. /yvoke also deletes the entries of sessions
+// beyond the newest 5,000 (D-28).
 //
 // Every enforcing hook in another module opens with these two lines, written in its own file (the engine
 // follows $ and $.state references only within one file, so there can be no shared helper):
@@ -19,6 +20,9 @@ export const FAILED = 'Yvoke: /yvoke did not work. Try it again.'
 /** The `$.store` key holding one session's Yvoke entry. */
 export const sessionKey = (sessionId: string) => `session:${sessionId}`
 
+/** The `$.store` key holding one session's setup, written by src/setup.ts; here so the prune can name it. */
+export const setupKey = (sessionId: string) => `setup:${sessionId}`
+
 /**
  * The `$.store` key naming the session that ended last, `{ sessionId }`. Claude Code starts a /branch with
  * empty `$.state` and names no parent, but ends the parent just before, so the fork reads its parent here.
@@ -34,6 +38,33 @@ export const endedId = (entry: unknown) =>
 /** Whether a stored entry marks a Yvoke session. */
 export const isSavedYvoke = (entry: unknown) =>
   typeof entry === 'object' && entry !== null && (entry as { yvoke?: unknown }).yvoke === true
+
+/** How many sessions keep their `$.store` entries when /yvoke prunes the older ones (D-28). */
+export const KEEP_SESSIONS = 5000
+
+/**
+ * The `session:<id>` and `setup:<id>` keys of every session but the newest `keep`, out of `$.store.keys()`.
+ * A session is as old as its first key: the store lists keys in insertion order, and setting a key again
+ * keeps its place. Any other key, `ended` among them, is never returned.
+ */
+export const staleKeys = (keys: readonly string[], keep: number): string[] => {
+  const prefixes = [sessionKey(''), setupKey('')]
+  const idOf = (key: string) => {
+    const prefix = prefixes.find((p) => key.startsWith(p))
+    return prefix === undefined ? undefined : key.slice(prefix.length)
+  }
+  // A Set iterates in the order its members were first added: oldest session first.
+  const ids = new Set<string>()
+  for (const key of keys) {
+    const id = idOf(key)
+    if (id !== undefined) ids.add(id)
+  }
+  const stale = new Set([...ids].slice(0, Math.max(0, ids.size - keep)))
+  return keys.filter((key) => {
+    const id = idOf(key)
+    return id !== undefined && stale.has(id)
+  })
+}
 
 export function registerSession(on: On) {
   on('session.start', async ($, e, next) => {
@@ -54,6 +85,12 @@ export function registerSession(on: On) {
     // Yvoke after /resume; the user sees the failure line and can type /yvoke again.
     await $.store.set(sessionKey(await $.session.id()), { yvoke: true })
     await $.state.set(FLAG, true)
+    // D-28: nothing else empties the store, and a full one refuses every write.
+    try {
+      for (const key of staleKeys(await $.store.keys(), KEEP_SESSIONS)) await $.store.delete(key)
+    } catch {
+      // The session has started either way, so the user sees nothing; the next /yvoke tries again.
+    }
     return { text: STARTED }
   }).catch(() => ({ text: FAILED }))
 

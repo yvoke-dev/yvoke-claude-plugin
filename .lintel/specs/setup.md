@@ -80,8 +80,9 @@
     playbook and lock stay as they were.
 - A question that entered the session is never reported as dropped, even when saving the lock fails;
   the lock then holds for this session, and `/resume` finds the setup unlocked.
-- The saved setups (`setup:<session id>`) are a few hundred bytes each, in the plugin's 4 MiB store. They
-  are not pruned yet; at that size thousands of sessions fit.
+- The saved setups (`setup:<session id>`) are a few hundred bytes each, in the plugin's 4 MiB store.
+  `/yvoke` keeps the entries of the newest 5,000 sessions, about 1.25 MiB, and deletes the rest (D-28,
+  [session.md](session.md)).
 - A failure inside the question hook, before the question has gone down, drops the question:
   *Yvoke Backend: the session could not be set up, so the question was not sent.*
 

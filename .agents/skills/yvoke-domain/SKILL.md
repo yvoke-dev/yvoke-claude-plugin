@@ -44,6 +44,7 @@ Authoritative domain rules for `yvoke-claude-plugin` and its parity contracts wi
 1. **Opt-In Per Session (`/yvoke`):**
    - A session becomes a Yvoke session only when the user runs `/yvoke` before the first question (`$.session.turns() === 0`).
    - `/yvoke` writes `{ yvoke: true }` to `$.store` (`session:<sessionId>`) before setting `$.state` (`yvokeSession: true`).
+   - Once both writes succeed, `/yvoke` deletes the `session:` and `setup:` entries of sessions beyond the newest `KEEP_SESSIONS` (5,000), by insertion order (`staleKeys`). A failed prune is ignored and the session still starts (D-28).
 2. **Area-First Setup Band (`AbovePrompt`):**
    - Selects **Area** (default `OIM`, or first area) -> **Mode** (`Single agent`; `Multi-agent` is gated behind `MULTI_AGENT_READY = false` in `setup.ts` until multi-agent profiles are wired) -> **Playbook** (`<name> v<version>`, default `area.defaultPlaybook`) or **Profile** (`area.defaultProfile`).
    - Prototype areas and playbooks (`prototype: true`) are hidden unless `options.showPrototypes === true`.

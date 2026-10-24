@@ -17,11 +17,16 @@ type Session = {
   store: Map<string, unknown>
   registered: string[]
   writes: string[]
+  deleted: string[]
+  listed: number
   failStore: boolean
   failStoreRead: boolean
+  failKeys: boolean
+  failDelete: boolean
 }
 
 // The engine beneath the plugin: a session id, a turn count, an in-memory store, and the command list.
+// A Map lists its keys in insertion order and keeps a key's place when it is set again, as `$.store` does.
 function engine(on: On, start: Partial<Session> = {}): Session {
   const s: Session = {
     id: 'session-a',
@@ -29,8 +34,12 @@ function engine(on: On, start: Partial<Session> = {}): Session {
     store: new Map(),
     registered: [],
     writes: [],
+    deleted: [],
+    listed: 0,
     failStore: false,
     failStoreRead: false,
+    failKeys: false,
+    failDelete: false,
     ...start,
   }
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
@@ -50,9 +59,30 @@ function engine(on: On, start: Partial<Session> = {}): Session {
     s.store.set(e.key, e.value)
     return { value: undefined }
   })
+  on('store.keys', () => {
+    s.listed++
+    if (s.failKeys) throw new Error('store unreadable')
+    return { value: [...s.store.keys()] }
+  })
+  on('store.delete', (_$, e) => {
+    if (s.failDelete) throw new Error('disk full')
+    s.deleted.push(e.key)
+    s.store.delete(e.key)
+    return { value: undefined }
+  })
   on('classic.SessionStart', () => ({}))
   return s
 }
+
+// A store that already holds `count` older sessions, oldest first, each with its flag and its setup.
+const older = (count: number) =>
+  new Map<string, unknown>([
+    ['ended', { sessionId: `old-${count - 1}` }],
+    ...Array.from({ length: count }, (_, i): [string, unknown][] => [
+      [`session:old-${i}`, { yvoke: true }],
+      [`setup:old-${i}`, { area: 'OIM' }],
+    ]).flat(),
+  ])
 
 // The user typing /yvoke at the prompt.
 const typeYvoke = ($: Engine) =>
@@ -213,4 +243,87 @@ test('/resume when the saved entry cannot be read leaves the session plain', asy
   await $.classic.SessionStart({ source: 'resume', session_id: 'unknown' })
 
   expect(await typeYvoke($)).toMatchObject({ text: TOO_LATE })
+})
+
+// D-28: once a session has started, /yvoke deletes the entries of every session beyond the newest 5,000.
+
+test('/yvoke past 5,000 saved sessions deletes the oldest ones and keeps the new one', async ($, on) => {
+  const s = engine(on, { store: older(5002) })
+  await begin($)
+
+  expect(await typeYvoke($)).toMatchObject({ text: STARTED })
+  expect(s.deleted).toEqual([
+    'session:old-0',
+    'setup:old-0',
+    'session:old-1',
+    'setup:old-1',
+    'session:old-2',
+    'setup:old-2',
+  ])
+  expect(s.store.get('session:session-a')).toEqual({ yvoke: true })
+  expect(s.store.has('session:old-3')).toBe(true)
+  expect(s.store.has('setup:old-3')).toBe(true)
+  expect(s.store.get('ended')).toEqual({ sessionId: 'old-5001' })
+  expect(await typeYvoke($)).toMatchObject({ text: ALREADY })
+})
+
+test('/yvoke with 5,000 sessions in all, the new one among them, deletes nothing', async ($, on) => {
+  const s = engine(on, { store: older(4999) })
+  await begin($)
+
+  expect(await typeYvoke($)).toMatchObject({ text: STARTED })
+  expect(s.listed).toBe(1)
+  expect(s.deleted).toEqual([])
+})
+
+test('/yvoke when the store cannot list its keys still starts the session', async ($, on) => {
+  const s = engine(on, { store: older(5001), failKeys: true })
+  await begin($)
+
+  expect(await typeYvoke($)).toMatchObject({ text: STARTED })
+  expect(s.listed).toBe(1)
+  expect(s.deleted).toEqual([])
+  expect(s.store.get('session:session-a')).toEqual({ yvoke: true })
+  expect(await typeYvoke($)).toMatchObject({ text: ALREADY })
+})
+
+test('/yvoke when a delete fails still starts the session', async ($, on) => {
+  const s = engine(on, { store: older(5001), failDelete: true })
+  await begin($)
+
+  expect(await typeYvoke($)).toMatchObject({ text: STARTED })
+  expect(s.listed).toBe(1)
+  expect(s.store.has('session:old-0')).toBe(true)
+  expect(s.store.get('session:session-a')).toEqual({ yvoke: true })
+  expect(await typeYvoke($)).toMatchObject({ text: ALREADY })
+})
+
+test('/yvoke in a session that is Yvoke already deletes nothing', async ($, on) => {
+  const s = engine(on, { store: older(5000) })
+  await begin($)
+  await typeYvoke($)
+  // Over the limit again: a prune now would take old-1.
+  s.store.set('session:later', { yvoke: true })
+
+  expect(await typeYvoke($)).toMatchObject({ text: ALREADY })
+  expect(s.listed).toBe(1)
+  expect(s.deleted).toEqual(['session:old-0', 'setup:old-0'])
+})
+
+test('/yvoke after the first question deletes nothing', async ($, on) => {
+  const s = engine(on, { store: older(5001), turns: 1 })
+  await begin($)
+
+  expect(await typeYvoke($)).toMatchObject({ text: TOO_LATE })
+  expect(s.listed).toBe(0)
+  expect(s.deleted).toEqual([])
+})
+
+test('/yvoke whose save fails deletes nothing', async ($, on) => {
+  const s = engine(on, { store: older(5001), failStore: true })
+  await begin($)
+
+  expect(await typeYvoke($)).toMatchObject({ text: FAILED })
+  expect(s.listed).toBe(0)
+  expect(s.deleted).toEqual([])
 })

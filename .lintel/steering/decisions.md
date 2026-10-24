@@ -2,7 +2,7 @@
 
 The decisions behind the plugin and why they were made; where an entry disagrees with the specs or PLAN.md, those win.
 
-To add one, append `### D-28: <short title>` (the next free number) with status, date, decision and why; keep IDs stable and never reuse one.
+To add one, append `### D-29: <short title>` (the next free number) with status, date, decision and why; keep IDs stable and never reuse one.
 
 ### D-01: Claude plans and install route
 
@@ -250,6 +250,21 @@ To add one, append `### D-28: <short title>` (the next free number) with status,
 - **Why:** Over MCP the tool asks nobody, so the client has to. Prompts and playbooks name the same tool
   on every surface. Claude Code removes the built-in `AskUserQuestion` from every subagent but keeps MCP
   tools, so only an MCP tool lets a specialist ask the user.
+
+### D-28: /yvoke keeps the store to the newest 5,000 sessions
+
+- **Status:** live
+- **Decided:** 2026-10-24
+- **Decision:** Once `/yvoke` has saved a new Yvoke session, it deletes the `$.store` entries
+  (`session:<id>` and `setup:<id>`) of every session beyond the newest 5,000. Age is the order the store
+  lists keys in, by each session's first key. The prune is best-effort: if it fails, the session starts
+  all the same and the user sees nothing ([session.md](../specs/session.md)).
+- **Why:** Nothing deleted those entries before, and once the 4 MiB store is full the failure is total
+  and says nothing: `/yvoke` does not work, and a Yvoke session drops every question with *the session
+  could not be set up*. The entries carry no timestamps, and insertion order already gives their age. 5,000
+  sessions take about 1.25 MiB, under a third of the store. Even at 50 Yvoke sessions a day that is about
+  100 days, well past Claude Code's default 30-day transcript cleanup, after which `/resume` cannot reopen
+  them anyway.
 
 ## Known gaps and not planned
 
