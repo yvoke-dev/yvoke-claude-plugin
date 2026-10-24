@@ -25,7 +25,11 @@ Most scenarios belong in the **`unit`** group: pure rule tests (`-rules` suites)
 Put a scenario in **`integration`** when it depends on how the real engine, the MCP connection or the model request behave, which the kit cannot show:
 - a `$.mcp.call`, `$.tool.call` or other `$` call that crosses into another hook of the plugin (the gate in `policy.ts` against `/yvoke` and the first question);
 - what reaches the Yvoke server (tool names, the `X-Yvoke-Dev-Mode` header) or the model (the tools offered, a refusal coming back as a `tool_result`);
-- the mod staying out of a session that did not start with `/yvoke`.
+- the mod staying out of a session that did not start with `/yvoke`;
+- a call that passes only because a `tool.check` hook grants it: the runs pass no `--allowedTools`, and `-p` refuses what is not granted, so they show the plugin needs no grant from the user (D-36);
+- `/resume` and `/branch`: `claude -p --resume <id>` (and `--fork-session`) raises `classic.SessionStart` with source `resume` (`fork`) and brings back the saved setup, so a test can run a session, change or damage the plugin's saved entry between two runs, and resume it.
+
+The plugin's `$.store` is one JSON file per plugin at `$CLAUDE_CONFIG_DIR/plugins/store/yvoke_yvoke-<hash>.json` (`session:<id>`, `setup:<id>`, `ended`). The integration test reads it and, between two runs, removes or corrupts a `setup:<id>` entry. At `classic.SessionStart` of a `-p --resume` run `$.session.turns()` is 0 whatever the transcript holds and `$.session.messages()` is not available, so a rule that needs to know whether a resumed session has questions reads the start event's `seconds_since_last_response` and `context_tokens`, which are there exactly when the transcript has an answer (`hasQuestions` in `src/setup.ts`, [setup.md](../specs/setup.md)). Seen the same on 2.1.287 and 2.1.310.
 
 Keep everything else in `unit`. An integration test costs a process start and has fewer ways to stage a failure; it is there for the boundary, not for rule coverage.
 

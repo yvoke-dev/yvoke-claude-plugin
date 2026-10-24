@@ -80,8 +80,15 @@
   - `/clear`, and every `/resume` or `/branch` start, resets it, so a later session that restores its
     setup is usable. `/yvoke` does not reset it: the session is already a Yvoke session.
   - The setup is lost when the saved entry cannot be read (the store read fails), when it is there but is
-    not a valid setup, when the session already has questions (`$.session.turns()` above 0) and there is no
-    saved setup, and when the restore hook itself fails (a `.catch` records it).
+    not a valid setup, when the session already has questions and there is no saved setup, and when the
+    restore hook itself fails (a `.catch` records it).
+  - A session has questions when `$.session.turns()` is above 0, or when the start event of the resume or
+    branch says its transcript has an answer: it carries `seconds_since_last_response` or `context_tokens`
+    (a number, zero included) and leaves both out when the transcript has none. The second signal exists
+    because a `claude -p --resume` run reports 0 turns at that moment whatever the transcript holds (seen on
+    Claude Code 2.1.287 and 2.1.310), and without it a session whose saved setup was lost would be taken
+    for one with no question yet and given the area's defaults. A transcript whose questions never got an
+    answer carries neither, so a headless resume of it counts as having none.
   - These are not lost: a Yvoke session resumed or branched before its first question with no saved
     setup (nothing is saved until a pick or the first question, so the band loads the defaults, as for a
     new session), and a plain session, whatever the store holds.
@@ -126,7 +133,7 @@
 | --- | --- |
 | Rules (catalogue, defaults, picks, read-only line, the loaded version at the lock, version upgrade on resume/branch or a late load) and hooks | `plugins/yvoke/src/setup.ts` |
 | Band | `ui.render` on `AbovePrompt` (terminal and desktop); `Select` keys `yvoke-area`, `yvoke-mode`, `yvoke-playbook`, `yvoke-profile`; Button `yvoke-retry` |
-| Restore | `classic.SessionStart` (`clear`, `resume`, `fork`, with a `.catch` that marks the session lost); `restored(stored)` reads one saved entry |
+| Restore | `classic.SessionStart` (`clear`, `resume`, `fork`, with a `.catch` that marks the session lost); `restored(stored)` reads one saved entry; `hasQuestions(turns, start)` says whether the session already has questions |
 | Loading | `command.run` on `yvoke`, `classic.SessionStart` (`resume`, `fork`), Retry, or a question with no lists or failed ones, locked or not |
 | Lock | `prompt.submit` (matcher `{ text: /^/ }`, so it can sit beside `src/system-prompt.ts`'s unmatched hook) |
 | `$.state` `yvoke.setup` | `{ area, mode: 'single' \| 'multi', playbook, version, profile, lockedSessionId }` (read by `src/system-prompt.ts` and `src/policy.ts`) |

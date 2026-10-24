@@ -7,6 +7,7 @@ import {
   modesFor,
   lineFor,
   movedOn,
+  hasQuestions,
   type Catalogue,
   type Setup,
 } from '../src/setup'
@@ -331,5 +332,30 @@ describe('movedOn (D-20)', () => {
     expect(movedOn(locked, catalogue(AREAS, JSON.stringify([playbook('oim-quick')])))).toBeNull()
     const multi = { ...pick(defaults(catalogue()), catalogue(), 'mode', 'multi', true), lockedSessionId: 'x' }
     expect(movedOn(multi, catalogue())).toBeNull()
+  })
+})
+
+// setup.md, D-29: whether a resumed or branched session already has questions, which decides if a missing
+// saved setup is lost or merely not saved yet.
+describe('hasQuestions', () => {
+  test('the engine counts the questions (an interactive session)', () => {
+    expect(hasQuestions(1, {})).toBe(true)
+    expect(hasQuestions(7, {})).toBe(true)
+  })
+
+  test('no question counted and nothing said about an answer: none', () => {
+    expect(hasQuestions(0, {})).toBe(false)
+  })
+
+  test("a `-p` run counts none at the start, but the engine says the transcript has an answer: it has questions", () => {
+    // Zero is a number: an answer a moment ago reads `seconds_since_last_response: 0`.
+    expect(hasQuestions(0, { seconds_since_last_response: 0 })).toBe(true)
+    expect(hasQuestions(0, { seconds_since_last_response: 3600 })).toBe(true)
+    expect(hasQuestions(0, { context_tokens: 18000 })).toBe(true)
+  })
+
+  test('something that is not a number says nothing', () => {
+    expect(hasQuestions(0, { seconds_since_last_response: undefined, context_tokens: undefined })).toBe(false)
+    expect(hasQuestions(0, { seconds_since_last_response: '5', context_tokens: null })).toBe(false)
   })
 })

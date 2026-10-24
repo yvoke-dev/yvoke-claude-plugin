@@ -251,6 +251,20 @@ const isSetup = (x: unknown): x is Setup => {
 export const restored = (stored: unknown): { setup: Setup | null; isFault: boolean } =>
   stored === undefined ? { setup: null, isFault: false } : isSetup(stored) ? { setup: stored, isFault: false } : { setup: null, isFault: true }
 
+/**
+ * Whether a resumed or branched session already has questions. `$.session.turns()` says so in a session the
+ * engine has bound, but a `claude -p --resume` run reports 0 at `classic.SessionStart` whatever the
+ * transcript holds (seen live, Claude Code 2.1.287 and 2.1.310), which made a lost setup look like a session
+ * with nothing in it. The start event of a resume or a fork says more: it carries
+ * `seconds_since_last_response` and `context_tokens` when the resumed transcript has an answer, and leaves
+ * both out when it has none. A zero is still a number, so each is read by its type.
+ */
+export const hasQuestions = (
+  turns: number,
+  start: { seconds_since_last_response?: unknown; context_tokens?: unknown },
+): boolean =>
+  turns > 0 || typeof start.seconds_since_last_response === 'number' || typeof start.context_tokens === 'number'
+
 const noPlaybooks = (area: string) => `Yvoke Backend: the area ${area} has no playbooks, so the question was not sent.`
 
 export function registerSetup(on: On, options: PluginOptions) {
@@ -373,15 +387,15 @@ export function registerSetup(on: On, options: PluginOptions) {
     // A session that already has questions had a setup. One with none to restore is lost, and one whose lock
     // was never saved comes back locked, as it ran, never reopened for picking. A session with no question
     // yet may simply have none saved: the band loads the defaults, as for a new session.
-    const turns = !isFault && saved?.lockedSessionId == null ? await $.session.turns() : 0
-    if (!isFault && !saved && turns > 0) isFault = true
+    const asked = !isFault && saved?.lockedSessionId == null && hasQuestions(await $.session.turns(), e)
+    if (!isFault && !saved && asked) isFault = true
     if (isFault) {
       await $.state.set({ plugin: 'yvoke', key: 'setup' }, null)
       await $.state.set({ plugin: 'yvoke', key: 'setupLost' }, true)
       return started
     }
     // The setup belongs to the session it is in now: /branch gives it a new id.
-    if (saved && (saved.lockedSessionId !== null || turns > 0)) saved = { ...saved, lockedSessionId: e.session_id }
+    if (saved && (saved.lockedSessionId !== null || asked)) saved = { ...saved, lockedSessionId: e.session_id }
     await $.state.set({ plugin: 'yvoke', key: 'setup' }, saved)
     // The setup is restored from here on: nothing below may undo that.
     try {

@@ -12,7 +12,7 @@ import { test, describe, before, after, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { spawn } from 'node:child_process'
-import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -23,6 +23,7 @@ const CLAUDE = process.env.CLAUDE_BIN || 'claude'
 const RUN_TIMEOUT_MS = 100_000
 
 const QUESTION = 'What is an OIM attestation policy?'
+const QUESTION_2 = 'What is an OIM certification run?'
 const STUB_BASE = 'STUB BASE INSTRUCTIONS'
 const STUB_PLAYBOOK = 'STUB PLAYBOOK TEXT'
 const SEPARATOR = '\n\n---\n\n' // the mod's SEPARATOR: base instructions, then the playbook
@@ -48,8 +49,12 @@ const readBody = (req) =>
     req.on('end', () => ok(body))
   })
 
-/** The Yvoke tools as yvoke-web answers them (streamable HTTP, JSON replies). */
-const YVOKE_REPLIES = {
+/**
+ * The Yvoke tools as yvoke-web answers them (streamable HTTP, JSON replies). `playbook.version` is the
+ * version the server has now: a test raises it to play a playbook saved on the server between two runs.
+ */
+const playbook = { version: 3 }
+const yvokeReplies = () => ({
   list_areas: JSON.stringify([
     {
       name: 'OIM',
@@ -60,12 +65,18 @@ const YVOKE_REPLIES = {
       profiles: [],
     },
   ]),
-  list_playbooks: JSON.stringify([{ name: 'oim-full', area: 'OIM', version: 3, tools: ['search_corpus'] }]),
-  get_playbook: JSON.stringify({ name: 'oim-full', text: STUB_PLAYBOOK, version: 3, systemPrompt: null, tools: ['search_corpus'] }),
+  list_playbooks: JSON.stringify([{ name: 'oim-full', area: 'OIM', version: playbook.version, tools: ['search_corpus'] }]),
+  get_playbook: JSON.stringify({
+    name: 'oim-full',
+    text: STUB_PLAYBOOK,
+    version: playbook.version,
+    systemPrompt: null,
+    tools: ['search_corpus'],
+  }),
   get_system_prompt: STUB_BASE,
   search_corpus: 'STUB SEARCH RESULT',
   get_section: 'STUB SECTION', // listed so the model can call it; the stub playbook does not grant it
-}
+})
 
 /** The stub Yvoke MCP server. `calls` logs every `tools/call` with the dev-mode header it came with. */
 const startYvoke = async () => {
@@ -89,7 +100,7 @@ const startYvoke = async () => {
       }
     } else if (msg.method === 'tools/list') {
       result = {
-        tools: Object.keys(YVOKE_REPLIES).map((name) => ({
+        tools: Object.keys(yvokeReplies()).map((name) => ({
           name,
           description: name,
           inputSchema: { type: 'object', properties: {} },
@@ -98,7 +109,7 @@ const startYvoke = async () => {
     } else if (msg.method === 'tools/call') {
       const name = msg.params?.name
       calls.push({ tool: name, devMode: req.headers['x-yvoke-dev-mode'] })
-      result = { content: [{ type: 'text', text: YVOKE_REPLIES[name] ?? `ERROR: unknown tool ${name}` }], isError: false }
+      result = { content: [{ type: 'text', text: yvokeReplies()[name] ?? `ERROR: unknown tool ${name}` }], isError: false }
     }
     res.writeHead(200, { 'content-type': 'application/json' })
     res.end(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result }))
@@ -168,7 +179,7 @@ const systemText = (body) => textOf(body.system)
  * side requests (a title, a quota probe) with no tools, so the first request is not assumed to be the one.
  */
 const isMainLoop = (body) =>
-  Array.isArray(body.tools) && body.tools.length > 0 && JSON.stringify(body.messages ?? []).includes(QUESTION)
+  Array.isArray(body.tools) && body.tools.length > 0 && /What is an OIM/.test(JSON.stringify(body.messages ?? []))
 
 const answer = () => ({ blocks: [{ type: 'text', text: ANSWER }], stopReason: 'end_turn' })
 
@@ -350,17 +361,19 @@ describe('a headless Claude Code session with the plugin installed', () => {
 
   beforeEach(() => {
     yvoke.calls.length = 0
+    playbook.version = 3
     anthropic.requests.length = 0
     anthropic.state.script = answer
   })
 
   /**
-   * One session in a fresh, empty working folder: each prompt is a line of stream-json input. Returns the
-   * `result` lines, and `context()`, which prints what to look at when an assertion fails.
+   * One session: each prompt is a line of stream-json input. It runs in a fresh, empty working folder, or in
+   * `cwd` when resuming (Claude Code keeps a session's transcript per folder). `resume` is a session id to
+   * continue, with `fork` for a branch (`--fork-session`). Returns the `result` lines, the session's id,
+   * the folder, the debug log, and `context()`, which prints what to look at when an assertion fails.
    */
-  const session = async (prompts) => {
-    const cwd = mkdtempSync(join(root, 'work-'))
-    const debugFile = join(root, `debug-${Date.now()}.log`)
+  const session = async (prompts, { resume, fork = false, cwd = mkdtempSync(join(root, 'work-')) } = {}) => {
+    const debugFile = join(root, `debug-${Date.now()}-${Math.random().toString(36).slice(2)}.log`)
     const lines = prompts.map((content) => JSON.stringify({ type: 'user', message: { role: 'user', content } }))
     const out = await claude(
       [
@@ -372,10 +385,13 @@ describe('a headless Claude Code session with the plugin installed', () => {
         '--verbose',
         '--debug-file',
         debugFile,
+        ...(resume ? ['--resume', resume] : []),
+        ...(fork ? ['--fork-session'] : []),
       ],
       { cwd, env, lines },
     )
     const results = resultLines(out.stdout)
+    const id = results.at(-1)?.session_id
     const debug = existsSync(debugFile) ? readFileSync(debugFile, 'utf8') : '(no debug log)'
     const context = () =>
       [
@@ -389,7 +405,7 @@ describe('a headless Claude Code session with the plugin installed', () => {
         'stderr tail:',
         tail(out.stderr, 10),
       ].join('\n')
-    return { results, context }
+    return { results, context, id, cwd, debug }
   }
 
   test('a /yvoke session starts, and its question reaches the model with the Yvoke instructions', async () => {
@@ -501,5 +517,142 @@ describe('a headless Claude Code session with the plugin installed', () => {
     // The hook grants only what the playbook names: another tool of the same server is still refused by the gate.
     assert.match(byId.toolu_section ?? '', new RegExp(`The tool "${UNGRANTED_TOOL}" is not available`), why('an ungranted server tool was not refused'))
     assert.ok(!yvoke.calls.some((c) => c.tool === 'get_section'), why('an ungranted server tool reached the stub'))
+  })
+
+  // ---------------------------------------------------------------------------------------------------
+  // /resume and /branch. Claude Code raises `classic.SessionStart` for them (source `resume`; `fork` for a
+  // branch), and the mod brings back its Yvoke flag and its locked setup from the plugin's `$.store`
+  // (session.md, setup.md). `claude -p --resume <id>` does this too, with the same session id; with
+  // `--fork-session` it is a branch under a new one. The store is one JSON file in the config folder,
+  // which a test can read and, between two runs, damage.
+  //
+  // What a headless run reports at that moment differs from a REPL's: `$.session.turns()` is 0 whatever the
+  // transcript holds, so the mod reads the start event's `seconds_since_last_response` and `context_tokens`
+  // instead (`hasQuestions` in src/setup.ts).
+
+  /** The plugin's `$.store` file: Claude Code keeps one per plugin under `plugins/store/` in the config folder. */
+  const storeFile = () => {
+    const dir = join(env.CLAUDE_CONFIG_DIR, 'plugins', 'store')
+    const files = existsSync(dir) ? readdirSync(dir).filter((f) => /^yvoke_yvoke.*\.json$/.test(f)) : []
+    if (files.length !== 1) throw new HarnessError(`expected one yvoke store file in ${dir}, found: ${files.join(', ') || 'none'}`)
+    return join(dir, files[0])
+  }
+  const readStore = () => JSON.parse(readFileSync(storeFile(), 'utf8'))
+  const writeStore = (store) => writeFileSync(storeFile(), JSON.stringify(store, null, 2))
+
+  /** What the mod says when a resumed Yvoke session has no setup to restore (setup.md), after the prompt-dropped prefix. */
+  const SETUP_LOST =
+    /Yvoke: this session's setup could not be restored, so the question was not sent\. Type \/clear, then \/yvoke\./
+
+  /** A Yvoke session whose first question has been answered: the setup is locked and saved. Returns the session. */
+  const lockedSession = async () => {
+    const first = await session(['/yvoke', QUESTION])
+    assert.equal(first.results.at(-1)?.result, ANSWER, `the first question did not get the answer\n${first.context()}`)
+    assert.ok(first.id, `no session id in the output\n${first.context()}`)
+    const saved = readStore()[`setup:${first.id}`]
+    assert.equal(saved?.lockedSessionId, first.id, `the setup did not lock: ${JSON.stringify(saved)}\n${first.context()}`)
+    yvoke.calls.length = 0
+    anthropic.requests.length = 0
+    return first
+  }
+
+  test('a resumed Yvoke session keeps its locked setup, and its next question loads the instructions again', async () => {
+    const first = await lockedSession()
+    const second = await session([QUESTION_2], { resume: first.id, cwd: first.cwd })
+    const why = (message) => `${message}\n${second.context()}`
+
+    assert.equal(second.id, first.id, why('a resume should carry on under the same session id'))
+    assert.equal(second.results.length, 1, why('expected one result'))
+    assert.equal(second.results.at(-1)?.result, ANSWER, why('the resumed question was dropped or not answered'))
+    const names = yvoke.calls.map((c) => c.tool)
+    for (const tool of ['list_areas', 'list_playbooks', 'get_playbook', 'get_system_prompt']) {
+      assert.ok(names.includes(tool), why(`the resumed session never called ${tool}: ${names.join(', ')}`))
+    }
+    assert.deepEqual(readStore()[`setup:${first.id}`], { area: 'OIM', mode: 'single', playbook: 'oim-full', version: 3, profile: null, lockedSessionId: first.id })
+  })
+
+  // Both the resume and the question's own check move the setup (setup.md), so this pins the outcome, not which of them did it.
+  test('a resumed session takes the playbook version the server has now (D-20)', async () => {
+    const first = await lockedSession()
+    playbook.version = 4
+    const second = await session([QUESTION_2], { resume: first.id, cwd: first.cwd })
+    const why = (message) => `${message}\n${second.context()}`
+
+    assert.equal(second.results.at(-1)?.result, ANSWER, why('the resumed question was dropped or not answered'))
+    const saved = readStore()[`setup:${second.id}`]
+    assert.deepEqual(
+      { playbook: saved?.playbook, version: saved?.version, lockedSessionId: saved?.lockedSessionId },
+      { playbook: 'oim-full', version: 4, lockedSessionId: second.id },
+      why(`the saved setup did not move to v4: ${JSON.stringify(saved)}`),
+    )
+  })
+
+  for (const [what, damage] of [
+    ['removed', (store, key) => delete store[key]],
+    ['unreadable', (store, key) => (store[key] = { area: 42, playbook: ['not', 'a', 'name'] })],
+  ]) {
+    // D-29. The removed case is the one `$.session.turns()` cannot tell from a session with no question yet.
+    test(`a resumed session whose saved setup is ${what} drops its question and never takes the defaults`, async () => {
+      const first = await lockedSession()
+      const store = readStore()
+      damage(store, `setup:${first.id}`)
+      writeStore(store)
+
+      const second = await session([QUESTION_2], { resume: first.id, cwd: first.cwd })
+      const why = (message) => `${message}\n${second.context()}`
+
+      assert.equal(second.results.at(-1)?.is_error, false, why('a dropped prompt is a result, not an error'))
+      assert.match(String(second.results.at(-1)?.result), SETUP_LOST, why('the question was not dropped with the setup-lost message'))
+      assert.deepEqual(yvoke.calls, [], why('the mod called the server for a session with no setup'))
+      assert.ok(!anthropic.requests.some(isMainLoop), why('a question reached the model under a lost setup'))
+    })
+  }
+
+  test('a Yvoke session resumed before its first question starts from the defaults, as a new one does', async () => {
+    const first = await session(['/yvoke']) // no question: nothing to lock, so nothing is saved but the flag
+    assert.equal(first.results.length, 1, first.context())
+    yvoke.calls.length = 0
+    const second = await session([QUESTION_2], { resume: first.id, cwd: first.cwd })
+    const why = (message) => `${message}\n${second.context()}`
+
+    assert.equal(second.results.at(-1)?.result, ANSWER, why('the question was dropped or not answered'))
+    assert.deepEqual(
+      { playbook: readStore()[`setup:${second.id}`]?.playbook, lockedSessionId: readStore()[`setup:${second.id}`]?.lockedSessionId },
+      { playbook: 'oim-full', lockedSessionId: second.id },
+      why('the first question did not lock the default setup'),
+    )
+  })
+
+  test('a branch keeps the locked setup under its own session id', async () => {
+    const first = await lockedSession()
+    const branch = await session([QUESTION_2], { resume: first.id, fork: true, cwd: first.cwd })
+    const why = (message) => `${message}\n${branch.context()}`
+
+    assert.notEqual(branch.id, first.id, why('a branch should have a new session id'))
+    assert.equal(branch.results.at(-1)?.result, ANSWER, why('the branch question was dropped or not answered'))
+    const saved = readStore()[`setup:${branch.id}`]
+    assert.deepEqual(
+      { playbook: saved?.playbook, version: saved?.version, lockedSessionId: saved?.lockedSessionId },
+      { playbook: 'oim-full', version: 3, lockedSessionId: branch.id },
+      why(`the branch did not keep the setup: ${JSON.stringify(saved)}`),
+    )
+    assert.equal(readStore()[`setup:${first.id}`]?.lockedSessionId, first.id, why('the branch changed its parent'))
+  })
+
+  test('a branch of a session whose saved setup is gone drops its question too (D-29)', async () => {
+    // Together with the test above this shows the branch reads its parent's saved setup rather than
+    // starting from the defaults, which would give the same line when the parent ran on them.
+    const first = await lockedSession()
+    const store = readStore()
+    delete store[`setup:${first.id}`]
+    writeStore(store)
+
+    const branch = await session([QUESTION_2], { resume: first.id, fork: true, cwd: first.cwd })
+    const why = (message) => `${message}\n${branch.context()}`
+
+    assert.notEqual(branch.id, first.id, why('a branch should have a new session id'))
+    assert.match(String(branch.results.at(-1)?.result), SETUP_LOST, why('the branch question was not dropped with the setup-lost message'))
+    assert.deepEqual(yvoke.calls, [], why('the mod called the server for a session with no setup'))
+    assert.ok(!anthropic.requests.some(isMainLoop), why('a question reached the model under a lost setup'))
   })
 })

@@ -1002,6 +1002,41 @@ test('/resume of a Yvoke session with questions in it and no saved setup: unusab
   await expectUnusable($, w)
 })
 
+// `claude -p --resume` reports no questions in `$.session.turns()` at `classic.SessionStart` (the transcript is
+// not bound yet, seen live on Claude Code 2.1.287 and 2.1.310), but the start event itself says the resumed
+// transcript has an answer: `seconds_since_last_response` and `context_tokens`, which are left out of an
+// event whose transcript has none. A zero is still a number.
+const ANSWERED = { seconds_since_last_response: 0, context_tokens: 18000 } as const
+
+for (const source of ['resume', 'fork'] as const) {
+  test(`${source} with no saved setup, no question counted but the transcript answered: unusable until /clear`, async ($, on) => {
+    const w =
+      source === 'resume'
+        ? resumedWith(on, undefined, 0)
+        : engine(on, { sessionId: 'session-b', store: new Map<string, unknown>([['session:session-a', { yvoke: true }], ['ended', { sessionId: 'session-a' }]]) })
+    await begin($)
+    await $.classic.SessionStart({ source, session_id: source === 'resume' ? 'old' : 'session-b', ...ANSWERED })
+    await expectUnusable($, w)
+  })
+}
+
+test('/resume with no saved setup, nothing counted and an answer a moment ago (zero seconds): unusable', async ($, on) => {
+  const w = resumedWith(on, undefined, 0)
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old', seconds_since_last_response: 0 })
+  await expectUnusable($, w)
+})
+
+test('/resume of an unlocked setup, no question counted but the transcript answered: restored locked, not reopened', async ($, on) => {
+  const w = resumedWith(on, { ...LOCKED, lockedSessionId: null }, 0)
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old', ...ANSWERED })
+  expect(w.store.get('setup:old')).toEqual(LOCKED)
+  const ui = await band($, 'terminal')
+  expect(await ui.find({ key: 'yvoke-playbook' })).toBeUndefined()
+  expect(await lostOf(ui)).toBeUndefined()
+})
+
 test('/resume with no saved setup and no question yet: the band loads the defaults, as for a new session', async ($, on) => {
   const w = resumedWith(on, undefined, 0)
   await begin($)
