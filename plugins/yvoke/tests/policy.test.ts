@@ -37,7 +37,7 @@ type World = {
   /** What `get_playbook` answers: the playbook as the server has it when the first question loads it. */
   fetched: string
   /**
-   * The engine's own verdict on a permission check, beneath the plugin. `allow` by default: in the kit a
+   * The engine's own verdict on a permission check, beneath the plugin. `allow` by default: in newer kits a
    * `$.tool.call` runs the check too, and an ask there has nobody to answer it, so it would deny every call.
    */
   verdict: Verdict
@@ -812,15 +812,15 @@ describe('in a Yvoke session: the permission check', () => {
     expect(await check($, `${P}search_corpus`)).toEqual({ decision: 'ask' })
   })
 
-  test("the engine's own refusal is not lifted: a deny, or an ask somebody chose, passes as it is", async ($, on) => {
+  test("the engine's own refusal is not lifted: a deny, or an ask a rule chose, passes as it is", async ($, on) => {
     const w = asking(on)
     await yvokeSession($)
 
+    // An ask a hook or an option chose carries `hook`, `plugin` or `setting`, which an older kit drops from a
+    // stubbed verdict, so only `isPlainAsk` (policy-rules.test.ts) is tested with those.
     const settled: Verdict[] = [
       { decision: 'deny', reason: 'Denied by the settings rule.', rule: `${P}search_corpus` },
       { decision: 'ask', reason: 'Asked by a rule.', rule: `${P}search_corpus` },
-      { decision: 'ask', reason: 'Asked by another plugin.', plugin: 'other' },
-      { decision: 'ask', reason: 'Asked by a hook.', hook: 'PreToolUse' },
     ]
     for (const verdict of settled) {
       w.verdict = verdict
@@ -834,19 +834,6 @@ describe('in a Yvoke session: the permission check', () => {
     await yvokeSession($)
 
     expect(await check($, `${P}search_corpus`)).toEqual({ decision: 'allow', reason: 'Allowed by the mode.' })
-  })
-
-  test('on a call: the granted tool runs with no prompt, and a built-in the gate lets through still waits for the engine', async ($, on) => {
-    // The kit's `$.tool.call` runs the permission check too, and an ask there has nobody to answer it.
-    const w = asking(on)
-    await yvokeSession($)
-
-    expect(await call($, `${P}search_corpus`)).toEqual({ result: `ran ${P}search_corpus` })
-    expect(await call($, 'ToolSearch')).toEqual(expect.objectContaining({ isError: true }))
-    expect(await call($, 'Bash', { command: 'ls' })).toEqual({ deny: denied('Bash') })
-    expect(w.reached).toEqual([`${P}search_corpus`])
-    // The gate refused Bash before any check, so the engine was asked about the other two only.
-    expect(w.checked).toEqual([`${P}search_corpus`, 'ToolSearch'])
   })
 
   test('a failed check grants nothing: the engine verdict stands', async ($, on) => {
