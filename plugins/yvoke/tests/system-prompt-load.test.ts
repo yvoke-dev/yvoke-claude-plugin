@@ -99,6 +99,7 @@ describe('what loaded (loadedFor)', () => {
       ok: true,
       text: `BASE oim-base${SEPARATOR}LITE`,
       loadedFor: { area: 'OIM', mode: 'single', playbook: 'oim-lite', version: 4 },
+      tools: null,
     })
   })
 
@@ -121,6 +122,7 @@ describe('what loaded (loadedFor)', () => {
         ok: true,
         text: `BASE oim-base${SEPARATOR}FULL`,
         loadedFor: { area: 'OIM', mode: 'single', playbook: 'oim-full', version: null },
+        tools: null,
       })
     }
   })
@@ -134,7 +136,33 @@ describe('what loaded (loadedFor)', () => {
       ok: true,
       text: 'BASE oim-base',
       loadedFor: { area: 'OIM', mode: 'oim-team', playbook: null, version: null },
+      tools: null,
     })
+  })
+
+  // tool-policy.md: the tool gate enforces the `tools` of the answer that loaded, read by the rule that
+  // list_playbooks' answer is read by (setup.md): names, none (an empty list or no field), or unreadable.
+  test("the playbook's declared tools are kept with it, by the same reading as the lists", async () => {
+    for (const [tools, kept] of [
+      [['search_corpus', 'mcp__oim__get_toc'], ['search_corpus', 'mcp__oim__get_toc']],
+      [[], null],
+      [undefined, null],
+      ['search_corpus', 'unreadable'],
+      [null, 'unreadable'],
+      [['search_corpus', 3], 'unreadable'],
+    ] as const) {
+      const s = server({ get_playbook: async () => text(JSON.stringify({ name: 'oim-full', version: 1, text: 'FULL', tools })) })
+
+      expect(await loadInstructions(s.io, null, plenty)).toMatchObject({ ok: true, tools: kept })
+    }
+  })
+
+  test('the tools never take part in whether kept text is reused', () => {
+    const setup = { area: 'OIM', mode: 'single', playbook: 'oim-full', version: 3 }
+    const entry = { sessionId: 'session-a', text: 'TEXT', loadedFor: { area: 'OIM', mode: 'single', playbook: 'oim-full', version: 3 } }
+    for (const tools of [['search_corpus'], null, 'unreadable', undefined]) {
+      expect(reusable({ ...entry, tools }, 'session-a', setup)).toBe(true)
+    }
   })
 })
 

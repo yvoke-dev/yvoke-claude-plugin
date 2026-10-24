@@ -131,8 +131,8 @@
 | Lock | `prompt.submit` (matcher `{ text: /^/ }`, so it can sit beside `src/system-prompt.ts`'s unmatched hook) |
 | `$.state` `yvoke.setup` | `{ area, mode: 'single' \| 'multi', playbook, version, profile, lockedSessionId }` (read by `src/system-prompt.ts` and `src/policy.ts`) |
 | `$.state` `yvoke.setupLost` | true while the session's setup could not be restored; written only by `src/setup.ts` (`classic.SessionStart`), read by the question hook, the band and `src/system-prompt.ts` |
-| `$.state` `yvoke.instructions` | read at the lock for `loadedFor` (written only by `src/system-prompt.ts`, [system-prompt.md](system-prompt.md)) |
-| `$.state` `yvoke.catalogue` | the lists as the band shows them, or the error; each playbook carries the `tools` it declares, null when it declares none (an empty list or no field), `'unreadable'` when the server sent something else, which the tool gate reads ([tool-policy.md](tool-policy.md)) |
+| `$.state` `yvoke.instructions` | read at the lock for `loadedFor`; the tool gate reads its `tools` ([tool-policy.md](tool-policy.md)); written only by `src/system-prompt.ts` ([system-prompt.md](system-prompt.md)) |
+| `$.state` `yvoke.catalogue` | the lists as the band shows them, or the error; each playbook carries the `tools` it declares, null when it declares none (an empty list or no field), `'unreadable'` when the server sent something else, which the tool gate reads until instructions have loaded for the session ([tool-policy.md](tool-policy.md)) |
 | `$.store` `setup:<session id>` | the setup, saved on every pick, before a question goes down, and at the lock |
 | Setting `showPrototypes` | `plugin.json` `userConfig`, boolean, default off |
 | Server tools | `list_areas`, `list_playbooks` (through [server-client.md](server-client.md)) |

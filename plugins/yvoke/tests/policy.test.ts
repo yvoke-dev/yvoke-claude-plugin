@@ -26,23 +26,34 @@ const WRAP_UP =
 
 type Connect = McpConnectResult
 
-type World = { reached: string[]; connects: number; connect: () => Connect; playbooks: string }
+type World = {
+  reached: string[]
+  connects: number
+  connect: () => Connect
+  playbooks: string
+  /** The session id `$.session.id()` gives. */
+  sessionId: string
+  /** What `get_playbook` answers: the playbook as the server has it when the first question loads it. */
+  fetched: string
+}
 
 const text = (body: string): McpToolResult => ({ content: [{ type: 'text', text: body }], isError: false })
 const AREAS = JSON.stringify([
   { name: 'OIM', title: 'OIM', prototype: false, defaultPlaybook: 'oim-full', profiles: [], defaultProfile: null },
 ])
+/** The answer of `get_playbook`, declaring `tools` unless left out; yvoke-web sends `[]` for none. */
+const fetchedPlaybook = (tools?: unknown) => JSON.stringify({ name: 'oim-full', text: 'PLAYBOOK', version: 1, ...(tools === undefined ? {} : { tools }) })
 /** The answer of `list_playbooks`, with oim-full declaring `tools`; yvoke-web sends `[]` for none. */
 const playbooks = (tools: unknown = []) => JSON.stringify([{ name: 'oim-full', area: 'OIM', prototype: false, version: 1, tools }])
 
 // The engine beneath the plugin: what /yvoke needs, the server's connection and lists, and the tools themselves.
 function engine(on: On, connect: () => Connect = () => ({ isConnected: true, server: 'plugin:yvoke:yvoke' })): World {
-  const w: World = { reached: [], connects: 0, connect, playbooks: playbooks() }
+  const w: World = { reached: [], connects: 0, connect, playbooks: playbooks(), sessionId: 'session-a', fetched: fetchedPlaybook() }
   mock.clock(on)
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('command.register', (_$, e) => ({ value: { command: e.name } }))
   on('session.turns', () => ({ value: 0 }))
-  on('session.id', () => ({ value: 'session-a' }))
+  on('session.id', () => ({ value: w.sessionId }))
   on('store.get', () => ({ value: undefined }))
   on('store.set', () => ({ value: undefined }))
   on('mcp.connect', () => {
@@ -52,8 +63,11 @@ function engine(on: On, connect: () => Connect = () => ({ isConnected: true, ser
   on('mcp.call', (_$, e) => {
     if (e.tool === 'list_areas') return { value: text(AREAS) }
     if (e.tool === 'list_playbooks') return { value: text(w.playbooks) }
+    if (e.tool === 'get_playbook') return { value: text(w.fetched) }
+    if (e.tool === 'get_system_prompt') return { value: text('BASE') }
     return { value: text(`ERROR: no tool ${e.tool}`) }
   })
+  on('prompt.submit', (_$, e) => ({ text: e.text }))
   on('tool.call', (_$, e) => {
     w.reached.push(e.tool)
     return { result: `ran ${e.tool}` }
@@ -77,6 +91,8 @@ const yvokeSession = async ($: Engine, surface?: RenderSurface) => {
   await begin($, surface)
   await typeYvoke($)
 }
+
+const ask = ($: Engine, question: string) => $.prompt.submit({ text: question, wait: false, origin: { kind: 'composer' } })
 
 const call = ($: Engine, tool: string, args: Record<string, unknown> = {}) =>
   $.tool.call({ tool, ...args } as Parameters<Engine['tool']['call']>[0])
@@ -563,5 +579,91 @@ describe("in a Yvoke session: the playbook can't be read", () => {
     expect(await call($, `${P}search_corpus`)).toEqual({ result: `ran ${P}search_corpus` })
     expect(await call($, `${P}get_playbook`)).toEqual({ deny: denied(`${P}get_playbook`) })
     expect(w.reached).toEqual([`${P}search_corpus`])
+  })
+})
+
+// tool-policy.md: once the instructions have loaded for the session, the gate enforces the `tools` of the
+// `get_playbook` answer they came from, the playbook the model reads, not those `list_playbooks` gave when
+// the band loaded: the playbook may have been saved on the server in between. Before that, the lists apply.
+describe('in a Yvoke session: the tools of the playbook that loaded', () => {
+  const P = 'mcp__plugin_yvoke_yvoke__'
+
+  test('before the first question the lists decide', async ($, on) => {
+    const w = engine(on)
+    w.playbooks = playbooks(['search_corpus'])
+    w.fetched = fetchedPlaybook(['get_toc'])
+    await yvokeSession($)
+
+    expect(await call($, `${P}search_corpus`)).toEqual({ result: `ran ${P}search_corpus` })
+    expect(await call($, `${P}get_toc`)).toEqual({ deny: denied(`${P}get_toc`) })
+  })
+
+  test('a playbook saved after the lists loaded: its tools at the question decide, not the lists', async ($, on) => {
+    const w = engine(on)
+    w.playbooks = playbooks(['search_corpus'])
+    w.fetched = fetchedPlaybook(['mcp__oim__get_toc'])
+    await yvokeSession($)
+    expect(await ask($, 'q')).toEqual({ text: 'q' })
+
+    expect(await call($, `${P}get_toc`)).toEqual({ result: `ran ${P}get_toc` })
+    expect(await call($, `${P}search_corpus`)).toEqual({ deny: denied(`${P}search_corpus`) })
+    expect(await call($, `${P}search_corpus`, { agentId: 'agent-1' })).toEqual({ deny: denied(`${P}search_corpus`) })
+    expect(w.reached).toEqual([`${P}get_toc`])
+  })
+
+  test('a playbook that now declares none: the default set, whatever the lists said', async ($, on) => {
+    const w = engine(on)
+    w.playbooks = playbooks(['get_toc'])
+    w.fetched = fetchedPlaybook([])
+    await yvokeSession($)
+    await ask($, 'q')
+
+    expect(await call($, `${P}search_corpus`)).toEqual({ result: `ran ${P}search_corpus` })
+    expect(await call($, `${P}get_playbook`)).toEqual({ deny: denied(`${P}get_playbook`) })
+  })
+
+  test('a get_playbook answer with no tools field declares none too', async ($, on) => {
+    const w = engine(on)
+    w.playbooks = playbooks(['get_toc'])
+    w.fetched = fetchedPlaybook()
+    await yvokeSession($)
+    await ask($, 'q')
+
+    expect(await call($, `${P}search_corpus`)).toEqual({ result: `ran ${P}search_corpus` })
+  })
+
+  test('a tools value in get_playbook the plugin cannot read: server tools are refused, not the lists applied', async ($, on) => {
+    const w = engine(on)
+    w.playbooks = playbooks(['search_corpus'])
+    w.fetched = fetchedPlaybook('search_corpus')
+    await yvokeSession($)
+    await ask($, 'q')
+
+    expect(await call($, `${P}search_corpus`)).toEqual({ deny: PLAYBOOK_UNKNOWN })
+    expect(await call($, 'ToolSearch')).toEqual({ result: 'ran ToolSearch' })
+    expect(w.reached).toEqual(['ToolSearch'])
+  })
+
+  test('ask_clarifying_question follows what loaded, not the lists', async ($, on) => {
+    const w = engine(on)
+    w.playbooks = playbooks(['ask_clarifying_question'])
+    w.fetched = fetchedPlaybook(['search_corpus'])
+    await yvokeSession($)
+    await ask($, 'q')
+
+    expect(await call($, `${P}ask_clarifying_question`, ASK)).toEqual({ deny: USE_ASK_USER_QUESTION })
+  })
+
+  test('another session id (/resume, /branch) has loaded nothing yet: the lists apply until its first question', async ($, on) => {
+    const w = engine(on)
+    w.playbooks = playbooks(['search_corpus'])
+    w.fetched = fetchedPlaybook(['get_toc'])
+    await yvokeSession($)
+    await ask($, 'q')
+    expect(await call($, `${P}get_toc`)).toEqual({ result: `ran ${P}get_toc` })
+
+    w.sessionId = 'session-b'
+    expect(await call($, `${P}get_toc`)).toEqual({ deny: denied(`${P}get_toc`) })
+    expect(await call($, `${P}search_corpus`)).toEqual({ result: `ran ${P}search_corpus` })
   })
 })

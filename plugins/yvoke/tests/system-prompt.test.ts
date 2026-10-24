@@ -191,6 +191,7 @@ test('what loaded is kept with the text, and a later question on the same setup 
       sessionId: 'session-a',
       text: 'BASE\n\n---\n\nPLAYBOOK',
       loadedFor: { area: 'OIM', mode: 'single', playbook: 'oim-full', version: 1 },
+      tools: null,
     },
   ])
   expect(w.server.calls).toEqual(LOAD)

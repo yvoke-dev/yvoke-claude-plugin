@@ -29,10 +29,21 @@
   > unverified: the test kit does not send the mod's own `$.mcp.call` through the `tool.call` hooks, so
   > only the pure rule (`isOwnServerCall`) is pinned by a test, not the gate's use of it. Check it in a
   > live `/yvoke` session.
-- **The playbook's tools**. The session's playbook is the one in its setup ([setup.md](setup.md)),
-  with the `tools` `list_playbooks` gave for it when the lists were last loaded (on `/yvoke`, `/resume` or
-  `/branch`, or later on a question or Retry when that load failed; so a playbook edit during a running
-  session takes effect in the next session):
+- **The playbook's tools**. The session's playbook is the one in its setup ([setup.md](setup.md)).
+  Whose `tools` count depends on whether the session's instructions have loaded ([system-prompt.md](system-prompt.md)):
+  - Once instructions have loaded for this session, the gate enforces the `tools` of the `get_playbook`
+    answer they came from, recorded with them in `yvoke.instructions`. They are the tools of the playbook
+    the model reads, which the server may have saved again since the lists loaded: the band can say v3
+    while v4 loaded, and v4's tools apply. The entry counts when it was loaded under this session id and
+    its `loadedFor` names the setup's area and playbook; the version need not match. The lists are then
+    not read. The tools are read as below: a missing field or an empty list declares none, and a value
+    that is not a list of names is unreadable.
+  - Before that (a new session before its first question, or after `/resume` or `/branch`, which load
+    under a new session id on their first question), the gate enforces the `tools` `list_playbooks` gave
+    for the setup's playbook when the lists were last loaded (on `/yvoke`, `/resume` or `/branch`, or later
+    on a question or Retry when that load failed).
+  - Either way a playbook edit during a running session takes effect in the next session, or at its
+    first question when that comes after the edit.
   - A playbook that declares tools gets exactly those, each named as below. Declared web tools
     (`WebSearch`, `WebFetch`) and compute tools (`execute_code`, the retired `calculate`, `statistics`,
     `date_diff`, anything under `mcp__compute__`) are left out: a declaration alone never grants them.
@@ -45,7 +56,8 @@
     gets nothing.
   - A session whose setup could not be restored ([setup.md](setup.md)) has no setup, so it gets the same refusal.
   - If a Yvoke server tool is called and there is no setup, the lists did not load, the setup's area or
-    playbook is not in them, or the playbook's `tools` are not a list of names, the call is refused with *Yvoke: the session's playbook could not
+    playbook is not in them (before instructions have loaded), or the playbook's `tools` are not a list of
+    names (in either answer), the call is refused with *Yvoke: the session's playbook could not
     be read, so this tool was not run.* It does not fall back to the default set, which could grant more
     than the playbook declares.
 - **Asking the user (`ask_clarifying_question`)**. Over MCP, yvoke-web's `ask_clarifying_question` asks
@@ -93,13 +105,14 @@
 
 | Piece | Where |
 | --- | --- |
-| `tool.call` hook, `isAllowed`, `declaredTools`, `isOwnServerCall(origin, tool, prefix)`, `denied`, `POLICY_FAILED`, `PLAYBOOK_UNKNOWN` | `plugins/yvoke/src/policy.ts` |
+| `tool.call` hook, `isAllowed`, `declaredTools(setup, catalogue, loaded)`, `loadedTools(instructions, sessionId, setup)`, `isOwnServerCall(origin, tool, prefix)`, `denied`, `POLICY_FAILED`, `PLAYBOOK_UNKNOWN` | `plugins/yvoke/src/policy.ts` |
 | `clarifyingQuestion(input)`, `answered(answer)`, `SKIPPED`, `NOT_ASKED`, `USE_ASK_USER_QUESTION` | same file |
 | The plugin's only `tool.call` hook: its checks run in order, the mod's own server calls first, then the turn limit, then this policy | same file |
 | `serverToolPrefix(server)`: a server name → its tools' prefix, by the engine's rule | `plugins/yvoke/src/tool-names.ts` |
 | `qualifyTool(tool, serverPrefix)`: a playbook's tool name → the name the model calls; `builtinTool(tool)` | `plugins/yvoke/src/tool-names.ts` |
+| `parseTools(playbook)`: the one reading of a playbook's `tools`, shared by the lists and `get_playbook`; `PlaybookTools` | `plugins/yvoke/src/tool-names.ts` |
 | `allowedServerTools(declared, serverPrefix)`, `DEFAULT_KB_TOOLS`, `ASK_CLARIFYING_QUESTION`, `isWebTool`, `isComputeTool` | `plugins/yvoke/src/tool-names.ts` |
-| Engine calls | `$.state.get` (the Yvoke flag; `setup` and `catalogue` for Yvoke server tools only), `$.mcp.connect('yvoke')` (MCP tools only), `$.ui.ask` (the server's `ask_clarifying_question` only); `next.origin` (who made the call) |
+| Engine calls | `$.state.get` (the Yvoke flag; `setup`, `catalogue` and `instructions` for Yvoke server tools only), `$.session.id()` (the same), `$.mcp.connect('yvoke')` (MCP tools only), `$.ui.ask` (the server's `ask_clarifying_question` only); `next.origin` (who made the call) |
 
 The engine's naming rule, read from Claude Code 2.1.304: every character of the server name outside
 `[a-zA-Z0-9_-]` becomes `_`; for a claude.ai connector, runs of `_` then collapse and a leading or

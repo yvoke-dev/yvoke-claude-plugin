@@ -12,6 +12,7 @@
 // the playbook version that loaded, and a later question reuses the text only while the setup still matches.
 import type { On, PromptComposeSection } from 'claude-code'
 import { callYvoke, TIMEOUT_MS, type ServerAnswer, type ServerIo } from './server'
+import { parseTools, type PlaybookTools } from './tool-names'
 
 /**
  * What a session runs on. `mode` is `single` or a multi-agent profile's name; `playbook` null = default.
@@ -25,11 +26,15 @@ export type Setup = { area: string; mode: string; playbook: string | null; versi
  */
 export type LoadedFor = { area: string; mode: string; playbook: string | null; version: number | null }
 
-/** Instructions loaded for one session; text kept under another session's id is never served. */
-export type Loaded = { sessionId: string; text: string; loadedFor: LoadedFor }
+/**
+ * Instructions loaded for one session; text kept under another session's id is never served. `tools` are
+ * the ones `get_playbook` declared for the playbook that loaded (null in multi-agent mode, which has none):
+ * the tool gate enforces them (tool-policy.md). They sit beside `loadedFor` and play no part in `reusable`.
+ */
+export type Loaded = { sessionId: string; text: string; loadedFor: LoadedFor; tools: PlaybookTools }
 
 type Failed = { ok: false; error: string }
-export type Instructions = { ok: true; text: string; loadedFor: LoadedFor } | Failed
+export type Instructions = { ok: true; text: string; loadedFor: LoadedFor; tools: PlaybookTools } | Failed
 
 export const SINGLE_AGENT = 'single'
 export const DEFAULT_SETUP: Setup = { area: 'OIM', mode: SINGLE_AGENT, playbook: null }
@@ -102,7 +107,7 @@ export const loadInstructions = async (
     const entry = findArea(areas.text, area)
     if (!entry.ok) return entry
     const base = await basePrompt(entry.area.defaultSystemPrompt)
-    return base.ok ? { ...base, loadedFor: { area, mode, playbook: null, version: null } } : base
+    return base.ok ? { ...base, loadedFor: { area, mode, playbook: null, version: null }, tools: null } : base
   }
 
   let entry: AreaFound
@@ -137,6 +142,7 @@ export const loadInstructions = async (
     ok: true,
     text: `${base.text}${SEPARATOR}${parsed.text}`,
     loadedFor: { area, mode, playbook: name, version: parsed.version },
+    tools: parsed.tools,
   }
 }
 
@@ -190,7 +196,7 @@ const baseText = (text: string): ServerAnswer =>
   text.trim() ? { ok: true, text: text.trim() } : fail('get_system_prompt gave no instructions.')
 
 type PlaybookText =
-  | { ok: true; text: string; systemPrompt: string | null; version: number | null }
+  | { ok: true; text: string; systemPrompt: string | null; version: number | null; tools: PlaybookTools }
   | { ok: false; error: string }
 
 const playbookText = (json: string, name: string): PlaybookText => {
@@ -199,7 +205,7 @@ const playbookText = (json: string, name: string): PlaybookText => {
   const text = parsed.text.trim()
   if (!text) return fail(`playbook '${name}' has no text.`)
   const version = typeof parsed.version === 'number' ? parsed.version : null
-  return { ok: true, text, systemPrompt: nameOf(parsed.systemPrompt), version }
+  return { ok: true, text, systemPrompt: nameOf(parsed.systemPrompt), version, tools: parseTools(parsed) }
 }
 
 const parse = (json: string): unknown => {
@@ -232,7 +238,7 @@ export function registerSystemPrompt(on: On) {
     }
     const answer = await loadInstructions(io, setup ?? null, () => next.budget.remainingMs)
     if (!answer.ok) return { drop: answer.error }
-    const kept: Loaded = { sessionId, text: answer.text, loadedFor: answer.loadedFor }
+    const kept: Loaded = { sessionId, text: answer.text, loadedFor: answer.loadedFor, tools: answer.tools }
     await $.state.set({ plugin: 'yvoke', key: 'instructions' }, kept)
     return next(e)
   }).catch(($, e, next) => (next.called ? next(e) : { drop: DROP_FAILED }))

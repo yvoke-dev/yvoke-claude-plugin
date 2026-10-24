@@ -38,6 +38,11 @@
   the `version` in `get_playbook`'s answer, null when it is missing or not a number. In multi-agent mode
   `playbook` and `version` are null. `get_playbook` takes no version, so the mod records the version it
   got rather than asking for one; the setup locks with it ([setup.md](setup.md)).
+- The entry also keeps the `tools` of the `get_playbook` answer, beside `loadedFor` (null in multi-agent
+  mode), read as `list_playbooks` answers are ([tool-policy.md](tool-policy.md)): the names; null when it
+  declares none (no field, or an empty list); `'unreadable'` when the value is not a list of names. The tool
+  gate enforces them once the instructions have loaded for the session. They play no part in whether kept
+  text is reused.
 - A later question reuses the kept text only when it was loaded under the same session id and `loadedFor`
   matches the current setup: the same area and mode; the same playbook, unless the setup names none; and
   the same version, unless the setup's version or the loaded one is null. Otherwise it loads again. So a question dropped
@@ -86,7 +91,7 @@ is smaller. If the remaining hook budget minus the 1,500 ms reserve is under 1,0
 | Piece | Where |
 | --- | --- |
 | `prompt.submit` hook (loads, or drops the question) and `prompt.compose` hook (adds the section) | `plugins/yvoke/src/system-prompt.ts` |
-| `$.state` `yvoke.instructions` = `{ sessionId, text, loadedFor: { area, mode, playbook, version } }`, written only by `system-prompt.ts`, read by `src/setup.ts` to lock with the loaded version | contract in `plugins/yvoke/types/index.d.ts` |
+| `$.state` `yvoke.instructions` = `{ sessionId, text, loadedFor: { area, mode, playbook, version }, tools }`, written only by `system-prompt.ts`, read by `src/setup.ts` to lock with the loaded version and by `src/policy.ts` for the tools | contract in `plugins/yvoke/types/index.d.ts` |
 | `$.state` `yvoke.setupLost` (boolean), read by `prompt.compose`, written by `src/setup.ts` | same |
 | `$.state` `yvoke.setup` = `{ area, mode, playbook, version, lockedSessionId }` (playbook null = the area's default; version checked against `loadedFor`; `lockedSessionId` decides the refusal in `prompt.compose`), read here, written by `src/setup.ts` | same |
 | Server tools `list_areas` (`defaultPlaybook`, `defaultSystemPrompt`, `systemPrompts`), `get_playbook(name)` (`systemPrompt`, `text`, `version`), `get_system_prompt(name?)` | through `callYvoke` ([server-client.md](server-client.md)) |

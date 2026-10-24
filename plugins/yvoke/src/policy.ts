@@ -6,14 +6,15 @@
 // (src/main/agent/policy.ts). PLAN.md adds its own classes here: the web tools, and `execute_code` with the
 // mod's own `Bash` call behind it (Milestone 2); delegation while a profile is active (Milestone 4). Until
 // then each stays denied. Of the server's tools, only those the session's playbook declares, or the
-// default set, by exact name. The server's `ask_clarifying_question` asks nobody over MCP, so when the
-// playbook grants it the gate asks the user with `$.ui.ask` and answers the call itself, as yvoke-desktop
-// does: the server never sees it. Unlike `AskUserQuestion`, which Claude Code takes from subagents,
-// an MCP tool lets a subagent ask the user too.
+// default set, by exact name: the tools of the playbook that loaded for the session once instructions have
+// (`yvoke.instructions`), else those `list_playbooks` gave. The server's `ask_clarifying_question` asks
+// nobody over MCP, so when the playbook grants it the gate asks the user with `$.ui.ask` and answers the
+// call itself, as yvoke-desktop does: the server never sees it. Unlike `AskUserQuestion`, which Claude Code
+// takes from subagents, an MCP tool lets a subagent ask the user too.
 import type { On } from 'claude-code'
 import { SERVER } from './server'
 import type { CatalogueState, Setup } from './setup'
-import { ASK_CLARIFYING_QUESTION, allowedServerTools, serverToolPrefix } from './tool-names'
+import { ASK_CLARIFYING_QUESTION, allowedServerTools, isPlaybookTools, serverToolPrefix, type PlaybookTools } from './tool-names'
 import { CHECK_FAILED, WRAP_UP, isWrapUp } from './turn-limits'
 
 export const denied = (tool: string) =>
@@ -76,16 +77,39 @@ export const PLAYBOOK_UNKNOWN = "Yvoke: the session's playbook could not be read
 export const isAllowed = (tool: string, serverTools: string[]): boolean => ALWAYS.includes(tool) || serverTools.includes(tool)
 
 /**
+ * The `tools` of the playbook that loaded for this session, or undefined when none did that this session's
+ * setup names. `loaded` is `yvoke.instructions`: the entry counts only when it was loaded under this session
+ * id and its `loadedFor` names the setup's area and playbook (the version may differ: the setup takes the
+ * loaded one once the question has entered). An entry with no `tools` (one the plugin did not write) counts
+ * as nothing loaded; one whose `tools` are not a `PlaybookTools` grants nothing (`'unreadable'`).
+ */
+export const loadedTools = (
+  loaded: unknown,
+  sessionId: string,
+  setup: Setup | null | undefined,
+): PlaybookTools | undefined => {
+  if (!setup || setup.playbook === null || typeof loaded !== 'object' || loaded === null) return undefined
+  const kept = loaded as { sessionId?: unknown; loadedFor?: { area?: unknown; playbook?: unknown } | null; tools?: unknown }
+  if (kept.sessionId !== sessionId || typeof kept.loadedFor !== 'object' || kept.loadedFor === null) return undefined
+  if (kept.loadedFor.area !== setup.area || kept.loadedFor.playbook !== setup.playbook || !('tools' in kept)) return undefined
+  return isPlaybookTools(kept.tools) ? kept.tools : 'unreadable'
+}
+
+/**
  * The tool names the session's playbook declares: null when it declares none, or when the setup names no
  * playbook (multi-agent, until lead mode in PLAN.md Milestone 4), so the default set applies; undefined
  * when the setup, the catalogue, the area or the playbook in it is missing, or its `tools` are unreadable,
- * so nothing can be granted.
+ * so nothing can be granted. `loaded` (`loadedTools`) is what the playbook that actually loaded declared:
+ * once there is one it decides, and the catalogue, which may be older, is not read.
  */
 export const declaredTools = (
   setup: Setup | null | undefined,
   catalogue: CatalogueState | null | undefined,
+  loaded?: PlaybookTools,
 ): string[] | null | undefined => {
-  if (!setup || !catalogue?.ok) return undefined
+  if (!setup) return undefined
+  if (loaded !== undefined) return loaded === 'unreadable' ? undefined : loaded
+  if (!catalogue?.ok) return undefined
   if (setup.playbook === null) return null
   const area = catalogue.catalogue.areas.find((a) => a.name === setup.area)
   const tools = area?.playbooks.find((p) => p.name === setup.playbook)?.tools
@@ -119,7 +143,8 @@ export function registerPolicy(on: On) {
       if (prefix !== null && e.tool.startsWith(prefix)) {
         const { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
         const { value: catalogue } = await $.state.get({ plugin: 'yvoke', key: 'catalogue' })
-        const declared = declaredTools(setup, catalogue)
+        const { value: instructions } = await $.state.get({ plugin: 'yvoke', key: 'instructions' })
+        const declared = declaredTools(setup, catalogue, loadedTools(instructions, await $.session.id(), setup))
         if (declared === undefined) return { deny: PLAYBOOK_UNKNOWN }
         serverTools = allowedServerTools(declared, prefix)
         // Asking the user: answered here, never sent on to the server.

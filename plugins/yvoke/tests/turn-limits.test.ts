@@ -67,7 +67,9 @@ function engine(on: On, start: { yvoke?: boolean; mode?: string } = {}): World {
       usage: null,
     }
   })
-  // The tool gate (tool-policy.md) asks for the Yvoke server's name to know its tools.
+  // The tool gate (tool-policy.md) asks for the session id to know whether what loaded is this session's.
+  on('session.id', () => ({ value: 'session-a' }))
+  // It asks for the Yvoke server's name to know its tools.
   on('mcp.connect', () => {
     if (w.failConnect) throw new Error('connect failed')
     return { value: { isConnected: true, server: 'plugin:yvoke:yvoke' } }

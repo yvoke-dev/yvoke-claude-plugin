@@ -49,6 +49,26 @@ export const qualifyTool = (tool: string, serverPrefix: string): string => {
 // alone never grants them: PLAN.md Milestone 2 grants those under their own rules.
 
 /**
+ * The tools a playbook declares, as the gate reads them: the names; null when it declares none (yvoke-web
+ * sends an empty list, and a missing field counts the same); `'unreadable'` when the value is there but is
+ * not a list of names, so nothing is granted. One rule for both answers that carry it: `list_playbooks`
+ * (src/setup.ts) and `get_playbook` (src/system-prompt.ts).
+ */
+export type PlaybookTools = string[] | null | 'unreadable'
+
+/** A playbook's `tools` by the rule above. */
+export const parseTools = (playbook: { tools?: unknown }): PlaybookTools => {
+  if (!('tools' in playbook) || playbook.tools === undefined) return null
+  const { tools } = playbook
+  if (!Array.isArray(tools) || !tools.every((t) => typeof t === 'string')) return 'unreadable'
+  return tools.length === 0 ? null : (tools as string[])
+}
+
+/** Whether a value kept in `$.state` is a `PlaybookTools`. */
+export const isPlaybookTools = (x: unknown): x is PlaybookTools =>
+  x === null || x === 'unreadable' || (Array.isArray(x) && x.every((t) => typeof t === 'string'))
+
+/**
  * yvoke-web's tool for asking the user. Its reply over MCP says nobody was asked, so the gate catches
  * the call and asks the user itself.
  */

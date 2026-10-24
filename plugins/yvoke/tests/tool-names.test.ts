@@ -1,5 +1,15 @@
 import { test, expect, describe } from 'claude-code/testing'
-import { DEFAULT_KB_TOOLS, allowedServerTools, builtinTool, isComputeTool, isWebTool, qualifyTool, serverToolPrefix } from '../src/tool-names'
+import {
+  DEFAULT_KB_TOOLS,
+  allowedServerTools,
+  builtinTool,
+  isComputeTool,
+  isPlaybookTools,
+  isWebTool,
+  parseTools,
+  qualifyTool,
+  serverToolPrefix,
+} from '../src/tool-names'
 
 // tool-policy.md: the engine names a server's tools `mcp__<server>__<tool>`, with the server's name
 // normalized. The rule was read from Claude Code 2.1.304: every character outside [a-zA-Z0-9_-] becomes `_`;
@@ -194,3 +204,29 @@ for (const prefix of ['mcp__plugin_yvoke_yvoke__', 'mcp__claude_ai_yvoke__']) {
     })
   })
 }
+
+// tool-policy.md: one reading of a playbook's `tools`, for the lists (setup.md) and for get_playbook.
+describe('parseTools', () => {
+  test('a list of names is kept', () => {
+    expect(parseTools({ tools: ['search_corpus', 'mcp__oim__get_toc'] })).toEqual(['search_corpus', 'mcp__oim__get_toc'])
+  })
+
+  test('an empty list, or no field, declares none', () => {
+    expect(parseTools({ tools: [] })).toBeNull()
+    expect(parseTools({})).toBeNull()
+    expect(parseTools({ tools: undefined })).toBeNull()
+  })
+
+  test('anything else is unreadable, never taken as none', () => {
+    for (const tools of ['search_corpus', null, 3, {}, ['search_corpus', 3], [null]]) {
+      expect(parseTools({ tools })).toBe('unreadable')
+    }
+  })
+})
+
+describe('isPlaybookTools', () => {
+  test('the three shapes parseTools gives, and nothing else', () => {
+    for (const ok of [['a'], [], null, 'unreadable']) expect(isPlaybookTools(ok)).toBe(true)
+    for (const bad of ['search_corpus', undefined, 3, {}, ['a', 1]]) expect(isPlaybookTools(bad)).toBe(false)
+  })
+})
