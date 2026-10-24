@@ -78,19 +78,28 @@ Each feature is designed to live in its own `plugins/yvoke/src/` module (with pu
 
 ### 3.2 Playbook Preflight Check (`plugins/yvoke/src/preflight.ts`)
 
-- **Behaviour (`yvoke-desktop` & `yvoke-web` 1.3.0 Parity):**
+- **Behaviour (`yvoke-desktop` & `yvoke-web` 1.3.0 Parity, except the timeout):**
   - Runs at most once per session on the first question of a single-agent Yvoke session (`yvoke.preflightDone` in `PluginState.yvoke`), before the setup locks.
   - **When to skip:** Skip the check immediately when:
     - the session is in multi-agent mode;
     - the selected area offers fewer than 2 playbooks; or
     - the selected playbook is the area's default playbook (`area.defaultPlaybook`).
-  - **Model Fit Check:** When a non-default playbook is selected in an area with $\ge 2$ playbooks, show status via `$.ui.status('Checking whether the playbook fits your question…')` and call `$.model.complete` (no tools, 45 s timeout via `$.clock.sleep`) with a prompt listing the user's question and the area's candidate non-default playbooks (`name`, `title`, `description`).
-  - **Handling the Suggestion:**
-    - If `$.model.complete` suggests the already-chosen playbook or the area's default playbook, treat it as a fit and proceed without prompting the user.
-    - If `$.model.complete` suggests a different known non-default playbook in the area, prompt the user via `$.ui.ask` with `header: 'Playbook'` and two options:
+  - **Model Fit Check:** When a non-default playbook is selected in an area with $\ge 2$ playbooks, show status via `$.ui.status('Checking whether the playbook fits your question…')` (cleared with `$.ui.status(undefined)` when the check ends) and call `$.model.complete` (no tools) with a prompt listing the user's question, the selected playbook's name, and the area's candidate non-default playbooks (`name`, `title`, `description`). As with `yvoke-desktop`'s `buildValidatorSystemPrompt` (`src/main/agent/playbookValidation.ts`), the model answers with one JSON object:
+    - `plausible`: `true` when the selected playbook fits;
+    - `suggestedPlaybookName`: the name of a different listed playbook that fits better, else `null`; and
+    - `reason`: one or two sentences on why the suggestion fits better, else `''`.
+  - **8 s Timeout:** Pass `timeoutMs: 8_000` on the `$.model.complete` request (`ModelCompleteRequest.timeoutMs`). When the time is up, the call resolves `isAnswered: false` with `reason: 'aborted'`, and the question goes on with the current playbook.
+    - **No budget cost:** a `$` call's time never counts against the hook's 10 s budget (`HookBudget`), and `timeoutMs` bounds the call by the clock, so no timer is needed. Don't time it with `$.clock.sleep`: the sleep is the one `$` call whose wait does count, and a 45 s one would make the `prompt.submit` hook overrun at 10 s before it fired.
+    - **Why 8 s rather than `yvoke-desktop`'s 45 s (`VALIDATION_TIMEOUT_MS`):** the user's question waits while the check runs, and the check is only advice, so a hung call gives up quickly and the question goes with the playbook the user picked. 8 s also matches the server-call timeout (`TIMEOUT_MS` in `src/server.ts`).
+  - **Handling the Suggestion:** Read the reply as `yvoke-desktop`'s `parseValidation` does:
+    - Take the JSON from the first `{` to the last `}`, so a fenced block or a line of preamble still parses. A `plausible` that isn't `false` is a fit: proceed without prompting the user.
+    - Match `suggestedPlaybookName` against the area's playbooks case-insensitively, by `name` first, then by `title`.
+    - If it matches the already-chosen playbook or the area's default playbook, treat it as a fit and proceed without prompting the user.
+    - If it matches a different known non-default playbook in the area, prompt the user via `$.ui.ask` with `header: 'Playbook'`, the model's trimmed `reason` in the question (`<reason> Switch playbooks?`, or `<suggestedTitle> may fit this question better than <currentTitle>. Switch playbooks?` when the reason is empty), and the two options of `yvoke-desktop`'s card (`src/renderer/src/components/ChatView.tsx`):
       1. `Switch to <suggestedTitle> (<suggestedName>)` — updates `yvoke.setup` (`playbook` and `version`) in `$.state` and `$.store`.
-      2. `Keep <currentTitle> (<currentName>)` — keeps the current playbook.
-  - **Fails Open:** Any error, timeout, unparseable model reply, unknown suggested playbook name, or `isAnswered: false` from `$.ui.ask` proceeds with the user's currently selected playbook.
+      2. `Send anyway` — keeps the current playbook.
+    - `$.ui.ask` resolves to the chosen label or to free text typed under "Other", and rejects when the user dismisses the dialog and in a `-p` run. Only an answer exactly equal to the Switch label switches; anything else means `Send anyway`.
+  - **Fails Open:** The question goes on with the currently selected playbook on any error; on the 8 s timeout; on a `$.model.complete` result with `isAnswered: false` (`reason` `api-error`, `empty-reply` or `aborted`); on an unparseable reply; on a missing or unknown suggested playbook name; and when `$.ui.ask` rejects (dismissed, or a `-p` run) or resolves to anything but the Switch label (`Send anyway`, or free text typed under "Other").
 - **Required Codebase Integration Details:**
   1. **Hook Registration Order in `plugins/yvoke/hooks/register.tsx`:** Register `registerPreflight(on)` **before** `registerSetup(on, ...)` and `registerSystemPrompt(on)`, using matcher `{ text: /^/ }` (since `registerSystemPrompt` owns the unmatched `prompt.submit` hook). Because `registerSetup`'s `prompt.submit` hook reads `yvoke.setup` before calling `next(e)` and writes that copy back to lock the session, running `registerPreflight` outermost ensures that any playbook switch is written to `yvoke.setup` before `registerSetup` reads and locks it and before `registerSystemPrompt` loads instructions.
   2. **Catalogue Metadata in `plugins/yvoke/src/setup.ts`:** Extend `PlaybookEntry` and `toCatalogue` in `plugins/yvoke/src/setup.ts` (and `plugins/yvoke/types/index.d.ts`) to retain `title` (defaulting to `name`) and `description` (defaulting to `''`) from `list_playbooks` so `preflight.ts` can include candidate playbook descriptions in the classifier prompt.
