@@ -62,10 +62,34 @@
   single-agent mode, the question is dropped with `Yvoke Backend: the area <name> has no playbooks, so the question was not sent.`
   There is no cached list.
 - `/clear` ends the setup with the session. `/resume` brings back the setup the resumed session had,
-  locked or not; if it cannot be read, the session has none. `/branch` keeps the setup, locked in the new
-  session; Claude Code starts a branch with empty `$.state`, so it is read from the session that just
-  ended ([session.md](session.md)). The status line is cleared on each of the three and set again only for a locked setup, so it
+  locked or not. `/branch` keeps the setup, locked in the new session; Claude Code starts a branch with
+  empty `$.state`, so it is read from the session that just ended ([session.md](session.md)). The status
+  line is cleared on each of the three and set again only for a locked setup, so it
   never shows a session's setup under another session.
+- **A setup that cannot be restored** (D-11): when a resumed or branched session is a Yvoke session
+  ([session.md](session.md)) and its setup cannot be restored, it stays a Yvoke session but cannot be used
+  until `/clear`. A model under a defaulted setup could change playbook in the middle of a conversation,
+  so nothing is defaulted. `yvoke.setupLost` is then true, and:
+  - Every question is dropped with *Yvoke: this session's setup could not be restored, so the question
+    was not sent. Type /clear, then /yvoke.* It is not a server error, so it has no `Yvoke Backend:`
+    prefix, and no list is loaded.
+  - The band shows that message in red in place of the selects, on every surface. There is no Retry.
+  - If a question enters anyway (another plugin's `prompt.submit` above answered it), `prompt.compose`
+    replaces the prompt with the refusal section ([system-prompt.md](system-prompt.md)), and the tool gate
+    refuses every Yvoke server tool, since the session has no setup ([tool-policy.md](tool-policy.md)).
+  - `/clear`, and every `/resume` or `/branch` start, resets it, so a later session that restores its
+    setup is usable. `/yvoke` does not reset it: the session is already a Yvoke session.
+  - The setup is lost when the saved entry cannot be read (the store read fails), when it is there but is
+    not a valid setup, when the session already has questions (`$.session.turns()` above 0) and there is no
+    saved setup, and when the restore hook itself fails (a `.catch` records it).
+  - These are not lost: a Yvoke session resumed or branched before its first question with no saved
+    setup (nothing is saved until a pick or the first question, so the band loads the defaults, as for a
+    new session), and a plain session, whatever the store holds.
+  - A saved setup that is not locked while the session already has questions (its lock was never
+    saved, see below) comes back locked under the new session id, with its own playbook, never replaced
+    by the area's defaults and never reopened for picking.
+  - A failure after the setup is restored (saving it under the new id, loading the lists, the version
+    upgrade) does not lose it: the next question or Retry loads the lists again.
 - Whenever the lists load, an unlocked setup keeps its picks only while they are still offered: its area,
   and in that area its playbook (single agent) or its profile (multi-agent), by name. A playbook deleted on
   the server, or a prototype now hidden because `showPrototypes` is off, gives way to that area's
@@ -88,7 +112,8 @@
     `src/system-prompt.ts` loads the instructions for it. Only the version can change; the area, mode,
     playbook and lock stay as they were.
 - A question that entered the session is never reported as dropped, even when saving the lock fails;
-  the lock then holds for this session, and `/resume` finds the setup unlocked.
+  the lock then holds for this session, and `/resume` finds the setup unlocked, which it locks again
+  because the session has questions (above).
 - The saved setups (`setup:<session id>`) are a few hundred bytes each, in the plugin's 4 MiB store.
   `/yvoke` keeps the entries of the newest 5,000 sessions, about 1.25 MiB, and deletes the rest (D-28,
   [session.md](session.md)).
@@ -101,9 +126,11 @@
 | --- | --- |
 | Rules (catalogue, defaults, picks, read-only line, the loaded version at the lock, version upgrade on resume/branch or a late load) and hooks | `plugins/yvoke/src/setup.ts` |
 | Band | `ui.render` on `AbovePrompt` (terminal and desktop); `Select` keys `yvoke-area`, `yvoke-mode`, `yvoke-playbook`, `yvoke-profile`; Button `yvoke-retry` |
+| Restore | `classic.SessionStart` (`clear`, `resume`, `fork`, with a `.catch` that marks the session lost); `restored(stored)` reads one saved entry |
 | Loading | `command.run` on `yvoke`, `classic.SessionStart` (`resume`, `fork`), Retry, or a question with no lists or failed ones, locked or not |
 | Lock | `prompt.submit` (matcher `{ text: /^/ }`, so it can sit beside `src/system-prompt.ts`'s unmatched hook) |
 | `$.state` `yvoke.setup` | `{ area, mode: 'single' \| 'multi', playbook, version, profile, lockedSessionId }` (read by `src/system-prompt.ts` and `src/policy.ts`) |
+| `$.state` `yvoke.setupLost` | true while the session's setup could not be restored; written only by `src/setup.ts` (`classic.SessionStart`), read by the question hook, the band and `src/system-prompt.ts` |
 | `$.state` `yvoke.instructions` | read at the lock for `loadedFor` (written only by `src/system-prompt.ts`, [system-prompt.md](system-prompt.md)) |
 | `$.state` `yvoke.catalogue` | the lists as the band shows them, or the error; each playbook carries the `tools` it declares, null when it declares none (an empty list or no field), `'unreadable'` when the server sent something else, which the tool gate reads ([tool-policy.md](tool-policy.md)) |
 | `$.store` `setup:<session id>` | the setup, saved on every pick, before a question goes down, and at the lock |

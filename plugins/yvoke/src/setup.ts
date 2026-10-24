@@ -3,6 +3,9 @@
 // to what the area names. The choice locks when the first question enters the session, with the playbook
 // version that question loaded.
 //
+// A resumed or branched Yvoke session whose setup cannot be restored stays a Yvoke session but is unusable
+// until /clear (`setupLost`): the model never runs under a setup it was not given.
+//
 // This part holds the rules, with no `$` in it (a function from another file cannot take `$`), so they can
 // be tested without the engine.
 import type { ElementConstructor, On, PluginOptions, RenderElement, SelectProps } from 'claude-code'
@@ -230,6 +233,8 @@ export const loadedOn = (
 
 export const LOADING = 'Loading the Yvoke setup…'
 export const DROP_FAILED = 'Yvoke Backend: the session could not be set up, so the question was not sent.'
+/** Shown in the band and as the drop of every question while `yvoke.setupLost` is true (setup.md). */
+export const SETUP_LOST = "Yvoke: this session's setup could not be restored, so the question was not sent. Type /clear, then /yvoke."
 
 export type CatalogueState = { ok: true; catalogue: Catalogue } | { ok: false; error: string }
 
@@ -246,6 +251,13 @@ const isSetup = (x: unknown): x is Setup => {
     nullOr(s.lockedSessionId, 'string')
   )
 }
+
+/**
+ * What `setup:<session id>` holds, as the restore reads it: nothing saved is no setup and no fault (a
+ * session resumed before its first question has none), a value that is not a setup is a fault.
+ */
+export const restored = (stored: unknown): { setup: Setup | null; isFault: boolean } =>
+  stored === undefined ? { setup: null, isFault: false } : isSetup(stored) ? { setup: stored, isFault: false } : { setup: null, isFault: true }
 
 const noPlaybooks = (area: string) => `Yvoke Backend: the area ${area} has no playbooks, so the question was not sent.`
 
@@ -345,6 +357,8 @@ export function registerSetup(on: On, options: PluginOptions) {
     // The status line is one per plugin and stays until replaced: clear it for every new session, and let
     // a locked setup set it again below.
     await $.ui.status(undefined)
+    // Every session starts usable; a restore that fails below says otherwise.
+    await $.state.set({ plugin: 'yvoke', key: 'setupLost' }, false)
     if (e.source === 'clear') return started
     let saved: Setup | null = null
     if (e.source === 'resume') {
@@ -356,49 +370,79 @@ export function registerSetup(on: On, options: PluginOptions) {
     }
     const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
     if (isYvoke !== true) return started
+    let isFault = false
     if (e.source === 'resume') {
-      const stored = await $.store.get(setupKey(e.session_id))
-      saved = isSetup(stored) ? stored : null
+      ;({ setup: saved, isFault } = restored(await $.store.get(setupKey(e.session_id))))
     } else if (!saved) {
       // Claude Code starts a /branch with empty $.state: take the setup of the session that just ended.
       const parent = endedId(await $.store.get(ENDED))
-      const stored = parent === undefined ? undefined : await $.store.get(setupKey(parent))
-      saved = isSetup(stored) ? stored : null
+      ;({ setup: saved, isFault } = restored(parent === undefined ? undefined : await $.store.get(setupKey(parent))))
+    }
+    // A session that already has questions had a setup. One with none to restore is lost, and one whose lock
+    // was never saved comes back locked, as it ran, never reopened for picking. A session with no question
+    // yet may simply have none saved: the band loads the defaults, as for a new session.
+    const turns = !isFault && saved?.lockedSessionId == null ? await $.session.turns() : 0
+    if (!isFault && !saved && turns > 0) isFault = true
+    if (isFault) {
+      await $.state.set({ plugin: 'yvoke', key: 'setup' }, null)
+      await $.state.set({ plugin: 'yvoke', key: 'setupLost' }, true)
+      return started
     }
     // The setup belongs to the session it is in now: /branch gives it a new id.
-    if (saved && saved.lockedSessionId !== null) saved = { ...saved, lockedSessionId: e.session_id }
+    if (saved && (saved.lockedSessionId !== null || turns > 0)) saved = { ...saved, lockedSessionId: e.session_id }
     await $.state.set({ plugin: 'yvoke', key: 'setup' }, saved)
-    if (saved) await $.store.set(setupKey(e.session_id), saved)
+    // The setup is restored from here on: nothing below may undo that.
+    try {
+      if (saved) await $.store.set(setupKey(e.session_id), saved)
+    } catch {
+      // It holds for this session; a /resume of a branch would find none, and the session would be lost then.
+    }
 
     const io: ServerIo = {
       connect: (server) => $.mcp.connect(server),
       call: (server, tool, args) => $.mcp.call(server, tool, args),
       sleep: (ms, signal) => $.clock.sleep(ms, { signal }),
     }
-    const catalogue = await load(
-      io,
-      async () => saved,
-      async (c, setup) => {
-        await $.state.set({ plugin: 'yvoke', key: 'catalogue' }, c)
-        await $.state.set({ plugin: 'yvoke', key: 'setup' }, setup)
-      },
-    )
-    if (saved && saved.lockedSessionId !== null) {
-      // D-20: a resumed or branched session carries on with the playbook version the server has now. Both
-      // have a new session id to src/system-prompt.ts, so their first question fetches the server's current
-      // text. If the lists fail here, the next question or Retry loads them and upgrades the setup then.
-      await upgrade(
-        saved,
-        catalogue,
-        async (s) => {
-          await $.state.set({ plugin: 'yvoke', key: 'setup' }, s)
-          await $.store.set(setupKey(e.session_id), s)
+    try {
+      const catalogue = await load(
+        io,
+        async () => saved,
+        async (c, setup) => {
+          await $.state.set({ plugin: 'yvoke', key: 'catalogue' }, c)
+          await $.state.set({ plugin: 'yvoke', key: 'setup' }, setup)
         },
-        (text) => $.ui.toast(text),
-        (text) => $.ui.status(text),
       )
+      if (saved && saved.lockedSessionId !== null) {
+        // D-20: a resumed or branched session carries on with the playbook version the server has now. Both
+        // have a new session id to src/system-prompt.ts, so their first question fetches the server's current
+        // text. If the lists fail here, the next question or Retry loads them and upgrades the setup then.
+        await upgrade(
+          saved,
+          catalogue,
+          async (s) => {
+            await $.state.set({ plugin: 'yvoke', key: 'setup' }, s)
+            await $.store.set(setupKey(e.session_id), s)
+          },
+          (text) => $.ui.toast(text),
+          (text) => $.ui.status(text),
+        )
+      }
+    } catch {
+      // As above: the next question or Retry loads the lists again.
     }
     return started
+  // A failure before the setup is restored: the session cannot say what it ran on. `next` has settled.
+  }).catch(async ($, e, next) => {
+    try {
+      const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
+      if (isYvoke === true) {
+        await $.state.set({ plugin: 'yvoke', key: 'setup' }, null)
+        await $.state.set({ plugin: 'yvoke', key: 'setupLost' }, true)
+      }
+    } catch {
+      // Nothing more can be recorded.
+    }
+    return next(e)
   })
 
   // The matcher takes every prompt. It is there because the engine refuses a second hook on one event
@@ -406,6 +450,8 @@ export function registerSetup(on: On, options: PluginOptions) {
   on('prompt.submit', { text: /^/ }, async ($, e, next) => {
     const { value: isYvoke } = await $.state.get({ plugin: 'yvoke', key: 'yvokeSession' })
     if (isYvoke !== true) return next(e)
+    // D-11: a session whose setup was lost takes no question, whoever else would answer it.
+    if ((await $.state.get({ plugin: 'yvoke', key: 'setupLost' })).value === true) return { drop: SETUP_LOST }
 
     const sessionId = await $.session.id()
     const instructions = async () => (await $.state.get({ plugin: 'yvoke', key: 'instructions' })).value
@@ -503,6 +549,9 @@ export function registerSetup(on: On, options: PluginOptions) {
     const { value: catalogue } = await $.state.get({ plugin: 'yvoke', key: 'catalogue' })
     const { value: setup } = await $.state.get({ plugin: 'yvoke', key: 'setup' })
     const sessionId = await $.session.id()
+    // The session cannot be used until /clear: nothing to pick, nothing to retry.
+    const { value: lost } = await $.state.get({ plugin: 'yvoke', key: 'setupLost' })
+    if (lost === true) return h(Text, { color: 'red' }, SETUP_LOST) as RenderElement
 
     // Loads the lists again. A setup locked in this session then takes the server's version, as on /resume.
     const retry = async () => {

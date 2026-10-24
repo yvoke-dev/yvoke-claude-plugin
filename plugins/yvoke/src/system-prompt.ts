@@ -3,7 +3,8 @@
 // the playbook's text (`get_playbook`), and serves them from `prompt.compose` as one `session` section: base
 // instructions first, the playbook after them, so the playbook wins a conflict. A failed load drops the
 // question; nothing is cached as a fallback (product.md). Once the setup is locked in this session, a
-// prompt composed without them is replaced by MISSING_SECTION alone.
+// prompt composed without them is replaced by MISSING_SECTION alone, as it is in a session whose setup was
+// lost (`setupLost`, setup.md).
 //
 // The setup band (setup.md) chooses the area, mode and playbook. Until it writes `$.state` `yvoke.setup`,
 // the session runs on DEFAULT_SETUP: area OIM, single agent, the area's default playbook from `list_areas`.
@@ -47,8 +48,9 @@ export const DROP_FAILED = 'Yvoke Backend: the instructions could not be loaded,
 const NO_TIME = 'there was not enough time left to load the instructions. Send the question again.'
 
 /**
- * Served in place of the prompt when the `prompt.compose` hook itself fails, or when the setup is locked in
- * this session and its instructions are not there: a turn never runs bare.
+ * Served in place of the prompt when the `prompt.compose` hook itself fails, when the setup is locked in
+ * this session and its instructions are not there, or when the session's setup was lost: a turn never runs
+ * bare.
  */
 export const MISSING_SECTION: PromptComposeSection = {
   id: SECTION_ID,
@@ -242,6 +244,9 @@ export function registerSystemPrompt(on: On) {
     const { value: loaded } = await $.state.get({ plugin: 'yvoke', key: 'instructions' })
     const sessionId = await $.session.id()
     const composed = await next(e)
+    // setup.md: a session whose setup was lost takes no question; one that entered anyway gets the refusal.
+    const { value: isLost } = await $.state.get({ plugin: 'yvoke', key: 'setupLost' })
+    if (isLost === true) return { sections: [MISSING_SECTION] }
     // What loaded for this session serves, locked or not: setup.ts takes the loaded version only after the
     // question has entered, so the setup is not checked here.
     if (loaded?.sessionId === sessionId && typeof loaded.text === 'string') {

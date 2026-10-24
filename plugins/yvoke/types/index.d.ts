@@ -14,6 +14,11 @@
 // catalogue: the areas and playbooks the band offers, or why they could not be loaded (setup.md). A
 //   playbook's `tools` are the names it declares, null when it declares none (an empty list or no field),
 //   'unreadable' when the server sent something else; the tool gate reads them (tool-policy.md).
+// setupLost: true in a resumed or branched Yvoke session whose setup could not be restored (setup.md): the
+//   store could not be read or held no valid setup, the session already has questions and no setup, or
+//   the restore itself failed. The session is unusable until /clear: the band says so, questions are
+//   dropped and the prompt is the refusal. Written only by src/setup.ts, reset by every session start
+//   (/clear, /resume, /branch); src/system-prompt.ts reads it.
 // loopStep: a family, one member per loop (`id`: the subagent's id, or `main`): the turn and request it
 //   stands at and its ceiling, or null when its ceiling is off (turn-limits.md). Written only by
 //   src/turn-limits.ts. YvokeState gives the member's value, which is what `$.state.get` with an `id`
@@ -51,6 +56,7 @@ export type YvokeState = {
   } | null
   setup: YvokeSetup | null
   catalogue: YvokeCatalogue | null
+  setupLost: boolean
   loopStep: { turnId: string; index: number; n: number } | null
 }
 
@@ -65,6 +71,7 @@ declare module 'claude-code' {
       } | null
       setup: YvokeSetup | null
       catalogue: YvokeCatalogue | null
+      setupLost: boolean
       loopStep: StateFamily<{ turnId: string; index: number; n: number } | null>
     }
   }

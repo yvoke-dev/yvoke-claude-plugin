@@ -74,7 +74,7 @@ Planned capabilities tracked in [`PLAN.md`](../../PLAN.md) extend this pipeline 
 ## 3. Module Boundaries & State Storage
 
 - **One module per feature (`plugins/yvoke/src/`):** Pure decision/parsing functions (no `$` parameter) live at the top of each module so they can be unit-tested directly, followed by `register<Feature>(on, options)` wired in `plugins/yvoke/hooks/register.tsx`.
-- **Session state (`$.state`):** Declared in `plugins/yvoke/types/index.d.ts` under `PluginState.yvoke` (`yvokeSession`, `setup`, `catalogue`, `instructions`, `loopStep`). Survives hot reload within a session, cleared on `/clear`.
+- **Session state (`$.state`):** Declared in `plugins/yvoke/types/index.d.ts` under `PluginState.yvoke` (`yvokeSession`, `setup`, `setupLost`, `catalogue`, `instructions`, `loopStep`). Survives hot reload within a session, cleared on `/clear`.
 - **Persistent store (`$.store`):** 4 MiB JSON store shared across sessions on the machine. Used for session/setup restoration across `/resume` and `/branch` (`session:<id>`, `setup:<id>`, `ended`). `/yvoke` deletes the `session:` and `setup:` entries of sessions beyond the newest 5,000 (D-28).
 
 ## 4. Platform Constraints

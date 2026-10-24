@@ -446,3 +446,34 @@ test('outside a Yvoke session a locked setup changes nothing: the prompt passes 
   expect(await compose($)).toEqual(CORE)
   expect(w.server.calls).toEqual([])
 })
+
+// D-11, setup.md: a session whose setup was lost takes no question. If one enters anyway (another plugin's
+// prompt.submit above answered it), the prompt is the refusal, with the instructions or without.
+// The flag as a test sets it: a hook here answers the plugin's reads of `yvoke.setupLost`.
+const setupLost = (on: On, start = true) => {
+  const flag = { lost: start }
+  on('state.get', { plugin: 'yvoke', key: 'setupLost' }, () => ({ value: { value: flag.lost as never, version: 1 } }))
+  return flag
+}
+
+test('a session whose setup was lost and no instructions: the refusal section replaces the prompt', async ($, on) => {
+  const w = engine(on)
+  setupLost(on)
+  await begin($)
+  await yvoke($, w)
+
+  expect(await compose($)).toEqual([MISSING_SECTION])
+  expect(w.server.calls).toEqual([])
+})
+
+test('a session whose setup was lost, with instructions loaded for it: the refusal section, not the instructions', async ($, on) => {
+  const w = engine(on)
+  const flag = setupLost(on, false)
+  await begin($)
+  await yvoke($, w)
+  await ask($, 'one')
+  expect(await compose($)).toEqual([...CORE, OURS])
+
+  flag.lost = true
+  expect(await compose($)).toEqual([MISSING_SECTION])
+})

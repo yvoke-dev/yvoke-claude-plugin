@@ -40,7 +40,12 @@ const PLAYBOOKS = [
   { name: 'oim-full', area: 'OIM', prototype: false, version: 3 },
 ]
 
-type World = { sessionId: string; turns: number; store: Map<string, unknown>; emptied: Set<string> }
+type World = {
+  sessionId: string
+  turns: number
+  store: Map<string, unknown>
+  emptied: Set<string>
+}
 
 function engine(on: On): World {
   const w: World = { sessionId: 'session-a', turns: 0, store: new Map(), emptied: new Set() }
@@ -136,4 +141,64 @@ test('/branch of a plain session after a Yvoke one ended: the branch stays plain
   expect(w.store.get('session:session-d')).toBeUndefined()
   w.turns = 0
   expect(await yvoke($)).toMatchObject({ text: STARTED })
+})
+
+// D-11, setup.md: a branch whose setup cannot be restored stays a Yvoke session, unusable until /clear.
+const LOST = "Yvoke: this session's setup could not be restored, so the question was not sent. Type /clear, then /yvoke."
+const lostOf = async ($: Engine, surface: 'terminal' | 'desktop') => {
+  const ui = await $.ui.mount({ plugin: 'yvoke', surface, ...BAND })
+  const found = { lost: (await ui.find({ type: 'Text', text: /^Yvoke: this session's setup could not be restored/ }))?.text, area: await ui.find({ key: 'yvoke-area' }), line: (await ui.find({ type: 'Text', text: / · Single agent · / }))?.text }
+  await ui.unmount()
+  return found
+}
+
+/** A Yvoke session with one question in it, branched; `lose` changes what the store holds before the branch. */
+async function branched($: Engine, on: On, lose: (w: World) => void) {
+  const w = engine(on)
+  await begin($)
+  await yvoke($)
+  await ask($, 'q')
+  lose(w)
+  await branch($, w, 'session-b')
+  return w
+}
+
+test('/branch whose parent has no saved setup but has questions: unusable until /clear', async ($, on) => {
+  const w = await branched($, on, (w) => w.store.delete('setup:session-a'))
+  for (const surface of ['terminal', 'desktop'] as const) {
+    expect(await lostOf($, surface)).toEqual({ lost: LOST, area: undefined, line: undefined })
+  }
+  expect(await ask($, 'again')).toEqual({ drop: LOST })
+  expect(w.store.get('setup:session-b')).toBeUndefined()
+  // The branch is still a Yvoke session.
+  expect(w.store.get('session:session-b')).toEqual({ yvoke: true })
+  expect(await yvoke($)).toMatchObject({ text: ALREADY })
+})
+
+test('/branch whose parent setup is not a setup: unusable until /clear', async ($, on) => {
+  await branched($, on, (w) => w.store.set('setup:session-a', { area: 'OIM' }))
+  expect((await lostOf($, 'terminal')).lost).toBe(LOST)
+  expect(await ask($, 'again')).toEqual({ drop: LOST })
+})
+
+test('/branch whose parent setup was never locked, with questions in it: locked in the branch', async ($, on) => {
+  const w = await branched($, on, (w) => w.store.set('setup:session-a', { ...(w.store.get('setup:session-a') as object), lockedSessionId: null }))
+  for (const surface of ['terminal', 'desktop'] as const) {
+    expect(await lostOf($, surface)).toEqual({ lost: undefined, area: undefined, line: LINE })
+  }
+  expect(w.store.get('setup:session-b')).toMatchObject({ playbook: 'oim-full', lockedSessionId: 'session-b' })
+  expect(await ask($, 'again')).toEqual({ text: 'again' })
+})
+
+test('/branch before the first question, with no setup saved: the band loads the defaults', async ($, on) => {
+  const w = engine(on)
+  await begin($)
+  await yvoke($)
+  await branch($, w, 'session-b')
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const found = await lostOf($, surface)
+    expect(found.lost).toBeUndefined()
+    expect(found.area).toBeDefined()
+  }
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
 })

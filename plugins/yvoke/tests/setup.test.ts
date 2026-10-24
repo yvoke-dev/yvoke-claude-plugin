@@ -44,6 +44,11 @@ type World = {
   status: (string | undefined)[]
   toasts: string[]
   failStoreRead: boolean
+  /** The store answers every `setup:` read with an error, and nothing else. */
+  failSetupRead: boolean
+  failTurns: boolean
+  /** Questions already in the transcript when the session starts, as on /resume or /branch. */
+  priorTurns: number
   failId: boolean
   failLockedSave: boolean
   savedAtSubmit: unknown[]
@@ -67,6 +72,9 @@ function engine(on: On, start: Partial<World> = {}): World {
     status: [],
     toasts: [],
     failStoreRead: false,
+    failSetupRead: false,
+    failTurns: false,
+    priorTurns: 0,
     failId: false,
     failLockedSave: false,
     savedAtSubmit: [],
@@ -75,13 +83,17 @@ function engine(on: On, start: Partial<World> = {}): World {
   }
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('command.register', (_$, e) => ({ value: { command: e.name } }))
-  on('session.turns', () => ({ value: w.entered.length }))
+  on('session.turns', () => {
+    if (w.failTurns) throw new Error('no turns')
+    return { value: w.priorTurns + w.entered.length }
+  })
   on('session.id', () => {
     if (w.failId) throw new Error('no id')
     return { value: w.sessionId }
   })
   on('store.get', (_$, e) => {
     if (w.failStoreRead) throw new Error('store unreadable')
+    if (w.failSetupRead && e.key.startsWith('setup:')) throw new Error('store unreadable')
     return { value: w.store.get(e.key) }
   })
   on('store.set', (_$, e) => {
@@ -671,7 +683,9 @@ test('the status line does not outlive its session: /resume of a plain or unlock
   await $.classic.SessionStart({ source: 'resume', session_id: 'session-a' })
   expect(w.status.at(-1)).toBe(LINE)
 
+  // No question in it yet: with one, the setup would come back locked (see /resume below).
   w.sessionId = 'unlocked'
+  w.entered = []
   await $.classic.SessionStart({ source: 'resume', session_id: 'unlocked' })
   expect(w.status.at(-1)).toBeUndefined()
 })
@@ -918,4 +932,179 @@ test('prototypes show only when the setting is on', { options: { showPrototypes:
   await yvoke($)
   const ui = await band($, 'terminal')
   expect(await optionsOf(ui, 'yvoke-area')).toEqual(['OIM', 'Lab'])
+})
+
+// D-11, setup.md: a resumed or branched Yvoke session whose setup cannot be restored stays a Yvoke session
+// and cannot be used until /clear. The model never runs under a setup it was not given.
+const LOST = "Yvoke: this session's setup could not be restored, so the question was not sent. Type /clear, then /yvoke."
+const lostOf = async (ui: Ui) => (await ui.find({ type: 'Text', text: /^Yvoke: this session's setup could not be restored/ }))?.text
+
+/** A Yvoke session on the store, resumed with `prior` questions already in it. `setup` is its saved entry. */
+const resumedWith = (on: On, setup: unknown, prior: number) =>
+  engine(on, {
+    sessionId: 'old',
+    priorTurns: prior,
+    store: new Map<string, unknown>([['session:old', { yvoke: true }], ...(setup === undefined ? [] : [['setup:old', setup] as [string, unknown]])]),
+  })
+
+/** The band, the question and the tools of a session that cannot use its setup. */
+const expectUnusable = async ($: Engine, w: World) => {
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    expect(await lostOf(ui)).toBe(LOST)
+    expect(await ui.find({ key: 'yvoke-area' })).toBeUndefined()
+    expect(await ui.find({ key: 'yvoke-playbook' })).toBeUndefined()
+    expect(await lineOf(ui)).toBeUndefined()
+    await ui.unmount()
+  }
+  expect(await ask($, 'q')).toEqual({ drop: LOST })
+  expect(await ask($, 'q again')).toEqual({ drop: LOST })
+  expect(w.entered).toEqual([])
+  expect(await useTool($, SEARCH)).toEqual({ deny: PLAYBOOK_UNKNOWN })
+  expect(w.server.calls).not.toContain('get_playbook')
+  expect(w.status.at(-1)).toBeUndefined()
+}
+
+test('/resume of a Yvoke session whose saved setup cannot be read: unusable until /clear', async ($, on) => {
+  const w = resumedWith(on, LOCKED, 2)
+  w.failSetupRead = true
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  await expectUnusable($, w)
+})
+
+test('/resume with the store failing before any question: still unusable, since nothing says it had none', async ($, on) => {
+  const w = resumedWith(on, LOCKED, 0)
+  w.failSetupRead = true
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  await expectUnusable($, w)
+})
+
+for (const [what, bad] of [
+  ['lacks its mode and playbook', { area: 'OIM' }],
+  ['is a string', 'oim-full'],
+  ['names a mode there is not', { ...LOCKED, mode: 'swarm' }],
+  ['is null', null],
+] as const) {
+  test(`/resume of a Yvoke session whose saved setup ${what}: unusable until /clear`, async ($, on) => {
+    const w = resumedWith(on, bad, 0)
+    await begin($)
+    await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+    await expectUnusable($, w)
+  })
+}
+
+test('/resume of a Yvoke session with questions in it and no saved setup: unusable until /clear', async ($, on) => {
+  const w = resumedWith(on, undefined, 3)
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  await expectUnusable($, w)
+})
+
+test('/resume with no saved setup and no question yet: the band loads the defaults, as for a new session', async ($, on) => {
+  const w = resumedWith(on, undefined, 0)
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    expect(await lostOf(ui)).toBeUndefined()
+    expect(await selected(ui, 'yvoke-playbook')).toBe('oim-full')
+    await ui.unmount()
+  }
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+  expect(w.store.get('setup:old')).toMatchObject({ playbook: 'oim-full', lockedSessionId: 'old' })
+})
+
+test('/resume of an unlocked setup with questions in it (its lock was never saved): restored locked, not reopened for picking', async ($, on) => {
+  const w = resumedWith(on, { ...LOCKED, lockedSessionId: null }, 1)
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    expect(await lineOf(ui)).toBe(QUICK)
+    expect(await ui.find({ key: 'yvoke-playbook' })).toBeUndefined()
+    expect(await lostOf(ui)).toBeUndefined()
+    await ui.unmount()
+  }
+  expect(w.store.get('setup:old')).toEqual(LOCKED)
+  expect(w.status.at(-1)).toBe(QUICK)
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+})
+
+test('/resume of an unlocked setup with questions in it, whose playbook the server dropped: kept locked, never defaulted', async ($, on) => {
+  const w = resumedWith(on, { ...LOCKED, playbook: 'ping-old', area: 'PING', version: 1, lockedSessionId: null }, 1)
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  expect(w.store.get('setup:old')).toMatchObject({ area: 'PING', playbook: 'ping-old', lockedSessionId: 'old' })
+  const ui = await band($, 'terminal')
+  expect(await lineOf(ui)).toBe('PingID · Single agent · ping-old v1')
+})
+
+test('the resume hook itself fails (turns cannot be read): unusable, never half restored', async ($, on) => {
+  const w = resumedWith(on, { ...LOCKED, lockedSessionId: null }, 1)
+  w.failTurns = true
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  w.failTurns = false
+  await expectUnusable($, w)
+})
+
+test('/clear ends the unusable state: the next /yvoke starts a fresh setup', async ($, on) => {
+  const w = resumedWith(on, undefined, 3)
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  expect(await ask($, 'q')).toEqual({ drop: LOST })
+
+  w.sessionId = 'session-b'
+  w.priorTurns = 0
+  await $.classic.SessionStart({ source: 'clear', session_id: 'session-b' })
+  const ui = await band($, 'terminal')
+  expect(await lostOf(ui)).toBeUndefined()
+  await ui.unmount()
+  await yvoke($)
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+  expect(w.store.get('setup:session-b')).toMatchObject({ lockedSessionId: 'session-b' })
+})
+
+test('a later /resume that restores its setup ends the unusable state', async ($, on) => {
+  const w = resumedWith(on, undefined, 3)
+  w.store.set('session:good', { yvoke: true })
+  w.store.set('setup:good', { ...LOCKED, lockedSessionId: 'good' })
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  expect(await ask($, 'q')).toEqual({ drop: LOST })
+
+  w.sessionId = 'good'
+  await $.classic.SessionStart({ source: 'resume', session_id: 'good' })
+  const ui = await band($, 'terminal')
+  expect(await lostOf(ui)).toBeUndefined()
+  expect(await lineOf(ui)).toBe(QUICK)
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
+})
+
+test('a session that was never a Yvoke session is not marked unusable', async ($, on) => {
+  const w = engine(on, { sessionId: 'plain', priorTurns: 4, store: new Map<string, unknown>([['session:plain', {}]]) })
+  w.failSetupRead = true
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'plain' })
+  const ui = await band($, 'terminal')
+  expect(await lostOf(ui)).toBeUndefined()
+  expect(await ask($, 'fix the build')).toEqual({ text: 'fix the build' })
+})
+
+test('/resume restores a locked setup even when the store then refuses to save it: the session stays usable', async ($, on) => {
+  const w = resumedWith(on, LOCKED, 2)
+  w.failLockedSave = true
+  w.server.playbooks = [playbook('oim-quick', { version: 4 })]
+  await begin($)
+  await $.classic.SessionStart({ source: 'resume', session_id: 'old' })
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    expect(await lostOf(ui)).toBeUndefined()
+    // The move to v4 reached $.state before the store refused it.
+    expect(await lineOf(ui)).toBe('OIM · Single agent · oim-quick v4')
+    await ui.unmount()
+  }
+  expect(await ask($, 'q')).toEqual({ text: 'q' })
 })

@@ -60,6 +60,9 @@
   locks the setup, Claude Code's prompt passes unchanged, since Claude Code may compose prompts for its own
   requests then. `/resume` and `/branch` of a locked session lock the setup under the new session id at
   once, so there the refusal applies until that session's first question loads its instructions.
+- A session whose setup could not be restored (`yvoke.setupLost`, [setup.md](setup.md)) gets the same
+  refusal section in place of the prompt, whether or not instructions are kept for it, so a question that
+  entered anyway never runs.
 - Outside a Yvoke session neither hook changes anything, and the server is not called.
 - Where an organization manages Claude Code, a plugin installed by the user from a local clone runs the
   loading hook (`prompt.submit`) but not `prompt.compose`, so the organization must install the plugin
@@ -84,6 +87,7 @@ is smaller. If the remaining hook budget minus the 1,500 ms reserve is under 1,0
 | --- | --- |
 | `prompt.submit` hook (loads, or drops the question) and `prompt.compose` hook (adds the section) | `plugins/yvoke/src/system-prompt.ts` |
 | `$.state` `yvoke.instructions` = `{ sessionId, text, loadedFor: { area, mode, playbook, version } }`, written only by `system-prompt.ts`, read by `src/setup.ts` to lock with the loaded version | contract in `plugins/yvoke/types/index.d.ts` |
+| `$.state` `yvoke.setupLost` (boolean), read by `prompt.compose`, written by `src/setup.ts` | same |
 | `$.state` `yvoke.setup` = `{ area, mode, playbook, version, lockedSessionId }` (playbook null = the area's default; version checked against `loadedFor`; `lockedSessionId` decides the refusal in `prompt.compose`), read here, written by `src/setup.ts` | same |
 | Server tools `list_areas` (`defaultPlaybook`, `defaultSystemPrompt`, `systemPrompts`), `get_playbook(name)` (`systemPrompt`, `text`, `version`), `get_system_prompt(name?)` | through `callYvoke` ([server-client.md](server-client.md)) |
 

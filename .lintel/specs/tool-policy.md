@@ -43,6 +43,7 @@
     `search_corpus`, `ask_clarifying_question`.
   - A server tool passes only by its exact full name, so a server whose name merely starts like Yvoke's
     gets nothing.
+  - A session whose setup could not be restored ([setup.md](setup.md)) has no setup, so it gets the same refusal.
   - If a Yvoke server tool is called and there is no setup, the lists did not load, the setup's area or
     playbook is not in them, or the playbook's `tools` are not a list of names, the call is refused with *Yvoke: the session's playbook could not
     be read, so this tool was not run.* It does not fall back to the default set, which could grant more
