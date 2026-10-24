@@ -2,7 +2,7 @@
 
 > **Scope:** v1 targets **Claude Code** (both the Claude Desktop **Code** tab and the terminal). Living specifications for the implemented baseline live in [`.lintel/specs/index.md`](.lintel/specs/index.md), and the current architecture and coding conventions live in [`.lintel/steering/architecture.md`](.lintel/steering/architecture.md) and [`.lintel/steering/conventions.md`](.lintel/steering/conventions.md).
 
-This document defines the remaining feature milestones, codebase integration requirements, pre-implementation spikes, server/IT dependencies, and post-v1 roadmap. Each section is self-contained and ready to be executed as a Lintel task (`lintel start`).
+This document defines the remaining feature milestones, codebase integration requirements, pre-implementation spikes, server/IT dependencies, and post-v1 roadmap. Each section is self-contained and ready to be executed as a Lintel task (`lintel task start "<title>"`), in the order [§2](#2-recommended-implementation-order) sets.
 
 ---
 
@@ -40,18 +40,23 @@ On the server side (`yvoke-web`), the MCP tools `get_system_prompt`, `list_areas
 
 ## 2. Recommended Implementation Order
 
+**This is the only order.** The milestone numbers group the work; they don't set its order.
+
 Each feature is designed to live in its own `plugins/yvoke/src/` module (with pure rule functions tested in `<feature>-rules` suites and hook wiring tested in `<feature>` suites) or add a clean step inside the single `tool.call` gate in `plugins/yvoke/src/policy.ts`.
+
+**Request now, in parallel: Entra ID Public Client Registration** (*Yvoke for Claude*, [§3.1](#31-entra-id-public-client-registration--production-mcpjson-connector)). Without it the plugin cannot sign anyone in to the real `yvoke-web` server. It is an IT request with a wait the team doesn't control, so file it before step 1 and carry on with the steps below. Waiting on it: the production `.mcp.json` defaults and the token-refresh check (both in §3.1), and the consultant pilot (Milestone 5).
+
+**Also now, in parallel, on `yvoke-web`: the server half of Area-Scoped Collection Search** ([§3.3](#33-area-scoped-collection-search-pluginsyvokesrcpolicyts--yvoke-web)). The plugin half, the gate passing each session's area, follows once the server takes the `area` argument.
 
 1. **Immediate Self-Contained Plugin Features** (no external account or server blockers; testable immediately against `claude-code/testing` hook doubles):
    - **Domain-Restricted Web Access (`WebSearch` & `WebFetch`)** in `plugins/yvoke/src/policy.ts` and `plugin.json`.
    - **Playbook Preflight Check** in `plugins/yvoke/src/preflight.ts` (plus catalogue metadata fields in `setup.ts`).
    - **Citation Marker Parser** in `plugins/yvoke/src/citations.ts`.
    - **Minimum Version Check & `/yvoke-doctor` Diagnostics** in `plugins/yvoke/src/doctor.ts`.
-2. **Interactive Spikes & Account Registration**:
-   - **Entra ID Public Client Registration** (*Yvoke for Claude*) -> unblocks production `.mcp.json` connector defaults and token refresh verification.
+2. **Interactive Spikes**:
    - **Desktop Surface Citation Rendering Spike** -> confirms `onLinkPress` vs. source button row on the Desktop Code tab and terminal -> unblocks **Citations in Assistant Replies** and **Citation Source Pane**.
-   - **Claude Code `Bash` Sandbox Security Spike** -> verifies whether `execute_code` running `node -e` via `Bash` blocks all four escape vectors -> unblocks **Sandboxed Compute Tool (`execute_code`)**.
-   - **Dynamic Subagent & Reviewer Spike** -> confirms `$.agent.register`, `$.agent.spawn`, lead text withholding, and reviewer hook placement -> unblocks **Milestone 4: Multi-Agent Investigations**.
+   - **Claude Code `Bash` Sandbox Security Spike** -> verifies whether `execute_code` running `node -e` via `Bash` blocks all four escape vectors, and answers §4.2's Node, permission-prompt and sandbox-state questions -> unblocks **Sandboxed Compute Tool (`execute_code`)**.
+   - **Dynamic Subagent & Reviewer Spike** -> confirms `$.agent.register`, `$.agent.spawn`, lead text withholding, reviewer hook placement, `prompt.compose` for registered agents, and `$.ui.ask` from a specialist -> unblocks **Milestone 4: Multi-Agent Investigations**.
 3. **Milestone 3: Citations & Source Passage Pane** (`src/citations.ts` UI hooks + `Pane` + `get_section`).
 4. **Milestone 4: Multi-Agent Investigations** (`list_profiles`/`get_profile` on `yvoke-web`, specialist/reviewer registration, lead mode, enforced review rounds, team UI).
 5. **Milestone 5: Packaging, Managed Deployment & Consultant Pilot**.
@@ -90,9 +95,13 @@ Each feature is designed to live in its own `plugins/yvoke/src/` module (with pu
   1. **Hook Registration Order in `plugins/yvoke/hooks/register.tsx`:** Register `registerPreflight(on)` **before** `registerSetup(on, ...)` and `registerSystemPrompt(on)`, using matcher `{ text: /^/ }` (since `registerSystemPrompt` owns the unmatched `prompt.submit` hook). Because `registerSetup`'s `prompt.submit` hook reads `yvoke.setup` before calling `next(e)` and writes that copy back to lock the session, running `registerPreflight` outermost ensures that any playbook switch is written to `yvoke.setup` before `registerSetup` reads and locks it and before `registerSystemPrompt` loads instructions.
   2. **Catalogue Metadata in `plugins/yvoke/src/setup.ts`:** Extend `PlaybookEntry` and `toCatalogue` in `plugins/yvoke/src/setup.ts` (and `plugins/yvoke/types/index.d.ts`) to retain `title` (defaulting to `name`) and `description` (defaulting to `''`) from `list_playbooks` so `preflight.ts` can include candidate playbook descriptions in the classifier prompt.
 
-### 3.3 Area-Scoped Collection Search (`yvoke-web`)
+### 3.3 Area-Scoped Collection Search (`plugins/yvoke/src/policy.ts` & `yvoke-web`)
 
-- When a playbook belongs to an area, `yvoke-web`'s knowledge-base search tools (`search_corpus`, `list_documents`, etc.) restrict retrieval to that area's collections in both web chat and MCP calls, while playbooks without an area remain unscoped.
+This is both a plugin and a server task. An MCP call carries no session context, and `yvoke-web`'s `search_corpus` takes a required `collection` argument that the model chooses (`src/main/java/de/palsoftware/yvoke/mcp/tools/SearchCorpusTool.java` in `yvoke-web`), so the server alone cannot know a session's area.
+
+- **Plugin (`plugins/yvoke/src/policy.ts`):** The `tool.call` gate adds the session's area (from the locked setup) to each call of a Yvoke knowledge-base tool that reads collections, by passing changed arguments on with `next({ ...e, area })`, the same way [§4.1](#41-domain-restricted-web-access-websearch--webfetch) rewrites `WebSearch`'s `allowed_domains`. Ship it after the server side below. Add the rule to [`tool-policy.md`](.lintel/specs/tool-policy.md) when it is built.
+- **Server (`yvoke-web`):** The knowledge-base tools that read collections (`search_corpus`, `list_documents`, etc.) take an optional `area` argument and restrict retrieval to that area's collections. Without it they stay unscoped, as today. Web chat does its scoping in-process and doesn't need the argument.
+- **Why not a header:** `.mcp.json` headers are fixed per install, so they can't follow each session's area.
 
 ---
 
@@ -120,14 +129,19 @@ Each feature is designed to live in its own `plugins/yvoke/src/` module (with pu
     2. Reading or writing files outside a scratch folder.
     3. Spawning child processes via `child_process`.
     4. Making network requests (`fetch`, `net`).
-  - **Pass/Fail Gate:** If any of the four escape vectors succeeds on any supported platform where the sandbox reports active, `execute_code` is dropped from v1.
+  - The same spike also answers three questions about what `execute_code` costs:
+    - **Node on every machine:** `node -e` needs Node installed on each consultant's machine, and the native Claude Code install neither needs nor ships it. Check what the `Bash` call does when `node` is missing. Without `node`, `execute_code` is refused and runs nothing (check 4 below).
+    - **Permission prompts:** Check whether a plugin-originated `Bash` call through `$.tool.call` asks the user for permission each time. If it does, find out whether it can be pre-allowed for that one command without also allowing the model's own `Bash`.
+    - **Sandbox state:** The mod API (checked in Claude Code 2.1.309's declarations, `plugins/yvoke/.claude-plugin/types/claude-code/index.d.ts`) has no way to read whether Claude Code's sandbox is on, so check 2 below has nothing to call. The spike must find a way.
+  - **Pass/Fail Gate:** If any of the four escape vectors succeeds on any supported platform where the sandbox reports active, or the spike finds no way to read the sandbox state, `execute_code` is dropped from v1.
 - **Implementation (If Spike Passes):**
   - Register `execute_code` once per process when `/yvoke` activates or restores a Yvoke session (`JavaScript` code up to 10,000 characters, 1 s default and 2 s maximum timeout, 32,000-character output cap).
   - Preserve `codeExecution?: boolean` on `PlaybookEntry` in `plugins/yvoke/src/setup.ts`.
   - On every `execute_code` invocation, check in order and refuse (running nothing) when:
     1. `yvokeSession` is not `true`;
-    2. Claude Code's sandbox is off or unsupported (such as on native Windows); or
-    3. the active playbook sets `codeExecution: false` or explicitly declares a `tools` list that omits `execute_code` / compute tools.
+    2. Claude Code's sandbox is off or unsupported (such as on native Windows), read the way the spike found;
+    3. the active playbook sets `codeExecution: false` or explicitly declares a `tools` list that omits `execute_code` / compute tools; or
+    4. `node` is not installed.
   - In `plugins/yvoke/src/policy.ts`, permit `e.tool === 'Bash'` **only** when `next.origin?.plugin === 'yvoke'`; all model-originated `Bash` calls remain denied.
 
 ---
@@ -172,6 +186,8 @@ Each feature is designed to live in its own `plugins/yvoke/src/` module (with pu
   2. Identifying callers via `e.agentId` on `tool.call` / `turn.complete` (unset on the lead/main loop) and `e.parentAgentId` on `agent.spawn`.
   3. Holding back unsubmitted lead text on `AssistantMessage` so only the final answer submitted via `submit_answer` is displayed.
   4. Whether the reviewer subagent can be spawned and awaited inside the lead's `submit_answer` `tool.call` hook within the 10-second hook budget, or whether review execution must run on `turn.complete` followed by `$.prompt.submit`.
+  5. Whether `prompt.compose` runs for the requests of agents registered with `$.agent.register`. Their `prompt` is "the agent's system prompt, whole: it replaces the session's" (`AgentSpec` in `plugins/yvoke/.claude-plugin/types/claude-code/index.d.ts`). If the compose hook in `plugins/yvoke/src/system-prompt.ts` still runs for them, it adds the lead's instructions, or the refusal section, to every specialist. The spike decides whether that hook must skip agents.
+  6. Whether `$.ui.ask` shows the question dialog when a specialist subagent calls the server's `ask_clarifying_question`, which the tool gate catches (D-27, [`tool-policy.md`](.lintel/specs/tool-policy.md)).
 
 ### 6.2 Live Profile Catalogue & Setup (`list_profiles`, `get_profile`)
 
@@ -206,7 +222,7 @@ Each feature is designed to live in its own `plugins/yvoke/src/` module (with pu
 - **Specialist Spawn Budget (`agent.spawn`):**
   - Count specialist spawns per question in `agent.spawn` and deny spawns beyond the profile's `maxSpecialistCalls` (excluding the reviewer agent).
 - **Specialist Clarifying Questions:**
-  - Ensure any clarifying question asked by a specialist is surfaced to the user rather than leaving the composer locked.
+  - The tool gate already asks the user for every caller of `ask_clarifying_question` (D-27); spike item 6 ([§6.1](#61-pre-implementation-subagent-spike)) confirms it works from a specialist. Only if it doesn't does Milestone 4 need another way to surface the question.
 - **Enforced Review Rounds:**
   - Every lead answer on a turn that consulted at least one specialist is reviewed by the reviewer agent:
     - **Approved:** Deliver the submitted answer.
@@ -236,6 +252,11 @@ Each feature is designed to live in its own `plugins/yvoke/src/` module (with pu
     5. Whether normal Claude subscription billing applies or `ANTHROPIC_API_KEY` is set in the environment (warn if an API key is overriding subscription billing, without ever printing any key, token, or secret).
 - **Versioning, Release Automation & Managed Deployment:**
   - Maintain `version` solely in `plugins/yvoke/.claude-plugin/plugin.json` (not duplicated in `.claude-plugin/marketplace.json`), add `CHANGELOG.md` and `docs/releasing.md`, and gate release tagging on CI passing on `main`.
+  - **License:** The plugin-directory section of `claude plugin validate --strict plugins/yvoke` reports `LICENSE_MISSING`, a problem the directory refuses a submission for. Add a `LICENSE` file (one at the repository root also counts) or set `license` (an SPDX id) in `plugin.json`. Which license is the owner's call.
+  - **Other directory listing items:** The same section reports two warnings, listed apart from the problems the directory refuses a submission for:
+    - `ICON_MISSING`: add a square PNG at `.claude-plugin/icon.png`, or set `icon` in `plugin.json` to a square PNG or JPEG (512 to 2048 px on each side, under 2 MB). It can become the listing icon only once: the first time the plugin is saved or submitted in the developer portal.
+    - `PRIVACY_URL_MISSING`: the plugin connects to a remote MCP server, so set `privacyPolicyUrl` in `plugin.json` (or add a *Privacy* link to the README).
+    - Passing these checks doesn't mean the directory accepts the plugin: it applies its own rules to hooks modules, and runs a safety scan and a policy review the validator doesn't.
   - Provide `deploy/managed-settings.json` template (`extraKnownMarketplaces` with `autoUpdate: true`, `enabledPlugins`, and deployment `pluginConfigs` for `serverUrl`, web domains, role models, and turn limits).
   - Verify enterprise distribution routes end to end, especially managed settings (Route B) and MDM-copied directory marketplaces (Route D) for organizations where managed settings would otherwise skip `prompt.compose` and `classic.SessionStart` on user-installed local clones.
   - Add per-user rate limiting on `yvoke-web`'s `/mcp` endpoint.
@@ -243,6 +264,7 @@ Each feature is designed to live in its own `plugins/yvoke/src/` module (with pu
   - Complete second-developer clean-machine verification of `docs/contributing.md` in both terminal and Desktop Code tab.
   - Author `docs/user-guide.md` (installation, Entra sign-in, folder trust onboarding, `/yvoke`, playbooks/profiles, citations, `/yvoke-doctor`, differences from Yvoke Desktop) and `docs/security.md` (`claude plugin validate` `hooks:` and `calls:` output, data flow, `$.store` footprint, managed settings guidance).
   - Run a two-week pilot with 3–5 consultants on macOS and Windows, measuring time from install to first cited answer.
+    - The plugin sends no telemetry, so measure it from `yvoke-web`'s `/mcp` logs per signed-in user, with the consultants' own notes as a check.
 
 ---
 
@@ -266,8 +288,8 @@ Each feature is designed to live in its own `plugins/yvoke/src/` module (with pu
 
 | Item | Owner | Milestone | Description |
 | --- | --- | --- | --- |
-| Entra client *Yvoke for Claude* | `server` / `IT` | Milestone 1 | Public client registration with `http://localhost:<port>/callback`, consented for `APP_SECURITY_MCP_SCOPE` + `offline_access` |
-| Area-scoped collection search | `server` | Milestone 1 | Restrict search tools to the active playbook area's collections |
+| Entra client *Yvoke for Claude* | `server` / `IT` | Now (needed by Milestone 1) | Public client registration with `http://localhost:<port>/callback`, consented for `APP_SECURITY_MCP_SCOPE` + `offline_access` |
+| Area-scoped collection search | `server` | Milestone 1 | Optional `area` argument on the collection-reading MCP tools (`search_corpus`, `list_documents`, etc.), restricting retrieval to that area's collections; without it they stay unscoped. The plugin's gate passes each session's area ([§3.3](#33-area-scoped-collection-search-pluginsyvokesrcpolicyts--yvoke-web)) |
 | Passage deep link route | `server` | Milestone 3 | Browser route to open a cited passage by ID (*Open in Yvoke*) |
 | `list_profiles(area?)` & `get_profile(name)` | `server` | Milestone 4 | MCP tools exposing multi-agent profiles (excluded from `yvoke-web`'s own web assistant) |
 | `/mcp` per-user rate limit | `server` | Milestone 5 | Rate-limit knowledge-base searches arriving from AI clients on `/mcp` |
@@ -280,5 +302,5 @@ Each feature is designed to live in its own `plugins/yvoke/src/` module (with pu
 | Mod API changes between Claude Code releases | Mod fails to load or misbehaves after an update | CI runs against both pinned minimum (`2.1.287`) and `latest`; runtime minimum version check in Milestone 5 |
 | Organization managed settings skip `prompt.compose` / `classic.SessionStart` on user-installed local clones | System prompt instructions or `/resume` restoration skipped in managed orgs | Deploy via organization managed settings or MDM directory marketplace (`deploy/managed-settings.json`, Milestone 5) |
 | Enforcing hook throws or exceeds 10-second budget | Engine skips a throwing/timed-out hook | Every enforcing hook attaches `.catch` returning a fail-closed refusal (`{ deny }`, `{ drop }`, or refusal section); server calls time out at 8 s |
-| `Bash` sandbox allows an escape vector during `execute_code` spike | Arbitrary code execution risk | Strict pass/fail spike in Milestone 2 across macOS/Windows; any escape drops `execute_code` from v1 |
+| `Bash` sandbox allows an escape vector during `execute_code` spike, or the mod cannot read whether it is on | Arbitrary code execution risk | Strict pass/fail spike in Milestone 2 across macOS/Windows; any escape, or no way to read the sandbox state, drops `execute_code` from v1; refused when `node` is missing |
 | Desktop surface link click handling differs from terminal | Citation interaction differs across surfaces | Desktop surface spike in Milestone 3; source button row fallback works identically on both surfaces |
